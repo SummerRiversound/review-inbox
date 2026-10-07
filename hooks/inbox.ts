@@ -1,4 +1,6 @@
 import type { Impact, InboxFile, InboxItem } from '../types'
+import { MESSAGES } from './i18n'
+import type { Language, Messages } from './i18n'
 
 export type SearchHit = {
   repository: { nameWithOwner: string }
@@ -61,9 +63,9 @@ export function searchQuery(scope: string): string {
 }
 
 // A short, filename-safe digest (FNV-1a) of what decides the inbox's contents.
-export function cacheKey(githubUser: string, scope: string): string {
+export function cacheKey(...parts: string[]): string {
   let hash = 0x811c9dc5
-  for (const ch of `${githubUser}\n${scope}`) {
+  for (const ch of parts.join('\n')) {
     hash ^= ch.codePointAt(0)!
     hash = Math.imul(hash, 0x01000193)
   }
@@ -109,15 +111,15 @@ export function ageColor(days: number): 'error' | 'warning' | 'subtle' {
   return days >= 14 ? 'error' : days >= 3 ? 'warning' : 'subtle'
 }
 
-// A PR can be requested from me directly and from my team at once; direct wins.
-export function requestedVia(requests: PrDetail['reviewRequests'], me: string): string {
-  if (requests.some(r => r.login?.toLowerCase() === me.toLowerCase())) return '직접 요청'
+// The team my review was asked of; undefined when it was asked of me directly, which wins when both were.
+export function requestedTeam(requests: PrDetail['reviewRequests'], me: string): string | undefined {
+  if (requests.some(r => r.login?.toLowerCase() === me.toLowerCase())) return undefined
   const team = requests.find(r => r.login === undefined && (r.name || r.slug))
-  return team ? `팀 요청 (${team.name ?? team.slug})` : '직접 요청'
+  return team ? (team.name ?? team.slug) : undefined
 }
 
 export function sortItems(items: InboxItem[]): InboxItem[] {
-  const isDirect = (i: InboxItem) => (i.via === '직접 요청' ? 0 : 1)
+  const isDirect = (i: InboxItem) => (i.team === undefined ? 0 : 1)
   return [...items].sort(
     (a, b) => isDirect(a) - isDirect(b) || Date.parse(a.requestedAt) - Date.parse(b.requestedAt),
   )
@@ -143,25 +145,34 @@ export function reusableSummary(prev: InboxItem | undefined, headSha: string): S
   }
 }
 
-export function failedSummary(title: string, reason: string, prev: InboxItem | undefined, headSha: string): Summary {
+export function failedSummary(
+  title: string,
+  reason: string,
+  prev: InboxItem | undefined,
+  headSha: string,
+  m: Messages,
+): Summary {
   const tries = prev?.headSha === headSha ? (prev.summaryFailed ?? 0) : 0
-  return { summary: title, why: `요약을 만들지 못했습니다 (${reason}).`, impact: [], summaryFailed: tries + 1 }
+  return { summary: title, why: m.summaryFailed(reason), impact: [], summaryFailed: tries + 1 }
 }
 
-export const SUMMARY_RULES = `You summarize a GitHub pull request for a reviewer who has not opened it yet.
-Write in Korean, formal 합니다체, as if explaining to a junior developer.
+export function summaryRules(language: Language): string {
+  const l = MESSAGES[language].model
+  return `You summarize a GitHub pull request for a reviewer who has not opened it yet.
+${l.language}
 
 Return only JSON: {"summary": string, "why": string, "impact": [{"text": string, "warn": boolean}]}
 - summary: one sentence. What changes for users or teammates, not how the code changes.
 - why: one or two sentences. The problem that exists without this PR.
 - impact: one to three items. Which screens, APIs, data or services this touches, and whether existing behaviour stays the same.
   Set warn true only for: hard to roll back (DB schema, data migration), a required deploy or merge order, another service affected, permission or security changes.
-- Each sentence about 40 Korean characters, one idea per sentence.
+- ${l.sentence}
 - No function names, file paths, class names, internal acronyms or issue numbers. Say what a thing does instead.
-- No filler words such as 효과적으로, 전반적으로, 다양한.
+- ${l.filler}
 
-Example of a bad summary: "UserCache 클래스를 리팩터링하여 SessionStore의 조회 경로를 통합했습니다."
-Example of a good summary: "로그인 직후 프로필 사진이 가끔 비어 보이던 문제를 고쳤습니다."`
+Example of a bad summary: "${l.bad}"
+Example of a good summary: "${l.good}"`
+}
 
 export function summaryPrompt(hit: SearchHit, detail: PrDetail): string {
   const files = (detail.files ?? []).slice(0, 80).map(f => f.path).join('\n')
@@ -218,10 +229,12 @@ export function newArrivals(seen: string[] | undefined, items: InboxItem[]): Inb
   return items.filter(i => !i.isDraft && !known.has(itemKey(i)))
 }
 
-export const SINCE_RULES = `You tell a reviewer what changed in a pull request since they last reviewed it.
-Write in Korean, formal 합니다체, one or two short sentences, about 40 Korean characters each.
+export function sinceRules(language: Language): string {
+  return `You tell a reviewer what changed in a pull request since they last reviewed it.
+${MESSAGES[language].model.since}
 Say what changed in behaviour, not which files. No function names, file paths or ticket ids.
 Reply with the sentences only.`
+}
 
 export function sincePrompt(commits: string[], files: string[]): string {
   return [
@@ -230,17 +243,15 @@ export function sincePrompt(commits: string[], files: string[]): string {
   ].join('\n\n')
 }
 
-export function reviewPrompt(draft: string, item: InboxItem): string {
-  const lines = [`${item.url} 리뷰해 줘.`, `요약: ${item.summary}`]
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages): string {
+  const lines = [m.prompt.review(item.url), `${m.prompt.summary}${item.summary}`]
   const warnings = item.impact.filter(i => i.warn).map(i => i.text)
-  if (warnings.length > 0) lines.push(`특히 확인할 점: ${warnings.join(' / ')}`)
-  if (item.sinceLastReview) lines.push(`지난 내 리뷰 이후 바뀐 점: ${item.sinceLastReview}`)
+  if (warnings.length > 0) lines.push(`${m.prompt.check}${warnings.join(' / ')}`)
+  if (item.sinceLastReview) lines.push(`${m.prompt.since}${item.sinceLastReview}`)
   const text = `${lines.join('\n')}\n`
   return draft === '' || draft.endsWith('\n') ? text : `\n${text}`
 }
 
-export function minutesAgo(at: number | undefined, now: number): string | undefined {
-  if (at === undefined) return undefined
-  const minutes = Math.floor((now - at) / 60_000)
-  return minutes < 1 ? '방금 갱신' : `${minutes}분 전 갱신`
+export function minutesSince(at: number | undefined, now: number): number | undefined {
+  return at === undefined ? undefined : Math.floor((now - at) / 60_000)
 }

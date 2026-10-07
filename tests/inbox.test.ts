@@ -1,24 +1,27 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { InboxItem } from '../types'
+import { MESSAGES } from '../hooks/i18n'
 import {
-  REFRESH_MS, RETRY_MS, ageColor, cacheKey, searchQuery, failedSummary, requestedAt, shownReady, isHidden, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedVia, reviewPrompt, sortItems,
+  REFRESH_MS, RETRY_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
+
+const { en, ko } = MESSAGES
 
 const item = (over: Partial<InboxItem>): InboxItem => ({
   repo: 'r', number: 1, title: 't', url: 'u', headSha: 'h1', isRerequest: false, author: 'a', createdAt: '2026-10-01T00:00:00Z', requestedAt: '2026-10-01T00:00:00Z',
-  isDraft: false, via: '직접 요청', files: 1, additions: 1, deletions: 0,
+  isDraft: false, files: 1, additions: 1, deletions: 0,
   summary: 's', why: 'w', impact: [], ...over,
 })
 
 test('a direct request wins over a team request on the same PR', async () => {
-  expect(requestedVia([{ name: 'frontend' }, { login: 'Me' }], 'me')).toBe('직접 요청')
-  expect(requestedVia([{ name: 'frontend', slug: 'frontend' }], 'me')).toBe('팀 요청 (frontend)')
+  expect(requestedTeam([{ name: 'frontend' }, { login: 'Me' }], 'me')).toBeUndefined()
+  expect(requestedTeam([{ name: 'frontend', slug: 'frontend' }], 'me')).toBe('frontend')
 })
 
 test('direct requests come first, then the longest waiting', async () => {
   const sorted = sortItems([
-    item({ number: 1, via: '팀 요청 (x)', requestedAt: '2026-01-01T00:00:00Z' }),
+    item({ number: 1, team: 'x', requestedAt: '2026-01-01T00:00:00Z' }),
     item({ number: 2, requestedAt: '2026-10-05T00:00:00Z' }),
     item({ number: 3, requestedAt: '2026-07-01T00:00:00Z' }),
   ])
@@ -35,14 +38,15 @@ test('a summary is read out of a reply that wraps the JSON in prose', async () =
   expect(parseSummary('no json here')).toBeUndefined()
 })
 
-test('the review prompt carries the summary, the warnings and what changed since my review', async () => {
+test('the review prompt carries the summary, the warnings and what changed since my review, in the chosen language', async () => {
   const full = item({
     url: 'URL', summary: 'S',
     impact: [{ text: 'A', warn: true }, { text: 'B', warn: false }, { text: 'C', warn: true }],
     sinceLastReview: 'D',
   })
-  expect(reviewPrompt('', full)).toBe('URL 리뷰해 줘.\n요약: S\n특히 확인할 점: A / C\n지난 내 리뷰 이후 바뀐 점: D\n')
-  expect(reviewPrompt('먼저', item({ url: 'URL', summary: 'S' }))).toBe('\nURL 리뷰해 줘.\n요약: S\n')
+  expect(reviewPrompt('', full, ko)).toBe('URL 리뷰해 줘.\n요약: S\n특히 확인할 점: A / C\n지난 내 리뷰 이후 바뀐 점: D\n')
+  expect(reviewPrompt('먼저', item({ url: 'URL', summary: 'S' }), ko)).toBe('\nURL 리뷰해 줘.\n요약: S\n')
+  expect(reviewPrompt('', full, en)).toBe('Review URL.\nSummary: S\nCheck in particular: A / C\nChanged since my last review: D\n')
 })
 
 test('my last review is the latest one I left, whoever else reviewed after', async () => {
@@ -90,8 +94,8 @@ test('an unchanged PR keeps its summary; a failed one is retried three times, th
   expect(reusableSummary(undefined, 'h1')).toBeUndefined()
   expect(reusableSummary(item({ summaryFailed: 2 }), 'h1')).toBeUndefined()
   expect(reusableSummary(item({ summaryFailed: 3 }), 'h1')?.summaryFailed).toBe(3)
-  expect(failedSummary('t', 'api-error', item({ summaryFailed: 2 }), 'h1').summaryFailed).toBe(3)
-  expect(failedSummary('t', 'api-error', item({ summaryFailed: 2 }), 'h2').summaryFailed).toBe(1)
+  expect(failedSummary('t', 'api-error', item({ summaryFailed: 2 }), 'h1', en).summaryFailed).toBe(3)
+  expect(failedSummary('t', 'api-error', item({ summaryFailed: 2 }), 'h2', en).summaryFailed).toBe(1)
 })
 
 test('a draft that becomes ready is announced then', async () => {
@@ -132,4 +136,34 @@ test('a fresh file written by an older version of the mod, without the tabs, is 
   const now = 1_000_000_000
   expect(shouldFetch({ items: [], fetchedAt: now - 60_000 }, now, false)).toBe(true)
   expect(shouldFetch({ items: [], fetchedAt: now - 60_000, retryAt: now + RETRY_MS }, now, false)).toBe(false)
+})
+
+test('summaries are cached per language, so a switch never reuses a summary written in the other one', async () => {
+  expect(cacheKey('me', 'org:a', 'en')).not.toBe(cacheKey('me', 'org:a', 'ko'))
+})
+
+test('the model is asked for the chosen language and keeps the same JSON contract', async () => {
+  for (const [rules, other] of [[summaryRules('en'), summaryRules('ko')], [summaryRules('ko'), summaryRules('en')]] as const) {
+    expect(rules).toContain('Return only JSON: {"summary": string, "why": string, "impact": [{"text": string, "warn": boolean}]}')
+    expect(rules).not.toBe(other)
+  }
+  expect(summaryRules('en')).toContain('Write in plain English')
+  expect(summaryRules('en')).not.toContain('합니다체')
+  expect(summaryRules('ko')).toContain('합니다체')
+  expect(sinceRules('en')).toContain('Write in plain English')
+  expect(sinceRules('ko')).toContain('합니다체')
+})
+
+test('a failed summary explains itself in the chosen language', async () => {
+  expect(failedSummary('t', 'api-error', undefined, 'h1', en).why).toBe('Could not write a summary (api-error).')
+  expect(failedSummary('t', 'api-error', undefined, 'h1', ko).why).toBe('요약을 만들지 못했습니다 (api-error).')
+})
+
+test('the status line counts whole minutes since the last fetch', async () => {
+  const now = 1_000_000_000
+  expect(minutesSince(undefined, now)).toBeUndefined()
+  expect(minutesSince(now - 59_000, now)).toBe(0)
+  expect(minutesSince(now - 5 * 60_000, now)).toBe(5)
+  expect([en.status.updated(0), en.status.updated(5)]).toEqual(['Updated just now', 'Updated 5 min ago'])
+  expect([ko.status.updated(0), ko.status.updated(5)]).toEqual(['방금 갱신', '5분 전 갱신'])
 })

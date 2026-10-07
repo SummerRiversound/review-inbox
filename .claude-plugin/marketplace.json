@@ -2,12 +2,16 @@
   "name": "review-inbox",
   "description": "Claude Code mod: your GitHub work in a drawer — PRs waiting for your review, your PRs and your issues",
   "owner": {
-    "name": "SummerRiversound"
+    "name": "SummerRiversound",
+    "url": "https://github.com/SummerRiversound"
   },
   "plugins": [
     {
       "name": "review-inbox",
-      "source": "./"
+      "source": "./",
+      "description": "Your GitHub work in a drawer: PRs waiting for your review, each summarized in plain language, your open PRs with their reviews, and your issues",
+      "category": "productivity",
+      "tags": ["github", "code-review", "pull-request", "mod"]
     }
   ]
 }

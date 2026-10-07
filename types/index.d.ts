@@ -11,7 +11,8 @@ export type InboxItem = {
   // When my review (or my team's) was last asked for: what the waiting days count from.
   requestedAt: string
   isDraft: boolean
-  via: string
+  // The team my review was asked of; absent when it was asked of me directly.
+  team?: string
   files: number
   additions: number
   deletions: number

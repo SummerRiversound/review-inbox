@@ -1,4 +1,5 @@
 import type { IssueItem, MyPr, MyPrState } from '../types'
+import type { Messages } from './i18n'
 
 type Repo = { repository: { nameWithOwner: string } }
 type Item = Repo & { number: number; title: string; url: string }
@@ -161,15 +162,6 @@ export function toIssues(assigned: GqlTouched[], mentioned: GqlTouched[], refere
   return [...out.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)), ...rest]
 }
 
-export const STATE_LABEL: Record<MyPrState, string> = {
-  changes: '변경 요청',
-  'ci-failing': 'CI 실패',
-  conflict: '충돌',
-  waiting: '리뷰 대기',
-  approved: '승인됨',
-  draft: '초안',
-}
-
 export function stateColor(state: MyPrState): 'error' | 'warning' | 'success' | 'subtle' | 'inactive' {
   return state === 'changes' || state === 'ci-failing'
     ? 'error'
@@ -204,8 +196,8 @@ export function prAlerts(seen: string[] | undefined, prs: MyPr[]): PrAlert[] {
   })
 }
 
-export function prAlertText({ pr, turned, by }: PrAlert): string {
-  return [turned ? `내 PR ${STATE_LABEL[pr.state]}` : '내 PR 새 리뷰', turned && by ? `새 리뷰 ${by}` : by, `${pr.repo} #${pr.number}`]
+export function prAlertText({ pr, turned, by }: PrAlert, m: Messages): string {
+  return [turned ? m.alert.turned(m.state[pr.state]) : m.alert.reviewed, turned && by ? m.alert.by(by) : by, `${pr.repo} #${pr.number}`]
     .filter(Boolean)
     .join(' · ')
 }
@@ -220,13 +212,18 @@ export function issueAlerts(seen: string[] | undefined, issues: IssueItem[]): Is
   return issues.filter(i => !known.has(issueKey(i)))
 }
 
-// The band: only what needs action, zeros left out.
-export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): string[] {
-  const todo = prs.filter(needsMe).length
-  const mine = issues.filter(i => i.kind !== 'reference').length
-  return [
-    reviews > 0 ? `리뷰 ${reviews}` : '',
-    todo > 0 ? `내 PR 할 일 ${todo}` : '',
-    mine > 0 ? `내 이슈 ${mine}` : '',
-  ].filter(Boolean)
+// The band counts only what needs action.
+export type BandCounts = { reviews: number; prTodo: number; issues: number }
+
+export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): BandCounts {
+  return {
+    reviews,
+    prTodo: prs.filter(needsMe).length,
+    issues: issues.filter(i => i.kind !== 'reference').length,
+  }
+}
+
+// Zeros are left out.
+export function bandLabels(counts: BandCounts, m: Messages): string[] {
+  return (['reviews', 'prTodo', 'issues'] as const).filter(k => counts[k] > 0).map(k => m.band[k](counts[k]))
 }

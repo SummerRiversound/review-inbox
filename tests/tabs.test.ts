@@ -2,8 +2,9 @@ import { expect, test } from 'claude-code/testing'
 
 import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
+import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, issueAlerts, issueKey, prAlertText, prAlerts, prSeenKeys, referencesQuery, tabQueries, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, issueAlerts, issueKey, prAlertText, prAlerts, prSeenKeys, referencesQuery, tabQueries, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -93,8 +94,13 @@ test('the scope narrows every search, newest activity first, and references look
 
 test('the band counts only what needs me and leaves out zeros', async () => {
   const ref: IssueItem = { kind: 'reference', repo: 'o/r', number: 1, title: 't', url: 'r', at: '2026-10-01T00:00:00Z' }
-  expect(bandCounts(0, [myPr('waiting'), myPr('approved')], [ref])).toEqual([])
-  expect(bandCounts(2, [myPr('changes'), myPr('waiting')], [{ ...ref, kind: 'mention' }, ref])).toEqual(['리뷰 2', '내 PR 할 일 1', '내 이슈 1'])
+  const quiet = bandCounts(0, [myPr('waiting'), myPr('approved')], [ref])
+  expect(quiet).toEqual({ reviews: 0, prTodo: 0, issues: 0 })
+  expect(bandLabels(quiet, MESSAGES.en)).toEqual([])
+  const busy = bandCounts(2, [myPr('changes'), myPr('waiting')], [{ ...ref, kind: 'mention' }, ref])
+  expect(bandLabels(busy, MESSAGES.ko)).toEqual(['리뷰 2', '내 PR 할 일 1', '내 이슈 1'])
+  expect(bandLabels(busy, MESSAGES.en)).toEqual(['To review 2', 'My PRs to act on 1', 'My issues 1'])
+  expect(bandLabels({ reviews: 0, prTodo: 3, issues: 0 }, MESSAGES.en)).toEqual(['My PRs to act on 3'])
 })
 
 test('a PR turning to needs-me is announced once, never on the first look', async () => {
@@ -140,7 +146,7 @@ test('a waiting PR with a new review counts as something to do and comes before 
     gqlPr({ number: 2, createdAt: '2026-10-05T00:00:00Z', reviews: { nodes: [review('kim')] } }),
   ], 'me')
   expect(prs.map(p => p.number)).toEqual([2, 1])
-  expect(bandCounts(0, prs, [])).toEqual(['내 PR 할 일 1'])
+  expect(bandCounts(0, prs, []).prTodo).toBe(1)
 })
 
 test('new reviewers are announced once per review, never on the first look', async () => {
@@ -155,7 +161,10 @@ test('a review that also turns my PR to changes requested is one toast, not two'
   const before = [myPr('waiting', 'a')]
   const after = [{ ...myPr('changes', 'a', [{ by: 'kim', at: '1' }]), repo: 'o/r', number: 5 }]
   const alerts = prAlerts(prSeenKeys(before), after)
-  expect(alerts.map(prAlertText)).toEqual(['내 PR 변경 요청 · 새 리뷰 kim · o/r #5'])
-  expect(prAlertText({ pr: after[0]!, turned: false, by: 'review-bot' })).toBe('내 PR 새 리뷰 · review-bot · o/r #5')
-  expect(prAlertText({ pr: after[0]!, turned: true })).toBe('내 PR 변경 요청 · o/r #5')
+  const { en, ko } = MESSAGES
+  expect(alerts.map(a => prAlertText(a, ko))).toEqual(['내 PR 변경 요청 · 새 리뷰 kim · o/r #5'])
+  expect(prAlertText({ pr: after[0]!, turned: false, by: 'review-bot' }, ko)).toBe('내 PR 새 리뷰 · review-bot · o/r #5')
+  expect(prAlertText({ pr: after[0]!, turned: true }, ko)).toBe('내 PR 변경 요청 · o/r #5')
+  expect(alerts.map(a => prAlertText(a, en))).toEqual(['My PR: Changes requested · new review kim · o/r #5'])
+  expect(prAlertText({ pr: after[0]!, turned: false, by: 'review-bot' }, en)).toBe('New review on my PR · review-bot · o/r #5')
 })

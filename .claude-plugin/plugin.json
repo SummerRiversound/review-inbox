@@ -1,12 +1,16 @@
 {
   "name": "review-inbox",
-  "version": "0.1.0",
-  "description": "Your GitHub work in a drawer: PRs waiting for your review (summarized in plain Korean), your open PRs with their reviews, and your issues",
+  "displayName": "Review Inbox",
+  "version": "0.2.0",
+  "description": "Your GitHub work in a drawer: PRs waiting for your review, each summarized in plain language, your open PRs with their reviews, and your issues",
   "author": {
-    "name": "SummerRiversound"
+    "name": "SummerRiversound",
+    "url": "https://github.com/SummerRiversound"
   },
-  "license": "MIT",
+  "homepage": "https://github.com/SummerRiversound/review-inbox#readme",
   "repository": "https://github.com/SummerRiversound/review-inbox",
+  "license": "MIT",
+  "keywords": ["github", "pull-request", "code-review", "review-requests", "issues", "inbox", "mod"],
   "types": "./types/index.d.ts",
   "userConfig": {
     "scope": {
@@ -20,6 +24,13 @@
       "title": "GitHub account",
       "description": "gh account to use when several are logged in; empty uses the active one",
       "default": ""
+    },
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the band, drawer, toasts and summaries; auto follows Claude Code's language setting, then the system locale, then English",
+      "options": ["auto", "en", "ko"],
+      "default": "auto"
     }
   }
 }

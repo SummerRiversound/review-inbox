@@ -7,37 +7,39 @@ import {
   cacheKey,
   INBOX_QUERY,
   RETRY_MS,
-  SINCE_RULES,
-  SUMMARY_RULES,
   ageColor,
   failedSummary,
   isHidden,
   itemKey,
   lastReviewedSha,
-  minutesAgo,
+  minutesSince,
   newArrivals,
   parseSummary,
   requestedAt,
-  requestedVia,
+  requestedTeam,
   reusableSummary,
   reviewPrompt,
   searchQuery,
   shouldFetch,
   shownReady,
   sincePrompt,
+  sinceRules,
   sortItems,
   summaryPrompt,
+  summaryRules,
   toDetail,
   waitingDays,
 } from './inbox'
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
+import { MESSAGES, pickLanguage } from './i18n'
+import type { Language, Messages } from './i18n'
 import {
   REFERENCES_QUERY,
   AUTHORED_DAYS,
   REFERENCE_DAYS,
-  STATE_LABEL,
   TABS_QUERY,
   bandCounts,
+  bandLabels,
   issueAlerts,
   issueKey,
   prAlertText,
@@ -54,7 +56,6 @@ import {
 import type { GqlMyPr, GqlReferenced, GqlTouched } from './tabs'
 
 const PANE = 'review-inbox'
-const TITLE = '리뷰 인박스'
 // Reading the shared file is a local disk read, so every session can afford it often.
 const SYNC_MS = 30_000
 const SUMMARY_MODEL = 'sonnet'
@@ -69,9 +70,11 @@ const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[]
 const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
 
-type Options = { scope?: string; githubUser?: string }
+type Options = { scope?: string; githubUser?: string; language?: string }
 
-let config = { scope: '', githubUser: '' }
+let config = { scope: '', githubUser: '', language: 'en' as Language }
+let languageOption: string | undefined
+let m: Messages = MESSAGES.en
 let isFetching = false
 let terminalColumns = 160
 // What this session has already shown; undefined until its first look, so a new session stays quiet.
@@ -84,8 +87,6 @@ const sessionToken = Math.random().toString(36).slice(2)
 
 // Claude Code's per-plugin data folder; a mod is not told its id, so it falls back to a fixed name there.
 async function cacheDir($: EngineInterface) {
-  const pluginData = await $.env.get('CLAUDE_PLUGIN_DATA')
-  if (pluginData) return pluginData
   const home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE'))
   const configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
   // Without it a relative path would land inside whatever repo the session is in.
@@ -108,9 +109,29 @@ async function writeJson($: EngineInterface, name: string, value: unknown) {
   await $.fs.write(`${await cacheDir($)}/${name}`, JSON.stringify(value))
 }
 
-// One shared file per account and scope, so sessions configured differently never overwrite each other.
-const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope)}.json`
-const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope)}.json`
+// One shared file per account, scope and language, so sessions configured differently never overwrite each other
+// and a summary is never shown in another language than the cards around it.
+const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+// Keyed like the inbox: a hide prunes the entries its own list no longer has, so it must not share a file with another list.
+const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+
+async function resolveLanguage($: EngineInterface): Promise<Language> {
+  const read = async <T,>(get: () => Promise<T>) => {
+    try {
+      return await get()
+    } catch {
+      // A policy can refuse any call; the language then falls through to the next source.
+      return undefined
+    }
+  }
+  if (languageOption === 'en' || languageOption === 'ko') return languageOption
+  // Only the one key: the settings also hold env values and credentials helpers.
+  const claudeLanguage = await read(async () => (await $.settings.read()).language)
+  const locale = await read(
+    async () => (await $.env.get('LC_ALL')) || (await $.env.get('LC_MESSAGES')) || (await $.env.get('LANG')),
+  )
+  return pickLanguage(languageOption, claudeLanguage, locale)
+}
 
 async function gh($: EngineInterface, args: string[], env: Record<string, string>) {
   const run = await $.process.run(['gh', ...args], { env, timeoutMs: 120_000 })
@@ -141,9 +162,9 @@ async function summarize(
   detail: PrDetail,
   prev: InboxItem | undefined,
 ): Promise<Summary> {
-  const reply = await ask($, SUMMARY_RULES, summaryPrompt(hit, detail), 800)
+  const reply = await ask($, summaryRules(config.language), summaryPrompt(hit, detail), 800)
   const parsed = reply.text !== undefined ? parseSummary(reply.text) : undefined
-  return parsed ?? failedSummary(hit.title, reply.reason ?? 'unreadable reply', prev, detail.headRefOid)
+  return parsed ?? failedSummary(hit.title, reply.reason ?? 'unreadable reply', prev, detail.headRefOid, m)
 }
 
 // A failed comparison (a force-push rewrote the reviewed commit) just leaves the line out.
@@ -163,7 +184,7 @@ async function summarizeSince(
         env,
       ),
     ) as { commits: string[]; files: string[] }
-    const reply = await ask($, SINCE_RULES, sincePrompt(diff.commits, diff.files), 300)
+    const reply = await ask($, sinceRules(config.language), sincePrompt(diff.commits, diff.files), 300)
     return reply.text?.trim() || undefined
   } catch {
     return undefined
@@ -259,6 +280,7 @@ async function fetchInbox(
         const head = pr.headRefOid
         const summary = reusableSummary(prev, head) ?? (await summarize($, pr, detail, prev))
         const reviewedSha = lastReviewedSha(detail.reviews, me)
+        const team = requestedTeam(detail.reviewRequests, me)
         const sinceLastReview =
           !reviewedSha || reviewedSha === head
             ? undefined
@@ -278,7 +300,7 @@ async function fetchInbox(
           createdAt: pr.createdAt,
           requestedAt: requestedAt(pr, me),
           isDraft: pr.isDraft,
-          via: requestedVia(detail.reviewRequests, me),
+          ...(team ? { team } : {}),
           files: pr.changedFiles,
           additions: pr.additions,
           deletions: pr.deletions,
@@ -351,37 +373,31 @@ async function show($: EngineInterface, file: InboxFile) {
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
   const fresh = newArrivals(shownKeys, file.items)
   for (const item of fresh.slice(0, 3)) {
-    $.ui.toast(`새 리뷰 요청 · ${item.repo} #${item.number} · ${item.summary}`)
+    $.ui.toast(`${m.toast.newRequest} · ${item.repo} #${item.number} · ${item.summary}`)
   }
-  if (fresh.length > 3) $.ui.toast(`새 리뷰 요청이 ${fresh.length - 3}건 더 있습니다`)
+  if (fresh.length > 3) $.ui.toast(m.toast.moreRequests(fresh.length - 3))
   shownKeys = shownReady(file.items)
 
   if (prs) {
     const prNews = prAlerts(shownPrKeys, prs)
-    for (const alert of prNews.slice(0, 3)) $.ui.toast(prAlertText(alert))
-    if (prNews.length > 3) $.ui.toast(`내 PR 알림이 ${prNews.length - 3}건 더 있습니다`)
+    for (const alert of prNews.slice(0, 3)) $.ui.toast(prAlertText(alert, m))
+    if (prNews.length > 3) $.ui.toast(m.toast.morePrAlerts(prNews.length - 3))
     shownPrKeys = prSeenKeys(prs)
   }
   if (issueList) {
     const newIssues = issueAlerts(shownIssueKeys, issueList)
     for (const issue of newIssues.slice(0, 3)) {
-      $.ui.toast(`${ISSUE_LABEL[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
+      $.ui.toast(`${m.issueKind[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
     }
-    if (newIssues.length > 3) $.ui.toast(`내 이슈 알림이 ${newIssues.length - 3}건 더 있습니다`)
+    if (newIssues.length > 3) $.ui.toast(m.toast.moreIssueAlerts(newIssues.length - 3))
     shownIssueKeys = issueList.map(issueKey)
   }
-}
-
-const ISSUE_LABEL: Record<IssueItem['kind'], string> = {
-  assigned: '나에게 할당',
-  mention: '나를 언급',
-  reference: '내 작업을 언급',
 }
 
 async function openDrawer($: EngineInterface) {
   await $.ui.open({
     id: PANE,
-    title: TITLE,
+    title: m.title,
     focus: true,
     closeOnEscape: true,
     columns: Math.max(60, Math.floor(terminalColumns / 2)),
@@ -392,9 +408,9 @@ async function openDrawer($: EngineInterface) {
 
 async function startReview($: EngineInterface, item: InboxItem) {
   const { text } = await $.prompt.read()
-  const filled = await $.prompt.fill({ text: reviewPrompt(text, item), mode: 'append' })
+  const filled = await $.prompt.fill({ text: reviewPrompt(text, item, m), mode: 'append' })
   if (!filled.isFilled) {
-    $.ui.toast('입력창을 지금 쓸 수 없습니다. 열린 창을 닫고 다시 눌러 주세요.')
+    $.ui.toast(m.toast.promptBusy)
     return
   }
   await $.ui.close({ id: PANE })
@@ -404,7 +420,7 @@ async function startReview($: EngineInterface, item: InboxItem) {
 async function setHidden($: EngineInterface, change: (h: Record<string, string>) => Record<string, string>) {
   const current = await readJson<Record<string, string>>($, hiddenFile(), {})
   if (current === undefined) {
-    $.ui.toast('잠시 후 다시 눌러 주세요.')
+    $.ui.toast(m.toast.retry)
     return
   }
   const live = new Set((await read($, items)).map(itemKey))
@@ -415,10 +431,19 @@ async function setHidden($: EngineInterface, change: (h: Record<string, string>)
 
 export const register: Register = (on, options) => {
   const opts = options as Options
-  config = { scope: (opts.scope ?? '').trim(), githubUser: (opts.githubUser ?? '').trim() }
+  languageOption = opts.language
+  config = { scope: (opts.scope ?? '').trim(), githubUser: (opts.githubUser ?? '').trim(), language: 'en' }
+  m = MESSAGES.en
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'review-inbox', description: 'Open the review inbox: PRs awaiting my review, my PRs and my issues' })
+    // Before anything is drawn or fetched: the language decides the strings and which shared file is read.
+    config.language = await resolveLanguage($)
+    m = MESSAGES[config.language]
+    // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
+    const pane = (await $.ui.panes()).find(p => p.id === PANE)
+    if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
+    $.ui.invalidate('ui.render')
+    await $.command.register({ name: 'review-inbox', description: m.command.description })
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -435,7 +460,7 @@ export const register: Register = (on, options) => {
     terminalColumns = e.presentation.columns
     await openDrawer($)
     wanted ??= 'sync'
-    return { text: `${TITLE} 목록을 열었습니다.` }
+    return { text: m.command.opened }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -443,7 +468,7 @@ export const register: Register = (on, options) => {
     if (e.props.hasSurvey) return next(e)
     const hiddenMap = await read($, hidden)
     const reviews = (await read($, items)).filter(i => !i.isDraft && !isHidden(hiddenMap, i))
-    const counts = bandCounts(reviews.length, await read($, mine), await read($, issues))
+    const counts = bandLabels(bandCounts(reviews.length, await read($, mine), await read($, issues)), m)
     if (counts.length === 0) return next(e)
 
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -455,9 +480,9 @@ export const register: Register = (on, options) => {
         <Box flexDirection="row">
           <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
           <Text bold>{counts.join(' · ')}</Text>
-          {oldest !== undefined && <Text dimColor> · 가장 오래된 리뷰 {oldest}일째</Text>}
+          {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
         </Box>
-        <Button key="open" label="열기" variant="primary" onPress={() => void openDrawer($)} />
+        <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
       </Box>
     )
   })
@@ -485,14 +510,14 @@ export const register: Register = (on, options) => {
             <Box flexDirection="row" justifyContent="space-between">
               <Text bold>
                 {item.repo} #{item.number}
-                {item.isRerequest && <Text color="suggestion"> 재요청</Text>}
+                {item.isRerequest && <Text color="suggestion"> {m.card.rerequest}</Text>}
               </Text>
               <Text dimColor>
                 <Text color={item.isDraft ? 'inactive' : days >= 3 ? ageColor(days) : undefined}>
-                  {days}일째
+                  {m.card.waiting(days)}
                 </Text>
                 {' · '}
-                {item.via}
+                {item.team === undefined ? m.card.direct : m.card.team(item.team)}
               </Text>
             </Box>
             <Text dimColor wrap="truncate-end">
@@ -501,23 +526,23 @@ export const register: Register = (on, options) => {
 
             {item.sinceLastReview && (
               <Box flexDirection="column" marginTop={1}>
-                <Text color="suggestion">지난 내 리뷰 이후</Text>
+                <Text color="suggestion">{m.card.sinceMyReview}</Text>
                 <Text>{item.sinceLastReview}</Text>
               </Box>
             )}
             <Box flexDirection="column" marginTop={1}>
-              <Text dimColor>요약</Text>
+              <Text dimColor>{m.card.summary}</Text>
               <Text bold>{item.summary}</Text>
             </Box>
             {item.why && (
               <Box flexDirection="column" marginTop={1}>
-                <Text dimColor>PR 이유</Text>
+                <Text dimColor>{m.card.why}</Text>
                 <Text>{item.why}</Text>
               </Box>
             )}
             {item.impact.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
-                <Text dimColor>영향 범위</Text>
+                <Text dimColor>{m.card.impact}</Text>
                 {item.impact.map(i =>
                   i.warn ? (
                     <Text color="warning">⚠️ {i.text}</Text>
@@ -530,19 +555,18 @@ export const register: Register = (on, options) => {
 
             <Box flexDirection="row" justifyContent="space-between" marginTop={1}>
               <Text dimColor>
-                {item.author} · 파일 {item.files}개 (+{item.additions.toLocaleString()} −
-                {item.deletions.toLocaleString()})
+                {item.author} · {m.card.size(item.files, item.additions.toLocaleString(), item.deletions.toLocaleString())}
               </Text>
               <Box flexDirection="row" gap={1}>
                 <Button
                   key={`hide-${item.repo}-${item.number}`}
-                  label="숨기기"
+                  label={m.card.hide}
                   dimColor
                   onPress={() => void setHidden($, h => ({ ...h, [itemKey(item)]: item.headSha }))}
                 />
                 <Button
                   key={`review-${item.repo}-${item.number}`}
-                  label="리뷰하기"
+                  label={m.card.review}
                   variant="primary"
                   onPress={() => void startReview($, item)}
                 />
@@ -563,10 +587,10 @@ export const register: Register = (on, options) => {
             </Text>
             <Text>
               <Text color={stateColor(pr.state)} bold={pr.state !== 'waiting'}>
-                {STATE_LABEL[pr.state]}
+                {m.state[pr.state]}
               </Text>
               <Text dimColor>
-                {pr.ciPending ? ' · CI 진행 중' : ''} · {waitingDays(pr.createdAt, now)}일째
+                {pr.ciPending ? m.card.ciRunning : ''} · {m.card.waiting(waitingDays(pr.createdAt, now))}
               </Text>
             </Text>
           </Box>
@@ -575,7 +599,7 @@ export const register: Register = (on, options) => {
           </Text>
           {pr.newReviews.length > 0 && (
             <Text color="suggestion" wrap="truncate-end">
-              새 리뷰 · {reviewers(pr)}
+              {m.card.newReview(reviewers(pr))}
             </Text>
           )}
         </Box>
@@ -591,7 +615,7 @@ export const register: Register = (on, options) => {
               {issue.repo} #{issue.number}
             </Text>
             <Text dimColor>
-              {ISSUE_LABEL[issue.kind]} · {waitingDays(issue.at, now)}일 전
+              {m.issueKind[issue.kind]} · {m.card.ago(waitingDays(issue.at, now))}
             </Text>
           </Box>
           <Text dimColor wrap="truncate-end">
@@ -599,30 +623,33 @@ export const register: Register = (on, options) => {
           </Text>
           {issue.kind === 'reference' && (
             <Text dimColor>
-              {issue.by}님이 내 {issue.target}을(를) 언급
+              {m.card.referenced(issue.by ?? '', issue.target ?? '')}
             </Text>
           )}
         </Box>
       </Box>
     )
 
+    const minutes = minutesSince(state.updatedAt, now)
     const statusLine =
       state.kind === 'loading'
-        ? '불러오는 중…'
+        ? m.status.loading
         : state.kind === 'error'
-          ? `불러오지 못해 1분 뒤 다시 시도합니다 (${state.message ?? ''})`
-          : minutesAgo(state.updatedAt, now) ?? ''
+          ? m.status.error(state.message ?? '')
+          : minutes === undefined
+            ? ''
+            : m.status.updated(minutes)
 
     const references = myIssues.filter(i => i.kind === 'reference')
     const direct = myIssues.filter(i => i.kind !== 'reference')
     const tabs: { id: Tab; label: string }[] = [
-      { id: 'review', label: `리뷰 대기 ${ready.length}` },
-      { id: 'mine', label: `내 PR ${myPrs.length}` },
-      { id: 'issues', label: `내 이슈 ${direct.length}` },
+      { id: 'review', label: m.tabs.review(ready.length) },
+      { id: 'mine', label: m.tabs.mine(myPrs.length) },
+      { id: 'issues', label: m.tabs.issues(direct.length) },
     ]
     const empty = (text: string) =>
       state.kind === 'loading' && everything.length + myPrs.length + myIssues.length === 0 ? (
-        <Text dimColor>GitHub에서 목록을 가져오고 있습니다. 처음에는 1분 정도 걸립니다.</Text>
+        <Text dimColor>{m.status.firstFetch}</Text>
       ) : (
         <Text dimColor>{text}</Text>
       )
@@ -630,7 +657,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column" paddingX={1}>
         <Box flexDirection="row" justifyContent="space-between">
-          <Text bold>{TITLE}</Text>
+          <Text bold>{m.title}</Text>
           <Box flexDirection="row" gap={2}>
             <Text color={state.kind === 'error' ? 'error' : undefined} dimColor={state.kind !== 'error'}>
               {statusLine}
@@ -655,15 +682,15 @@ export const register: Register = (on, options) => {
           <Box flexDirection="column">
             {hiddenCount > 0 && (
               <Box marginBottom={1}>
-                <Button key="unhide" label={`숨김 ${hiddenCount} · 모두 보이기`} dimColor onPress={() => void setHidden($, () => ({}))} />
+                <Button key="unhide" label={m.sections.hidden(hiddenCount)} dimColor onPress={() => void setHidden($, () => ({}))} />
               </Box>
             )}
-            {list.length === 0 && empty('지금 리뷰를 기다리는 PR이 없습니다.')}
+            {list.length === 0 && empty(m.empty.review)}
             {ready.map(card)}
             {drafts.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
                 <Box marginBottom={1}>
-                  <Text dimColor>초안 · 아직 리뷰 준비 전 {drafts.length}</Text>
+                  <Text dimColor>{m.sections.drafts(drafts.length)}</Text>
                 </Box>
                 {drafts.map(card)}
               </Box>
@@ -673,19 +700,19 @@ export const register: Register = (on, options) => {
 
         {active === 'mine' && (
           <Box flexDirection="column">
-            {myPrs.length === 0 && empty('열려 있는 내 PR이 없습니다.')}
+            {myPrs.length === 0 && empty(m.empty.mine)}
             {myPrs.map(prCard)}
           </Box>
         )}
 
         {active === 'issues' && (
           <Box flexDirection="column">
-            {myIssues.length === 0 && empty('나에게 할당되거나 나를 언급한 이슈가 없습니다.')}
+            {myIssues.length === 0 && empty(m.empty.issues)}
             {direct.map(issueCard)}
             {references.length > 0 && (
               <Box flexDirection="column" marginTop={1}>
                 <Box marginBottom={1}>
-                  <Text dimColor>최근 {REFERENCE_DAYS}일 · 다른 곳에서 내 작업을 언급 {references.length}</Text>
+                  <Text dimColor>{m.sections.references(REFERENCE_DAYS, references.length)}</Text>
                 </Box>
                 {references.map(issueCard)}
               </Box>
