@@ -2,6 +2,19 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.3.0 — 2026-10-07
+
+### Added
+
+- The review request carries one line describing how you usually review — language and tone, what you look at first, how you phrase requests — so Claude reviews the way you would. It is learned once a week from your own comments on up to 30 PRs you recently reviewed, and left out when there are fewer than five comments.
+- Screenshots and recordings in the README, and the README in all nine languages.
+
+### Changed
+
+- `Review` keeps the drawer open and marks the card `Added`, so you can pick several PRs. Closing the drawer (Esc or ×) puts a review request for each added PR into the prompt at once, never the same PR twice.
+- The review request no longer repeats the PR's summary; it keeps the warnings and what changed since your last review.
+- Toasts that arrive together show one after another, 4.5 seconds apart, instead of only the last one.
+
 ## 0.2.0 — 2026-10-07
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "review-inbox",
   "displayName": "Review Inbox",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Your GitHub work in a drawer: PRs waiting for your review, each summarized in plain language, your open PRs with their reviews, and your issues",
   "author": {
     "name": "SummerRiversound",
