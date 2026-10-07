@@ -71,9 +71,9 @@ test('only PRs not seen before are announced, never on the first run or for draf
 test('only a session that finds the shared inbox stale and unclaimed goes to GitHub', async () => {
   const now = 1_000_000_000
   expect(shouldFetch({ items: [] }, now, false)).toBe(true)
-  expect(shouldFetch({ items: [], fetchedAt: now - 60_000 }, now, false)).toBe(false)
-  expect(shouldFetch({ items: [], fetchedAt: now - REFRESH_MS }, now, false)).toBe(true)
-  expect(shouldFetch({ items: [], fetchedAt: now - 60_000 }, now, true)).toBe(true)
+  expect(shouldFetch({ items: [], mine: [], fetchedAt: now - 60_000 }, now, false)).toBe(false)
+  expect(shouldFetch({ items: [], mine: [], fetchedAt: now - REFRESH_MS }, now, false)).toBe(true)
+  expect(shouldFetch({ items: [], mine: [], fetchedAt: now - 60_000 }, now, true)).toBe(true)
   expect(shouldFetch({ items: [], fetchingSince: now - 60_000 }, now, true)).toBe(false)
   expect(shouldFetch({ items: [], fetchingSince: now - 6 * 60_000 }, now, false)).toBe(true)
 })
@@ -126,4 +126,10 @@ test('each account and scope gets its own shared cache file', async () => {
   expect(cacheKey('', 'org:a')).toBe(cacheKey('', 'org:a'))
   expect(cacheKey('', 'org:a')).not.toBe(cacheKey('', 'org:b'))
   expect(cacheKey('me', 'org:a')).not.toBe(cacheKey('', 'org:a'))
+})
+
+test('a fresh file written by an older version of the mod, without the tabs, is refreshed', async () => {
+  const now = 1_000_000_000
+  expect(shouldFetch({ items: [], fetchedAt: now - 60_000 }, now, false)).toBe(true)
+  expect(shouldFetch({ items: [], fetchedAt: now - 60_000, retryAt: now + RETRY_MS }, now, false)).toBe(false)
 })

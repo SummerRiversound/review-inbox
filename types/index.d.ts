@@ -25,9 +25,43 @@ export type InboxItem = {
   sinceLastReview?: string
 }
 
+// My open PR, judged by what I have to do next.
+export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'draft'
+
+export type MyPr = {
+  repo: string
+  number: number
+  title: string
+  url: string
+  createdAt: string
+  state: MyPrState
+  ciPending: boolean
+  // Reviews by others, bots included, left on the current head commit; a new push clears them.
+  newReviews: { by: string; at: string }[]
+}
+
+// Why an issue or PR is in my issues tab.
+export type IssueKind = 'assigned' | 'mention' | 'reference'
+
+export type IssueItem = {
+  kind: IssueKind
+  repo: string
+  number: number
+  title: string
+  url: string
+  at: string
+  // reference: who pointed at my item, and which of mine.
+  by?: string
+  target?: string
+}
+
+export type Tab = 'review' | 'mine' | 'issues'
+
 // Shared by every session on the machine; whichever finds it stale fetches and rewrites it.
 export type InboxFile = {
   items: InboxItem[]
+  mine?: MyPr[]
+  issues?: IssueItem[]
   fetchedAt?: number
   // The claim of the session fetching right now, renewed while it works.
   fetchingSince?: number
@@ -45,6 +79,13 @@ export type InboxStatus = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'review-inbox': { items: InboxItem[]; status: InboxStatus; hidden: Record<string, string> }
+    'review-inbox': {
+      items: InboxItem[]
+      mine: MyPr[]
+      issues: IssueItem[]
+      status: InboxStatus
+      hidden: Record<string, string>
+      tab: Tab
+    }
   }
 }

@@ -127,7 +127,8 @@ export function shouldFetch(file: InboxFile, now: number, force: boolean): boole
   if (file.fetchingSince !== undefined && now - file.fetchingSince < CLAIM_MS) return false
   if (force || file.fetchedAt === undefined) return true
   if (file.retryAt !== undefined) return now >= file.retryAt
-  return now - file.fetchedAt >= REFRESH_MS
+  // A file written by an older version of the mod has no tabs; refresh it rather than show them empty.
+  return file.mine === undefined || now - file.fetchedAt >= REFRESH_MS
 }
 
 // Summaries are tied to the head commit, so an unchanged PR keeps its own; a failed one is retried a few times, then kept.

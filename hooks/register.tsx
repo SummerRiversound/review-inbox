@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { InboxFile, InboxItem, InboxStatus } from '../types'
+import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Tab } from '../types'
 import {
   CLAIM_MS,
   cacheKey,
@@ -31,9 +31,30 @@ import {
   waitingDays,
 } from './inbox'
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
+import {
+  REFERENCES_QUERY,
+  AUTHORED_DAYS,
+  REFERENCE_DAYS,
+  STATE_LABEL,
+  TABS_QUERY,
+  bandCounts,
+  issueAlerts,
+  issueKey,
+  prAlertText,
+  prAlerts,
+  prSeenKeys,
+  reviewers,
+  referencesQuery,
+  stateColor,
+  tabQueries,
+  toIssues,
+  toMyPrs,
+  toReferences,
+} from './tabs'
+import type { GqlMyPr, GqlReferenced, GqlTouched } from './tabs'
 
 const PANE = 'review-inbox'
-const TITLE = '내 리뷰를 기다리는 PR'
+const TITLE = '리뷰 인박스'
 // Reading the shared file is a local disk read, so every session can afford it often.
 const SYNC_MS = 30_000
 const SUMMARY_MODEL = 'sonnet'
@@ -44,6 +65,9 @@ const status = atom({ plugin: 'review-inbox', key: 'status' } as const, {
   kind: 'idle',
 } as InboxStatus)
 const hidden = atom({ plugin: 'review-inbox', key: 'hidden' } as const, {} as Record<string, string>)
+const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[])
+const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
+const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
 
 type Options = { scope?: string; githubUser?: string }
 
@@ -52,6 +76,8 @@ let isFetching = false
 let terminalColumns = 160
 // What this session has already shown; undefined until its first look, so a new session stays quiet.
 let shownKeys: string[] | undefined
+let shownPrKeys: string[] | undefined
+let shownIssueKeys: string[] | undefined
 // A button's or a command's dispatch ends before a fetch would, so they only ask; the session's timer does it.
 let wanted: 'sync' | 'fetch' | undefined
 const sessionToken = Math.random().toString(36).slice(2)
@@ -144,16 +170,71 @@ async function summarizeSince(
   }
 }
 
+async function ghEnv($: EngineInterface): Promise<Record<string, string>> {
+  if (!config.githubUser) return {}
+  return { GH_TOKEN: (await gh($, ['auth', 'token', '-u', config.githubUser], {})).trim() }
+}
+
+async function fetchTabs(
+  $: EngineInterface,
+  env: Record<string, string>,
+  previous: IssueItem[],
+): Promise<{ mine: MyPr[]; issues: IssueItem[] }> {
+  const q = tabQueries(config.scope)
+  const data = JSON.parse(
+    await gh(
+      $,
+      ['api', 'graphql', '-f', `query=${TABS_QUERY}`, '-f', `mine=${q.mine}`, '-f', `assigned=${q.assigned}`,
+        '-f', `mentioned=${q.mentioned}`, '--jq', '.data'],
+      env,
+    ),
+  ) as {
+    viewer: { login: string }
+    mine: { nodes: Partial<GqlMyPr>[] }
+    assigned: { nodes: Partial<GqlTouched>[] }
+    mentioned: { nodes: Partial<GqlTouched>[] }
+  }
+  const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
+    nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
+
+  const since = new Date(Date.now() - REFERENCE_DAYS * 86_400_000).toISOString()
+  const touchedSince = new Date(Date.now() - AUTHORED_DAYS * 86_400_000).toISOString()
+  let references: IssueItem[]
+  try {
+    const referenced: GqlReferenced[] = []
+    let after: string | undefined
+    // ponytail: at most 10 pages (500 items touched in the window, newest first); past that the rest are left out
+    for (let page = 0; page < 10; page++) {
+      const result = JSON.parse(
+        await gh(
+          $,
+          ['api', 'graphql', '-f', `query=${REFERENCES_QUERY}`, '-f', `q=${referencesQuery(config.scope, touchedSince)}`,
+            '-f', `since=${since}`, ...(after ? ['-f', `after=${after}`] : []), '--jq', '.data.search'],
+          env,
+        ),
+      ) as { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: Partial<GqlReferenced>[] }
+      referenced.push(...real<GqlReferenced>(result.nodes))
+      if (!result.pageInfo.hasNextPage) break
+      after = result.pageInfo.endCursor
+    }
+    references = toReferences(referenced, data.viewer.login)
+  } catch {
+    // References are the costliest search; when GitHub refuses it, keep the last ones instead of failing every tab.
+    references = previous.filter(i => i.kind === 'reference')
+  }
+
+  return {
+    mine: toMyPrs(real<GqlMyPr>(data.mine.nodes), data.viewer.login),
+    issues: toIssues(real<GqlTouched>(data.assigned.nodes), real<GqlTouched>(data.mentioned.nodes), references),
+  }
+}
+
 async function fetchInbox(
   $: EngineInterface,
+  env: Record<string, string>,
   previous: InboxItem[],
   heartbeat: () => Promise<void>,
 ): Promise<InboxItem[]> {
-  const env: Record<string, string> = {}
-  if (config.githubUser) {
-    env.GH_TOKEN = (await gh($, ['auth', 'token', '-u', config.githubUser], {})).trim()
-  }
-
   const data = JSON.parse(
     await gh(
       $,
@@ -229,14 +310,16 @@ async function sync($: EngineInterface, force = false) {
 
     let result: InboxFile
     try {
-      const fetched = await fetchInbox($, file.items, () =>
+      const env = await ghEnv($)
+      const tabs = await fetchTabs($, env, file.issues ?? [])
+      const fetched = await fetchInbox($, env, file.items, () =>
         writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
       )
-      result = { items: fetched, fetchedAt: Date.now() }
+      result = { items: fetched, ...tabs, fetchedAt: Date.now() }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       // Keep the last good list and try again in a minute, not after a full refresh interval.
-      result = { items: file.items, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
+      result = { items: file.items, mine: file.mine, issues: file.issues, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }
     await writeJson($, inboxFile(), result)
     await show($, result)
@@ -247,7 +330,13 @@ async function sync($: EngineInterface, force = false) {
 
 async function show($: EngineInterface, file: InboxFile) {
   const claimed = file.fetchingSince !== undefined && Date.now() - file.fetchingSince < CLAIM_MS
+  // A file written by an older version of the mod, in this or another session, lacks newer fields;
+  // a missing list keeps what is shown rather than blanking a tab.
+  const prs = file.mine?.map(pr => ({ ...pr, newReviews: pr.newReviews ?? [] }))
+  const issueList = file.issues
   await update($, items, () => file.items)
+  if (prs) await update($, mine, () => prs)
+  if (issueList) await update($, issues, () => issueList)
   await update($, status, () =>
     claimed
       ? { kind: 'loading' as const, updatedAt: file.fetchedAt }
@@ -258,14 +347,35 @@ async function show($: EngineInterface, file: InboxFile) {
   const hiddenNow = await readJson<Record<string, string>>($, hiddenFile(), {})
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
 
-  // An empty file from before the first fetch must not become the baseline, or every PR reads as new.
-  if (claimed || file.fetchedAt === undefined) return
+  // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
+  if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
   const fresh = newArrivals(shownKeys, file.items)
   for (const item of fresh.slice(0, 3)) {
     $.ui.toast(`새 리뷰 요청 · ${item.repo} #${item.number} · ${item.summary}`)
   }
   if (fresh.length > 3) $.ui.toast(`새 리뷰 요청이 ${fresh.length - 3}건 더 있습니다`)
   shownKeys = shownReady(file.items)
+
+  if (prs) {
+    const prNews = prAlerts(shownPrKeys, prs)
+    for (const alert of prNews.slice(0, 3)) $.ui.toast(prAlertText(alert))
+    if (prNews.length > 3) $.ui.toast(`내 PR 알림이 ${prNews.length - 3}건 더 있습니다`)
+    shownPrKeys = prSeenKeys(prs)
+  }
+  if (issueList) {
+    const newIssues = issueAlerts(shownIssueKeys, issueList)
+    for (const issue of newIssues.slice(0, 3)) {
+      $.ui.toast(`${ISSUE_LABEL[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
+    }
+    if (newIssues.length > 3) $.ui.toast(`내 이슈 알림이 ${newIssues.length - 3}건 더 있습니다`)
+    shownIssueKeys = issueList.map(issueKey)
+  }
+}
+
+const ISSUE_LABEL: Record<IssueItem['kind'], string> = {
+  assigned: '나에게 할당',
+  mention: '나를 언급',
+  reference: '내 작업을 언급',
 }
 
 async function openDrawer($: EngineInterface) {
@@ -308,7 +418,7 @@ export const register: Register = (on, options) => {
   config = { scope: (opts.scope ?? '').trim(), githubUser: (opts.githubUser ?? '').trim() }
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'review-inbox', description: TITLE })
+    await $.command.register({ name: 'review-inbox', description: 'Open the review inbox: PRs awaiting my review, my PRs and my issues' })
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -332,25 +442,20 @@ export const register: Register = (on, options) => {
     if (e.viewport) terminalColumns = e.viewport.columns
     if (e.props.hasSurvey) return next(e)
     const hiddenMap = await read($, hidden)
-    const all = (await read($, items)).filter(i => !isHidden(hiddenMap, i))
-    const list = all.filter(i => !i.isDraft)
-    if (list.length === 0) return next(e)
+    const reviews = (await read($, items)).filter(i => !i.isDraft && !isHidden(hiddenMap, i))
+    const counts = bandCounts(reviews.length, await read($, mine), await read($, issues))
+    if (counts.length === 0) return next(e)
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const now = Date.now()
-    const oldest = Math.max(...list.map(i => waitingDays(i.requestedAt, now)))
-    const drafts = all.length - list.length
+    const oldest = reviews.length > 0 ? Math.max(...reviews.map(i => waitingDays(i.requestedAt, now))) : undefined
 
     return (
       <Box flexDirection="row" justifyContent="space-between">
         <Box flexDirection="row">
-          <Text color={ageColor(oldest)}>▌ </Text>
-          <Text bold>
-            {TITLE} {list.length}
-          </Text>
-          <Text dimColor>
-            {' '}· 가장 오래된 {oldest}일째{drafts > 0 ? ` · 초안 ${drafts}` : ''}
-          </Text>
+          <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
+          <Text bold>{counts.join(' · ')}</Text>
+          {oldest !== undefined && <Text dimColor> · 가장 오래된 리뷰 {oldest}일째</Text>}
         </Box>
         <Button key="open" label="열기" variant="primary" onPress={() => void openDrawer($)} />
       </Box>
@@ -367,6 +472,9 @@ export const register: Register = (on, options) => {
     const now = Date.now()
     const ready = list.filter(i => !i.isDraft)
     const drafts = list.filter(i => i.isDraft)
+    const active = await read($, tab)
+    const myPrs = await read($, mine)
+    const myIssues = await read($, issues)
 
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
@@ -445,47 +553,143 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const prCard = (pr: MyPr) => (
+      <Box key={`pr-${pr.url}`} flexDirection="row" marginBottom={1}>
+        <Box width={1} flexShrink={0} backgroundColor={stateColor(pr.state)} />
+        <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text bold>
+              {pr.repo} #{pr.number}
+            </Text>
+            <Text>
+              <Text color={stateColor(pr.state)} bold={pr.state !== 'waiting'}>
+                {STATE_LABEL[pr.state]}
+              </Text>
+              <Text dimColor>
+                {pr.ciPending ? ' · CI 진행 중' : ''} · {waitingDays(pr.createdAt, now)}일째
+              </Text>
+            </Text>
+          </Box>
+          <Text dimColor wrap="truncate-end">
+            <Link href={pr.url}>{pr.title} ↗</Link>
+          </Text>
+          {pr.newReviews.length > 0 && (
+            <Text color="suggestion" wrap="truncate-end">
+              새 리뷰 · {reviewers(pr)}
+            </Text>
+          )}
+        </Box>
+      </Box>
+    )
+
+    const issueCard = (issue: IssueItem) => (
+      <Box key={`issue-${issueKey(issue)}`} flexDirection="row" marginBottom={1}>
+        <Box width={1} flexShrink={0} backgroundColor={issue.kind === 'reference' ? 'inactive' : 'suggestion'} />
+        <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text bold>
+              {issue.repo} #{issue.number}
+            </Text>
+            <Text dimColor>
+              {ISSUE_LABEL[issue.kind]} · {waitingDays(issue.at, now)}일 전
+            </Text>
+          </Box>
+          <Text dimColor wrap="truncate-end">
+            <Link href={issue.url}>{issue.title} ↗</Link>
+          </Text>
+          {issue.kind === 'reference' && (
+            <Text dimColor>
+              {issue.by}님이 내 {issue.target}을(를) 언급
+            </Text>
+          )}
+        </Box>
+      </Box>
+    )
+
     const statusLine =
       state.kind === 'loading'
         ? '불러오는 중…'
         : state.kind === 'error'
           ? `불러오지 못해 1분 뒤 다시 시도합니다 (${state.message ?? ''})`
-          : [`대기 ${ready.length}`, `초안 ${drafts.length}`, minutesAgo(state.updatedAt, now)]
-              .filter(Boolean)
-              .join(' · ')
+          : minutesAgo(state.updatedAt, now) ?? ''
+
+    const references = myIssues.filter(i => i.kind === 'reference')
+    const direct = myIssues.filter(i => i.kind !== 'reference')
+    const tabs: { id: Tab; label: string }[] = [
+      { id: 'review', label: `리뷰 대기 ${ready.length}` },
+      { id: 'mine', label: `내 PR ${myPrs.length}` },
+      { id: 'issues', label: `내 이슈 ${direct.length}` },
+    ]
+    const empty = (text: string) =>
+      state.kind === 'loading' && everything.length + myPrs.length + myIssues.length === 0 ? (
+        <Text dimColor>GitHub에서 목록을 가져오고 있습니다. 처음에는 1분 정도 걸립니다.</Text>
+      ) : (
+        <Text dimColor>{text}</Text>
+      )
 
     return (
       <Box flexDirection="column" paddingX={1}>
-        <Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
+        <Box flexDirection="row" justifyContent="space-between">
           <Text bold>{TITLE}</Text>
           <Box flexDirection="row" gap={2}>
             <Text color={state.kind === 'error' ? 'error' : undefined} dimColor={state.kind !== 'error'}>
               {statusLine}
             </Text>
-            {hiddenCount > 0 && (
-              <Button key="unhide" label={`숨김 ${hiddenCount}`} dimColor onPress={() => void setHidden($, () => ({}))} />
-            )}
             <Button key="refresh" label="↻" dimColor onPress={() => {
                 wanted = 'fetch'
               }} />
           </Box>
         </Box>
+        <Box flexDirection="row" gap={1} marginY={1}>
+          {tabs.map(t => (
+            <Button
+              key={`tab-${t.id}`}
+              label={t.label}
+              {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
+              onPress={() => void update($, tab, () => t.id)}
+            />
+          ))}
+        </Box>
 
-        {list.length === 0 && state.kind !== 'loading' && (
-          <Text dimColor>지금 리뷰를 기다리는 PR이 없습니다.</Text>
+        {active === 'review' && (
+          <Box flexDirection="column">
+            {hiddenCount > 0 && (
+              <Box marginBottom={1}>
+                <Button key="unhide" label={`숨김 ${hiddenCount} · 모두 보이기`} dimColor onPress={() => void setHidden($, () => ({}))} />
+              </Box>
+            )}
+            {list.length === 0 && empty('지금 리뷰를 기다리는 PR이 없습니다.')}
+            {ready.map(card)}
+            {drafts.length > 0 && (
+              <Box flexDirection="column" marginTop={1}>
+                <Box marginBottom={1}>
+                  <Text dimColor>초안 · 아직 리뷰 준비 전 {drafts.length}</Text>
+                </Box>
+                {drafts.map(card)}
+              </Box>
+            )}
+          </Box>
         )}
-        {list.length === 0 && state.kind === 'loading' && (
-          <Text dimColor>PR 목록을 가져와 요약하고 있습니다. 처음에는 1분 정도 걸립니다.</Text>
+
+        {active === 'mine' && (
+          <Box flexDirection="column">
+            {myPrs.length === 0 && empty('열려 있는 내 PR이 없습니다.')}
+            {myPrs.map(prCard)}
+          </Box>
         )}
 
-        {ready.map(card)}
-
-        {drafts.length > 0 && (
-          <Box flexDirection="column" marginTop={1}>
-            <Box marginBottom={1}>
-              <Text dimColor>초안 · 아직 리뷰 준비 전 {drafts.length}</Text>
-            </Box>
-            {drafts.map(card)}
+        {active === 'issues' && (
+          <Box flexDirection="column">
+            {myIssues.length === 0 && empty('나에게 할당되거나 나를 언급한 이슈가 없습니다.')}
+            {direct.map(issueCard)}
+            {references.length > 0 && (
+              <Box flexDirection="column" marginTop={1}>
+                <Box marginBottom={1}>
+                  <Text dimColor>최근 {REFERENCE_DAYS}일 · 다른 곳에서 내 작업을 언급 {references.length}</Text>
+                </Box>
+                {references.map(issueCard)}
+              </Box>
+            )}
           </Box>
         )}
       </Box>

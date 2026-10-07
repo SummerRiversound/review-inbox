@@ -1,6 +1,6 @@
 {
   "name": "review-inbox",
-  "description": "Claude Code mod: a drawer of the GitHub PRs waiting for your review",
+  "description": "Claude Code mod: your GitHub work in a drawer — PRs waiting for your review, your PRs and your issues",
   "owner": {
     "name": "SummerRiversound"
   },

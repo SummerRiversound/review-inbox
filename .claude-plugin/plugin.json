@@ -1,7 +1,7 @@
 {
   "name": "review-inbox",
   "version": "0.1.0",
-  "description": "A drawer of the GitHub PRs waiting for your review, each summarized in plain Korean",
+  "description": "Your GitHub work in a drawer: PRs waiting for your review (summarized in plain Korean), your open PRs with their reviews, and your issues",
   "author": {
     "name": "SummerRiversound"
   },
@@ -12,7 +12,7 @@
     "scope": {
       "type": "string",
       "title": "Search scope",
-      "description": "GitHub search qualifiers that narrow the inbox, e.g. org:my-org or repo:owner/name; empty watches every repository",
+      "description": "GitHub search qualifiers that narrow every tab, e.g. org:my-org or repo:owner/name; empty watches every repository",
       "default": ""
     },
     "githubUser": {
