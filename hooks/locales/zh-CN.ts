@@ -31,6 +31,7 @@ export const zhCN: Messages = {
     size: (files, added, removed) => `${files} 个文件 (+${added} −${removed})`,
     hide: '隐藏',
     review: '审查',
+    added: '已添加',
     ciRunning: ' · CI 运行中',
     newReview: who => `新审查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
@@ -65,6 +66,7 @@ export const zhCN: Messages = {
     references: (days, n) => `最近 ${days} 天 · 我的工作在别处被引用 ${n}`,
   },
   toast: {
+    added: n => `已添加 ${n} 个 PR · 按 Esc 将审查请求放入输入框`,
     newRequest: '新的审查请求',
     moreRequests: n => `还有 ${n} 个审查请求`,
     morePrAlerts: n => `我的 PR 还有 ${n} 条通知`,
@@ -79,9 +81,9 @@ export const zhCN: Messages = {
   },
   prompt: {
     review: url => `帮我审查一下 ${url}。`,
-    summary: '摘要：',
     check: '重点检查：',
     since: '我上次审查后的变更：',
+    style: '我平时的审查风格：',
   },
   summaryFailed: reason => `无法生成摘要 (${reason})。`,
   model: {
@@ -91,5 +93,6 @@ export const zhCN: Messages = {
     bad: '重构了 UserCache 类，统一了 SessionStore 的查询路径。',
     good: '修复了刚登录后头像有时显示为空白的问题。',
     since: 'Write in Simplified Chinese (简体中文), in a plain, neutral written style, one or two short sentences, about 30 Chinese characters each.',
+    style: 'Write in Simplified Chinese (简体中文), in a plain, neutral written style.',
   },
 }

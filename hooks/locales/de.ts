@@ -34,6 +34,7 @@ export const de: Messages = {
     size: (files, added, removed) => `${count(files, 'Datei', 'Dateien')} (+${added} −${removed})`,
     hide: 'Ausblenden',
     review: 'Reviewen',
+    added: 'Hinzugefügt',
     ciRunning: ' · CI läuft',
     newReview: who => `Neues Review · ${who}`,
     referenced: (by, target) => `${by} hat auf meine Arbeit verwiesen: ${target}`,
@@ -69,6 +70,7 @@ export const de: Messages = {
       `${days === 1 ? 'Letzter' : 'Letzte'} ${count(days, 'Tag', 'Tage')} · anderswo auf meine Arbeit verwiesen ${n}`,
   },
   toast: {
+    added: n => `${count(n, 'PR', 'PRs')} hinzugefügt · Esc übernimmt die Review-Anfragen in den Prompt`,
     newRequest: 'Neue Review-Anfrage',
     moreRequests: n => count(n, 'weitere Review-Anfrage', 'weitere Review-Anfragen'),
     morePrAlerts: n => `${count(n, 'weitere Benachrichtigung', 'weitere Benachrichtigungen')} zu meinen PRs`,
@@ -83,9 +85,9 @@ export const de: Messages = {
   },
   prompt: {
     review: url => `Bitte reviewe ${url}.`,
-    summary: 'Zusammenfassung: ',
     check: 'Achte besonders auf: ',
     since: 'Seit meinem letzten Review geändert: ',
+    style: 'Mein üblicher Review-Stil: ',
   },
   summaryFailed: reason => `Zusammenfassung konnte nicht erstellt werden (${reason}).`,
   model: {
@@ -95,5 +97,6 @@ export const de: Messages = {
     bad: 'Refaktoriert die Klasse UserCache, um den Lookup-Pfad von SessionStore zu vereinheitlichen.',
     good: 'Behebt, dass das Profilbild direkt nach dem Login manchmal leer blieb.',
     since: 'Write in German, in a neutral impersonal register (no "du" or "Sie"), one or two short sentences, about 12 words each.',
+    style: 'Write in German, in a neutral impersonal register (no "du" or "Sie").',
   },
 }

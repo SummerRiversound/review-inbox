@@ -9,6 +9,7 @@ import {
   RETRY_MS,
   ageColor,
   failedSummary,
+  hasRequest,
   isHidden,
   itemKey,
   lastReviewedSha,
@@ -18,7 +19,7 @@ import {
   requestedAt,
   requestedTeam,
   reusableSummary,
-  reviewPrompt,
+  reviewPrompts,
   searchQuery,
   shouldFetch,
   shownReady,
@@ -33,6 +34,8 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import type { Language, Messages } from './i18n'
+import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
+import type { GqlReviewed, StyleFile } from './style'
 import {
   REFERENCES_QUERY,
   AUTHORED_DAYS,
@@ -60,6 +63,8 @@ const PANE = 'review-inbox'
 const SYNC_MS = 30_000
 const SUMMARY_MODEL = 'sonnet'
 const MODEL_TIMEOUT_MS = 60_000
+// A toast stays about four seconds and an inline session shows only the latest, so several are shown one after another.
+const TOAST_GAP_MS = 4_500
 
 const items = atom({ plugin: 'review-inbox', key: 'items' } as const, [] as InboxItem[])
 const status = atom({ plugin: 'review-inbox', key: 'status' } as const, {
@@ -69,6 +74,10 @@ const hidden = atom({ plugin: 'review-inbox', key: 'hidden' } as const, {} as Re
 const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[])
 const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
+// The cards whose review request is in the prompt, so pressing Review again adds nothing.
+// PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
+const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
+const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
 
 type Options = { scope?: string; githubUser?: string; language?: string }
 
@@ -83,6 +92,7 @@ let shownPrKeys: string[] | undefined
 let shownIssueKeys: string[] | undefined
 // A button's or a command's dispatch ends before a fetch would, so they only ask; the session's timer does it.
 let wanted: 'sync' | 'fetch' | undefined
+let toastFreeAt = 0
 const sessionToken = Math.random().toString(36).slice(2)
 
 // Claude Code's per-plugin data folder; a mod is not told its id, so it falls back to a fixed name there.
@@ -114,6 +124,7 @@ async function writeJson($: EngineInterface, name: string, value: unknown) {
 const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // Keyed like the inbox: a hide prunes the entries its own list no longer has, so it must not share a file with another list.
 const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 
 async function resolveLanguage($: EngineInterface): Promise<Language> {
   const read = async <T,>(get: () => Promise<T>) => {
@@ -314,6 +325,37 @@ async function fetchInbox(
   return sortItems(next)
 }
 
+function toast($: EngineInterface, text: string) {
+  const now = Date.now()
+  const at = Math.max(now, toastFreeAt)
+  toastFreeAt = at + TOAST_GAP_MS
+  if (at === now) $.ui.toast(text)
+  else $.clock.after(at - now, () => $.ui.toast(text))
+}
+
+// Run by the session that just fetched; a failure keeps the last style and tries again a day later.
+async function refreshStyle($: EngineInterface, env: Record<string, string>) {
+  const file = await readJson<StyleFile>($, styleFile(), {})
+  if (file === undefined || !shouldBuildStyle(file, Date.now())) return
+  try {
+    const data = JSON.parse(
+      await gh($, ['api', 'graphql', '-f', `query=${STYLE_QUERY}`, '-f', `q=${styleQuery(config.scope)}`, '--jq', STYLE_JQ], env),
+    ) as { viewer: { login: string }; search: { nodes: Partial<GqlReviewed>[] } }
+    const samples = styleSamples(data.search.nodes, data.viewer.login)
+    const prompt = stylePrompt(samples)
+    if (prompt === undefined) {
+      await writeJson($, styleFile(), { checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
+      return
+    }
+    const reply = await ask($, styleRules(config.language), prompt, 400)
+    const profile = reply.text === undefined ? undefined : parseStyle(reply.text)
+    if (profile === undefined) throw new Error(reply.reason ?? 'empty reply')
+    await writeJson($, styleFile(), { profile, checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
+  } catch {
+    await writeJson($, styleFile(), { ...file, retryAt: Date.now() + STYLE_RETRY_MS } satisfies StyleFile).catch(() => undefined)
+  }
+}
+
 // Every session runs this; only the one that finds the shared file stale and wins the claim goes to GitHub.
 async function sync($: EngineInterface, force = false) {
   const file = await readJson<InboxFile>($, inboxFile(), { items: [] })
@@ -331,8 +373,9 @@ async function sync($: EngineInterface, force = false) {
     await show($, claim)
 
     let result: InboxFile
+    let env: Record<string, string> | undefined
     try {
-      const env = await ghEnv($)
+      env = await ghEnv($)
       const tabs = await fetchTabs($, env, file.issues ?? [])
       const fetched = await fetchInbox($, env, file.items, () =>
         writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
@@ -345,6 +388,7 @@ async function sync($: EngineInterface, force = false) {
     }
     await writeJson($, inboxFile(), result)
     await show($, result)
+    if (env !== undefined && result.error === undefined) await refreshStyle($, env)
   } finally {
     isFetching = false
   }
@@ -373,28 +417,36 @@ async function show($: EngineInterface, file: InboxFile) {
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
   const fresh = newArrivals(shownKeys, file.items)
   for (const item of fresh.slice(0, 3)) {
-    $.ui.toast(`${m.toast.newRequest} · ${item.repo} #${item.number} · ${item.summary}`)
+    toast($, `${m.toast.newRequest} · ${item.repo} #${item.number} · ${item.summary}`)
   }
-  if (fresh.length > 3) $.ui.toast(m.toast.moreRequests(fresh.length - 3))
+  if (fresh.length > 3) toast($, m.toast.moreRequests(fresh.length - 3))
   shownKeys = shownReady(file.items)
 
   if (prs) {
     const prNews = prAlerts(shownPrKeys, prs)
-    for (const alert of prNews.slice(0, 3)) $.ui.toast(prAlertText(alert, m))
-    if (prNews.length > 3) $.ui.toast(m.toast.morePrAlerts(prNews.length - 3))
+    for (const alert of prNews.slice(0, 3)) toast($, prAlertText(alert, m))
+    if (prNews.length > 3) toast($, m.toast.morePrAlerts(prNews.length - 3))
     shownPrKeys = prSeenKeys(prs)
   }
   if (issueList) {
     const newIssues = issueAlerts(shownIssueKeys, issueList)
     for (const issue of newIssues.slice(0, 3)) {
-      $.ui.toast(`${m.issueKind[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
+      toast($, `${m.issueKind[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
     }
-    if (newIssues.length > 3) $.ui.toast(m.toast.moreIssueAlerts(newIssues.length - 3))
+    if (newIssues.length > 3) toast($, m.toast.moreIssueAlerts(newIssues.length - 3))
     shownIssueKeys = issueList.map(issueKey)
   }
 }
 
 async function openDrawer($: EngineInterface) {
+  // Opening an open drawer only brings it forward; its picks wait for the close that fills them.
+  if (!(await $.ui.panes()).some(p => p.id === PANE)) {
+    // What the draft already asks for shows as added; a sent or cleared draft frees the cards again.
+    const { text } = await $.prompt.read()
+    const list = await read($, items)
+    await update($, requested, () => list.filter(i => hasRequest(text, i.url)).map(itemKey))
+    await update($, added, () => [])
+  }
   await $.ui.open({
     id: PANE,
     title: m.title,
@@ -406,14 +458,31 @@ async function openDrawer($: EngineInterface) {
   })
 }
 
-async function startReview($: EngineInterface, item: InboxItem) {
-  const { text } = await $.prompt.read()
-  const filled = await $.prompt.fill({ text: reviewPrompt(text, item, m), mode: 'append' })
-  if (!filled.isFilled) {
-    $.ui.toast(m.toast.promptBusy)
-    return
+// Filling the prompt takes the keyboard from the drawer, so Review only marks a card and the drawer's close fills them all.
+async function addCard($: EngineInterface, item: InboxItem) {
+  const key = itemKey(item)
+  const keys = await read($, added)
+  if (keys.includes(key) || (await read($, requested)).includes(key)) return
+  await update($, added, () => [...keys, key])
+  $.ui.toast(m.toast.added(keys.length + 1))
+}
+
+// False only when a dialog holds the keys: that passes, so the drawer stays open with its picks and the next close tries again.
+async function fillAdded($: EngineInterface): Promise<boolean> {
+  const byKey = new Map((await read($, items)).map(i => [itemKey(i), i]))
+  const chosen = (await read($, added)).flatMap(key => byKey.get(key) ?? [])
+  if (chosen.length > 0) {
+    const { text } = await $.prompt.read()
+    const style = (await readJson<StyleFile>($, styleFile(), {}))?.profile
+    const more = reviewPrompts(text, chosen, m, style)
+    const filled = more ? await $.prompt.fill({ text: more, mode: 'append' }) : undefined
+    if (filled?.isFilled === false) {
+      $.ui.toast(m.toast.promptBusy)
+      if (filled.refusal === 'dialog') return false
+    }
   }
-  await $.ui.close({ id: PANE })
+  await update($, added, () => [])
+  return true
 }
 
 // Read-modify-write on its own file, so a hide never races a fetch rewriting the inbox.
@@ -463,6 +532,16 @@ export const register: Register = (on, options) => {
     return { text: m.command.opened }
   })
 
+  // Fill before the drawer goes, so a fill a dialog refuses keeps it open; answering without next keeps a pane.
+  on('ui.close', { id: PANE }, async ($, e, next) => {
+    if (e.origin.kind === 'unload') return next(e)
+    const isFilled = await fillAdded($).catch(() => {
+      $.ui.toast(m.toast.retry)
+      return true
+    })
+    return isFilled ? next(e) : { value: undefined }
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.viewport) terminalColumns = e.viewport.columns
     if (e.props.hasSurvey) return next(e)
@@ -500,9 +579,11 @@ export const register: Register = (on, options) => {
     const active = await read($, tab)
     const myPrs = await read($, mine)
     const myIssues = await read($, issues)
+    const addedKeys = [...(await read($, added)), ...(await read($, requested))]
 
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
+      const isAdded = addedKeys.includes(itemKey(item))
       return (
         <Box key={`card-${item.repo}-${item.number}`} flexDirection="row" marginBottom={1}>
           <Box width={1} flexShrink={0} backgroundColor={item.isDraft ? 'inactive' : ageColor(days)} />
@@ -565,10 +646,10 @@ export const register: Register = (on, options) => {
                   onPress={() => void setHidden($, h => ({ ...h, [itemKey(item)]: item.headSha }))}
                 />
                 <Button
-                  key={`review-${item.repo}-${item.number}`}
-                  label={m.card.review}
-                  variant="primary"
-                  onPress={() => void startReview($, item)}
+                  key={`review-${itemKey(item)}`}
+                  label={isAdded ? m.card.added : m.card.review}
+                  {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
+                  onPress={() => void addCard($, item)}
                 />
               </Box>
             </Box>

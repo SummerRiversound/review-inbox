@@ -32,6 +32,8 @@ test('every table other than English is translated', async () => {
       [m.status.firstFetch, en.status.firstFetch],
       [m.toast.promptBusy, en.toast.promptBusy],
       [m.model.good, en.model.good],
+      [m.card.added, en.card.added],
+      [m.prompt.style, en.prompt.style],
     ]) {
       expect(mine).not.toBe(english)
     }

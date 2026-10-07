@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  REFRESH_MS, RETRY_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, sinceRules, sortItems, summaryRules,
+  REFRESH_MS, RETRY_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -38,15 +38,40 @@ test('a summary is read out of a reply that wraps the JSON in prose', async () =
   expect(parseSummary('no json here')).toBeUndefined()
 })
 
-test('the review prompt carries the summary, the warnings and what changed since my review, in the chosen language', async () => {
+test('the review prompt asks for the review with the warnings and what changed since my review, in the chosen language', async () => {
   const full = item({
     url: 'URL', summary: 'S',
     impact: [{ text: 'A', warn: true }, { text: 'B', warn: false }, { text: 'C', warn: true }],
     sinceLastReview: 'D',
   })
-  expect(reviewPrompt('', full, ko)).toBe('URL 리뷰해 줘.\n요약: S\n특히 확인할 점: A / C\n지난 내 리뷰 이후 바뀐 점: D\n')
-  expect(reviewPrompt('먼저', item({ url: 'URL', summary: 'S' }), ko)).toBe('\nURL 리뷰해 줘.\n요약: S\n')
-  expect(reviewPrompt('', full, en)).toBe('Review URL.\nSummary: S\nCheck in particular: A / C\nChanged since my last review: D\n')
+  expect(reviewPrompt('', full, ko)).toBe('URL 리뷰해 줘.\n특히 확인할 점: A / C\n지난 내 리뷰 이후 바뀐 점: D\n')
+  expect(reviewPrompt('먼저', item({ url: 'URL', summary: 'S' }), ko)).toBe('\nURL 리뷰해 줘.\n')
+  expect(reviewPrompt('', full, en)).toBe('Review URL.\nCheck in particular: A / C\nChanged since my last review: D\n')
+})
+
+test('my review style goes into the prompt once, however many PRs are added', async () => {
+  const first = reviewPrompt('', item({ url: 'U1' }), en, 'Short and direct.')
+  expect(first).toBe('Review U1.\nMy usual review style: Short and direct.\n')
+  expect(reviewPrompt(first, item({ url: 'U2' }), en, 'Short and direct.')).toBe('Review U2.\n')
+  expect(reviewPrompt('', item({ url: 'U1' }), en, undefined)).toBe('Review U1.\n')
+})
+
+test('the PRs added in the drawer go into the prompt together, the style once, none twice', async () => {
+  const a = item({ url: 'https://github.com/o/r/pull/1' })
+  const b = item({ url: 'https://github.com/o/r/pull/2' })
+  expect(reviewPrompts('', [a, b], en, 'Short.')).toBe(
+    'Review https://github.com/o/r/pull/1.\nMy usual review style: Short.\nReview https://github.com/o/r/pull/2.\n',
+  )
+  expect(reviewPrompts('Review https://github.com/o/r/pull/1.', [a, b], en, undefined)).toBe('\nReview https://github.com/o/r/pull/2.\n')
+  expect(reviewPrompts('draft', [], en, 'Short.')).toBe('')
+})
+
+test('a PR counts as added only when the draft names its exact link', async () => {
+  const url = 'https://github.com/o/r/pull/12'
+  expect(hasRequest(reviewPrompt('', item({ url }), ko), url)).toBe(true)
+  expect(hasRequest('Review https://github.com/o/r/pull/123.', url)).toBe(false)
+  expect(hasRequest('Review https://github.com/o/r/pull/12/files', url)).toBe(false)
+  expect(hasRequest('', url)).toBe(false)
 })
 
 test('my last review is the latest one I left, whoever else reviewed after', async () => {

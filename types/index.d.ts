@@ -87,6 +87,8 @@ declare module 'claude-code' {
       status: InboxStatus
       hidden: Record<string, string>
       tab: Tab
+      added: string[]
+      requested: string[]
     }
   }
 }

@@ -33,6 +33,7 @@ export const es: Messages = {
     size: (files: number, added: string, removed: string) => `${count(files, 'archivo')} (+${added} −${removed})`,
     hide: 'Ocultar',
     review: 'Revisar',
+    added: 'Añadido',
     ciRunning: ' · CI en ejecución',
     newReview: (who: string) => `Nueva revisión · ${who}`,
     referenced: (by: string, target: string) => `${by} hizo referencia a mi ${target}`,
@@ -68,6 +69,7 @@ export const es: Messages = {
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'día')} · referencias a mi trabajo en otros lugares ${n}`,
   },
   toast: {
+    added: (n: number) => `${count(n, 'PR añadido', 'PR añadidos')} · Esc pone sus solicitudes de revisión en el prompt`,
     newRequest: 'Nueva solicitud de revisión',
     moreRequests: (n: number) => `${count(n, 'solicitud', 'solicitudes')} de revisión más`,
     morePrAlerts: (n: number) => `${count(n, 'alerta')} más sobre mis PR`,
@@ -82,9 +84,9 @@ export const es: Messages = {
   },
   prompt: {
     review: (url: string) => `Revisa ${url}.`,
-    summary: 'Resumen: ',
     check: 'Fíjate especialmente en: ',
     since: 'Cambios desde mi última revisión: ',
+    style: 'Mi estilo habitual de revisión: ',
   },
   summaryFailed: (reason: string) => `No se pudo generar el resumen (${reason}).`,
   model: {
@@ -94,5 +96,6 @@ export const es: Messages = {
     bad: 'Refactoriza la clase UserCache para unificar la ruta de búsqueda de SessionStore.',
     good: 'Corrige la foto de perfil que a veces aparecía en blanco justo después de iniciar sesión.',
     since: 'Write in neutral Spanish readable in Spain and Latin America, one or two short sentences, about 18 Spanish words each.',
+    style: 'Write in neutral Spanish readable in Spain and Latin America, plain and direct.',
   },
 }

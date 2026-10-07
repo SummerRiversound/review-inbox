@@ -31,6 +31,7 @@ export const ja: Messages = {
     size: (files: number, added: string, removed: string) => `${files}ファイル (+${added} −${removed})`,
     hide: '非表示',
     review: 'レビューする',
+    added: '追加済み',
     ciRunning: ' · CI 実行中',
     newReview: (who: string) => `新しいレビュー · ${who}`,
     referenced: (by: string, target: string) => `${by} さんが自分の ${target} を参照`,
@@ -65,6 +66,7 @@ export const ja: Messages = {
     references: (days: number, n: number) => `過去${days}日間 · 他の場所で参照された自分の作業 ${n}`,
   },
   toast: {
+    added: (n: number) => `PR ${n} 件を追加 · Esc でレビュー依頼が入力欄に入ります`,
     newRequest: '新しいレビューリクエスト',
     moreRequests: (n: number) => `レビューリクエストがさらに${n}件あります`,
     morePrAlerts: (n: number) => `自分の PR の通知がさらに${n}件あります`,
@@ -79,9 +81,9 @@ export const ja: Messages = {
   },
   prompt: {
     review: (url: string) => `${url} をレビューして。`,
-    summary: '概要: ',
     check: '特に確認してほしい点: ',
     since: '前回の自分のレビュー以降に変わった点: ',
+    style: '普段の自分のレビュースタイル: ',
   },
   summaryFailed: (reason: string) => `概要を作成できませんでした (${reason})。`,
   model: {
@@ -91,5 +93,6 @@ export const ja: Messages = {
     bad: 'UserCache クラスをリファクタリングし、SessionStore の参照経路を統一しました。',
     good: 'ログイン直後にプロフィール画像がときどき空白になる問題を修正しました。',
     since: 'Write in Japanese, polite です/ます style, one or two short sentences, about 40 Japanese characters each.',
+    style: 'Write in Japanese, in the plain written style (だ/である).',
   },
 }

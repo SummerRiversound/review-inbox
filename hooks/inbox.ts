@@ -243,13 +243,28 @@ export function sincePrompt(commits: string[], files: string[]): string {
   ].join('\n\n')
 }
 
-export function reviewPrompt(draft: string, item: InboxItem, m: Messages): string {
-  const lines = [m.prompt.review(item.url), `${m.prompt.summary}${item.summary}`]
+// The style line is said once per prompt, so adding several PRs repeats only the requests.
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string): string {
+  const lines = [m.prompt.review(item.url)]
+  const styleLine = style ? `${m.prompt.style}${style}` : undefined
+  if (styleLine && !draft.includes(styleLine)) lines.push(styleLine)
   const warnings = item.impact.filter(i => i.warn).map(i => i.text)
   if (warnings.length > 0) lines.push(`${m.prompt.check}${warnings.join(' / ')}`)
   if (item.sinceLastReview) lines.push(`${m.prompt.since}${item.sinceLastReview}`)
   const text = `${lines.join('\n')}\n`
   return draft === '' || draft.endsWith('\n') ? text : `\n${text}`
+}
+
+// What the drawer adds to the draft when it closes: one request per PR not already in it, in the order pressed.
+export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string): string {
+  let text = draft
+  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style)
+  return text.slice(draft.length)
+}
+
+// The link must end where the draft's link ends, so /pull/12 is not found inside /pull/123 or /pull/12/files.
+export function hasRequest(draft: string, url: string): boolean {
+  return new RegExp(`${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w/])`).test(draft)
 }
 
 export function minutesSince(at: number | undefined, now: number): number | undefined {

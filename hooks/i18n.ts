@@ -42,6 +42,7 @@ const en = {
     size: (files: number, added: string, removed: string) => `${count(files, 'file')} (+${added} −${removed})`,
     hide: 'Hide',
     review: 'Review',
+    added: 'Added',
     ciRunning: ' · CI running',
     newReview: (who: string) => `New review · ${who}`,
     referenced: (by: string, target: string) => `${by} referenced my ${target}`,
@@ -76,6 +77,7 @@ const en = {
     references: (days: number, n: number) => `Last ${days} days · my work referenced elsewhere ${n}`,
   },
   toast: {
+    added: (n: number) => `${count(n, 'PR')} added · Esc puts their review requests in the prompt`,
     newRequest: 'New review request',
     moreRequests: (n: number) => count(n, 'more review request'),
     morePrAlerts: (n: number) => `${count(n, 'more alert')} on my PRs`,
@@ -90,9 +92,9 @@ const en = {
   },
   prompt: {
     review: (url: string) => `Review ${url}.`,
-    summary: 'Summary: ',
     check: 'Check in particular: ',
     since: 'Changed since my last review: ',
+    style: 'My usual review style: ',
   },
   summaryFailed: (reason: string) => `Could not write a summary (${reason}).`,
   // The language lines of the model instructions; the rest of the rules are shared.
@@ -103,6 +105,7 @@ const en = {
     bad: 'Refactored the UserCache class to unify the SessionStore lookup path.',
     good: 'Fixes the profile picture that sometimes showed blank right after login.',
     since: 'Write in plain English, one or two short sentences, about 15 words each.',
+    style: 'Write in plain English.',
   },
 }
 

@@ -34,6 +34,7 @@ export const ptBR: Messages = {
     size: (files: number, added: string, removed: string) => `${count(files, 'arquivo')} (+${added} −${removed})`,
     hide: 'Ocultar',
     review: 'Revisar',
+    added: 'Adicionado',
     ciRunning: ' · CI em execução',
     newReview: (who: string) => `Nova revisão · ${who}`,
     referenced: (by: string, target: string) => `${by} referenciou ${target}`,
@@ -69,6 +70,7 @@ export const ptBR: Messages = {
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'dia')} · meu trabalho referenciado em outros lugares ${n}`,
   },
   toast: {
+    added: (n: number) => `${count(n, 'PR adicionado', 'PRs adicionados')} · Esc coloca os pedidos de revisão no prompt`,
     newRequest: 'Nova solicitação de revisão',
     moreRequests: (n: number) => `Mais ${count(n, 'solicitação de revisão', 'solicitações de revisão')}`,
     morePrAlerts: (n: number) => `Mais ${count(n, 'alerta')} nos meus PRs`,
@@ -83,9 +85,9 @@ export const ptBR: Messages = {
   },
   prompt: {
     review: (url: string) => `Revise o PR ${url}.`,
-    summary: 'Resumo: ',
     check: 'Verifique em especial: ',
     since: 'O que mudou desde a minha última revisão: ',
+    style: 'Meu estilo habitual de revisão: ',
   },
   summaryFailed: (reason: string) => `Não foi possível gerar o resumo (${reason}).`,
   model: {
@@ -97,5 +99,6 @@ export const ptBR: Messages = {
     good: 'Corrige a foto de perfil que às vezes aparecia em branco logo após o login.',
     since:
       'Write in Brazilian Portuguese (not European Portuguese), neutral professional tone, one or two short sentences, about 18 words each.',
+    style: 'Write in Brazilian Portuguese (not European Portuguese), neutral professional tone.',
   },
 }

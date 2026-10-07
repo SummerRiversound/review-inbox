@@ -31,6 +31,7 @@ export const ko: Messages = {
     size: (files, added, removed) => `파일 ${files}개 (+${added} −${removed})`,
     hide: '숨기기',
     review: '리뷰하기',
+    added: '추가됨',
     ciRunning: ' · CI 진행 중',
     newReview: who => `새 리뷰 · ${who}`,
     referenced: (by, target) => `${by}님이 내 ${target}을(를) 언급`,
@@ -65,6 +66,7 @@ export const ko: Messages = {
     references: (days, n) => `최근 ${days}일 · 다른 곳에서 내 작업을 언급 ${n}`,
   },
   toast: {
+    added: n => `PR ${n}개 추가됨 · Esc를 누르면 리뷰 요청이 입력창에 들어갑니다`,
     newRequest: '새 리뷰 요청',
     moreRequests: n => `새 리뷰 요청이 ${n}건 더 있습니다`,
     morePrAlerts: n => `내 PR 알림이 ${n}건 더 있습니다`,
@@ -79,9 +81,9 @@ export const ko: Messages = {
   },
   prompt: {
     review: url => `${url} 리뷰해 줘.`,
-    summary: '요약: ',
     check: '특히 확인할 점: ',
     since: '지난 내 리뷰 이후 바뀐 점: ',
+    style: '평소 내 리뷰 스타일: ',
   },
   summaryFailed: reason => `요약을 만들지 못했습니다 (${reason}).`,
   model: {
@@ -91,5 +93,6 @@ export const ko: Messages = {
     bad: 'UserCache 클래스를 리팩터링하여 SessionStore의 조회 경로를 통합했습니다.',
     good: '로그인 직후 프로필 사진이 가끔 비어 보이던 문제를 고쳤습니다.',
     since: 'Write in Korean, formal 합니다체, one or two short sentences, about 40 Korean characters each.',
+    style: 'Write in Korean, in the plain written style (평서체, ~한다).',
   },
 }

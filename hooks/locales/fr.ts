@@ -34,6 +34,7 @@ export const fr: Messages = {
     size: (files, added, removed) => `${count(files, 'fichier')} (+${added} −${removed})`,
     hide: 'Masquer',
     review: 'Faire la revue',
+    added: 'Ajouté',
     ciRunning: ' · CI en cours',
     newReview: who => `Nouvelle revue · ${who}`,
     referenced: (by, target) => `${by} a fait référence à mon travail : ${target}`,
@@ -68,6 +69,7 @@ export const fr: Messages = {
     references: (days, n) => `Depuis ${count(days, 'jour')} · mon travail référencé ailleurs ${n}`,
   },
   toast: {
+    added: n => `${count(n, 'PR ajoutée', 'PR ajoutées')} · Échap place les demandes de revue dans le prompt`,
     newRequest: 'Nouvelle demande de revue',
     moreRequests: n => count(n, 'autre demande de revue', 'autres demandes de revue'),
     morePrAlerts: n => `${count(n, 'autre alerte', 'autres alertes')} sur mes PR`,
@@ -82,9 +84,9 @@ export const fr: Messages = {
   },
   prompt: {
     review: url => `Fais la revue de ${url}.`,
-    summary: 'Résumé : ',
     check: 'Vérifie en particulier : ',
     since: 'Changements depuis ma dernière revue : ',
+    style: 'Mon style de revue habituel : ',
   },
   summaryFailed: reason => `Impossible de rédiger un résumé (${reason}).`,
   model: {
@@ -94,5 +96,6 @@ export const fr: Messages = {
     bad: "Refactorise la classe UserCache afin d'unifier le chemin de recherche de SessionStore.",
     good: "Corrige la photo de profil qui s'affichait parfois vide juste après la connexion.",
     since: 'Write in plain French, neutral professional register, one or two short sentences, about 18 French words each.',
+    style: 'Write in plain French, in a neutral professional register.',
   },
 }

@@ -31,6 +31,7 @@ export const zhTW: Messages = {
     size: (files, added, removed) => `${files} 個檔案 (+${added} −${removed})`,
     hide: '隱藏',
     review: '審查',
+    added: '已加入',
     ciRunning: ' · CI 執行中',
     newReview: who => `新審查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
@@ -65,6 +66,7 @@ export const zhTW: Messages = {
     references: (days, n) => `最近 ${days} 天 · 我的工作在別處被引用 ${n}`,
   },
   toast: {
+    added: n => `已加入 ${n} 個 PR · 按 Esc 將審查請求放入輸入框`,
     newRequest: '新的審查請求',
     moreRequests: n => `還有 ${n} 個審查請求`,
     morePrAlerts: n => `我的 PR 還有 ${n} 則通知`,
@@ -79,9 +81,9 @@ export const zhTW: Messages = {
   },
   prompt: {
     review: url => `幫我審查一下 ${url}。`,
-    summary: '摘要：',
     check: '請特別檢查：',
     since: '我上次審查後的變更：',
+    style: '我平常的審查風格：',
   },
   summaryFailed: reason => `無法產生摘要 (${reason})。`,
   model: {
@@ -91,5 +93,6 @@ export const zhTW: Messages = {
     bad: '重構了 UserCache 類別，統一了 SessionStore 的查詢路徑。',
     good: '修正了剛登入後大頭貼有時顯示空白的問題。',
     since: 'Write in Traditional Chinese as used in Taiwan (繁體中文), with Taiwan vocabulary, in a plain, neutral written style, one or two short sentences, about 30 Chinese characters each.',
+    style: 'Write in Traditional Chinese as used in Taiwan (繁體中文), with Taiwan vocabulary, in a plain, neutral written style.',
   },
 }
