@@ -29,7 +29,7 @@
       "type": "string",
       "title": "Language",
       "description": "Language of the band, drawer, toasts and summaries; auto follows Claude Code's language setting, then the system locale, then English",
-      "options": ["auto", "en", "ko"],
+      "options": ["auto", "en", "ko", "ja", "zh-CN", "zh-TW", "es", "pt-BR", "de", "fr"],
       "default": "auto"
     }
   }

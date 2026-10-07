@@ -31,7 +31,7 @@ import {
   waitingDays,
 } from './inbox'
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
-import { MESSAGES, pickLanguage } from './i18n'
+import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import type { Language, Messages } from './i18n'
 import {
   REFERENCES_QUERY,
@@ -124,7 +124,7 @@ async function resolveLanguage($: EngineInterface): Promise<Language> {
       return undefined
     }
   }
-  if (languageOption === 'en' || languageOption === 'ko') return languageOption
+  if (isLanguage(languageOption)) return languageOption
   // Only the one key: the settings also hold env values and credentials helpers.
   const claudeLanguage = await read(async () => (await $.settings.read()).language)
   const locale = await read(

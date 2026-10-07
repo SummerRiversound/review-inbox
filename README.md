@@ -8,7 +8,7 @@ A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work 
 - **Drawer** — `/review-inbox`, with three tabs: To review, My PRs and My issues.
 - **Toasts** — a short notice when something new arrives while you work.
 
-The interface and the summaries are in English or Korean; see [Language](#language).
+The interface and the summaries come in nine languages; see [Language](#language).
 
 ## Tabs
 
@@ -70,7 +70,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | --- | --- | --- |
 | `scope` | empty | GitHub search qualifiers added to every search (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Empty means all of GitHub. |
 | `githubUser` | empty | The `gh` account to use when several are logged in (`gh auth token -u <user>`). Empty uses the active account. |
-| `language` | `auto` | `auto`, `en` or `ko`. See [Language](#language). |
+| `language` | `auto` | `auto`, or one of the codes in [Language](#language). |
 
 `scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
 
@@ -86,12 +86,26 @@ Repeated `org:`, `repo:` and `user:` qualifiers match any of them. A team review
 
 ## Language
 
-The band, the drawer, the toasts, the review request put into your prompt and the summaries the model writes all use one language: English or Korean.
+The band, the drawer, the toasts, the review request put into your prompt and the summaries the model writes all use one language.
 
-- `en` or `ko` picks it.
-- `auto` (the default) follows Claude Code's own `language` setting when it names English or Korean, in the usual spellings (`Korean`, `한국어`, `한글`, `ko`, `ko-KR`). Otherwise it follows the system locale (`LC_ALL`, `LC_MESSAGES`, then `LANG`), and otherwise English.
+| Code | Language |
+| --- | --- |
+| `en` | English |
+| `ko` | Korean (한국어) |
+| `ja` | Japanese (日本語) |
+| `zh-CN` | Simplified Chinese (简体中文) |
+| `zh-TW` | Traditional Chinese (繁體中文) |
+| `es` | Spanish (Español) |
+| `pt-BR` | Brazilian Portuguese (Português do Brasil) |
+| `de` | German (Deutsch) |
+| `fr` | French (Français) |
 
-Summaries are cached per language, so switching writes each summary once more in the new language. Any other language falls back to English. The strings and the language lines of the model instructions live in [`hooks/i18n.ts`](hooks/i18n.ts).
+- A code picks that language.
+- `auto` (the default) follows Claude Code's own `language` setting when it names one of these, by code, English name or its own name (`ja-JP`, `Japanese`, `日本語`). Otherwise it follows the system locale (`LC_ALL`, `LC_MESSAGES`, then `LANG`), and otherwise English. Chinese is read as Simplified unless it is marked as Taiwan, Hong Kong, Macau or Traditional (`zh-TW`, `zh-Hant`, `繁體中文`), and Portuguese as Brazilian.
+
+Summaries are cached per language, so switching writes each summary once more in the new language. Any other language falls back to English.
+
+Languages other than English and Korean were translated with Claude and have not been checked by native speakers yet. Corrections are welcome as an issue or a pull request: each language is one file in [`hooks/locales/`](hooks/locales/), and the English table, which every other table follows, is in [`hooks/i18n.ts`](hooks/i18n.ts).
 
 ## What it reads and runs
 
@@ -123,7 +137,7 @@ One GraphQL search returns every PR waiting for your review with what the cards 
 
 - **The drawer shows a `gh` error.** Run `gh auth status`. With several accounts logged in, set `githubUser`. The mod retries every minute.
 - **The band does not appear.** It shows only when something needs you; zeros are left out.
-- **The language is not the one you expected.** Set `language` to `en` or `ko` in `/config` instead of `auto`.
+- **The language is not the one you expected.** Set `language` to a language code in `/config` instead of `auto`.
 - **Something else.** Start Claude Code with `claude --debug`; lines from this mod begin with `review-inbox:`.
 
 ## Development

@@ -1,10 +1,16 @@
 import type { IssueKind, MyPrState } from '../types'
-
-export type Language = 'en' | 'ko'
+import { de } from './locales/de'
+import { es } from './locales/es'
+import { fr } from './locales/fr'
+import { ja } from './locales/ja'
+import { ko } from './locales/ko'
+import { ptBR } from './locales/pt-BR'
+import { zhCN } from './locales/zh-CN'
+import { zhTW } from './locales/zh-TW'
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-// English is the schema: the Korean table must have the same keys, and the tests check it at runtime too.
+// English is the schema: every table in ./locales must have the same keys, and the tests check it at runtime too.
 const en = {
   title: 'Review inbox',
   command: {
@@ -102,113 +108,37 @@ const en = {
 
 export type Messages = typeof en
 
-const ko: Messages = {
-  title: '리뷰 인박스',
-  command: {
-    description: '리뷰 인박스 열기: 내 리뷰를 기다리는 PR, 내 PR, 내 이슈',
-    opened: '리뷰 인박스를 열었습니다.',
-  },
-  band: {
-    open: '열기',
-    reviews: n => `리뷰 ${n}`,
-    prTodo: n => `내 PR 할 일 ${n}`,
-    issues: n => `내 이슈 ${n}`,
-    oldest: days => ` · 가장 오래된 리뷰 ${days}일째`,
-  },
-  tabs: {
-    review: n => `리뷰 대기 ${n}`,
-    mine: n => `내 PR ${n}`,
-    issues: n => `내 이슈 ${n}`,
-  },
-  card: {
-    rerequest: '재요청',
-    waiting: days => `${days}일째`,
-    ago: days => (days === 0 ? '오늘' : `${days}일 전`),
-    direct: '직접 요청',
-    team: team => `팀 요청 (${team})`,
-    sinceMyReview: '지난 내 리뷰 이후',
-    summary: '요약',
-    why: 'PR 이유',
-    impact: '영향 범위',
-    size: (files, added, removed) => `파일 ${files}개 (+${added} −${removed})`,
-    hide: '숨기기',
-    review: '리뷰하기',
-    ciRunning: ' · CI 진행 중',
-    newReview: who => `새 리뷰 · ${who}`,
-    referenced: (by, target) => `${by}님이 내 ${target}을(를) 언급`,
-  },
-  state: {
-    changes: '변경 요청',
-    'ci-failing': 'CI 실패',
-    conflict: '충돌',
-    waiting: '리뷰 대기',
-    approved: '승인됨',
-    draft: '초안',
-  },
-  issueKind: {
-    assigned: '나에게 할당',
-    mention: '나를 언급',
-    reference: '내 작업을 언급',
-  },
-  status: {
-    loading: '불러오는 중…',
-    error: message => `불러오지 못해 1분 뒤 다시 시도합니다 (${message})`,
-    updated: minutes => (minutes < 1 ? '방금 갱신' : `${minutes}분 전 갱신`),
-    firstFetch: 'GitHub에서 목록을 가져오고 있습니다. 처음에는 1분 정도 걸립니다.',
-  },
-  empty: {
-    review: '지금 리뷰를 기다리는 PR이 없습니다.',
-    mine: '열려 있는 내 PR이 없습니다.',
-    issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
-  },
-  sections: {
-    hidden: n => `숨김 ${n} · 모두 보이기`,
-    drafts: n => `초안 · 아직 리뷰 준비 전 ${n}`,
-    references: (days, n) => `최근 ${days}일 · 다른 곳에서 내 작업을 언급 ${n}`,
-  },
-  toast: {
-    newRequest: '새 리뷰 요청',
-    moreRequests: n => `새 리뷰 요청이 ${n}건 더 있습니다`,
-    morePrAlerts: n => `내 PR 알림이 ${n}건 더 있습니다`,
-    moreIssueAlerts: n => `내 이슈 알림이 ${n}건 더 있습니다`,
-    promptBusy: '입력창을 지금 쓸 수 없습니다. 열린 창을 닫고 다시 눌러 주세요.',
-    retry: '잠시 후 다시 눌러 주세요.',
-  },
-  alert: {
-    turned: state => `내 PR ${state}`,
-    reviewed: '내 PR 새 리뷰',
-    by: who => `새 리뷰 ${who}`,
-  },
-  prompt: {
-    review: url => `${url} 리뷰해 줘.`,
-    summary: '요약: ',
-    check: '특히 확인할 점: ',
-    since: '지난 내 리뷰 이후 바뀐 점: ',
-  },
-  summaryFailed: reason => `요약을 만들지 못했습니다 (${reason}).`,
-  model: {
-    language: 'Write in Korean, formal 합니다체, as if explaining to a junior developer.',
-    sentence: 'Each sentence about 40 Korean characters, one idea per sentence.',
-    filler: 'No filler words such as 효과적으로, 전반적으로, 다양한.',
-    bad: 'UserCache 클래스를 리팩터링하여 SessionStore의 조회 경로를 통합했습니다.',
-    good: '로그인 직후 프로필 사진이 가끔 비어 보이던 문제를 고쳤습니다.',
-    since: 'Write in Korean, formal 합니다체, one or two short sentences, about 40 Korean characters each.',
-  },
-}
+export const LANGUAGES = ['en', 'ko', 'ja', 'zh-CN', 'zh-TW', 'es', 'pt-BR', 'de', 'fr'] as const
+export type Language = (typeof LANGUAGES)[number]
 
-export const MESSAGES: Record<Language, Messages> = { en, ko }
+export const MESSAGES: Record<Language, Messages> = { en, ko, ja, 'zh-CN': zhCN, 'zh-TW': zhTW, es, 'pt-BR': ptBR, de, fr }
 
-// Claude Code's `language` setting is free text ("한국어", "Korean", "ko-KR"), and a locale reads "ko_KR.UTF-8".
+export const isLanguage = (value: unknown): value is Language => (LANGUAGES as readonly unknown[]).includes(value)
+
+// A code must end where the value ends or at a region or encoding separator, so "kotlin" or "default" names no language.
+const NAMES: [Language, RegExp][] = [
+  ['ko', /^(kor?([-_.@]|$)|korean|한국|한글)/],
+  ['en', /^(eng?([-_.@]|$)|english|영어)/],
+  ['ja', /^((ja|jpn?)([-_.@]|$)|japanese|日本)/],
+  ['es', /^((es|spa)([-_.@]|$)|spanish|espa[ñn]ol|castellano)/],
+  ['pt-BR', /^((pt|por)([-_.@]|$)|portuguese|portugu[eê]s)/],
+  ['de', /^((de|deu|ger)([-_.@]|$)|german|deutsch)/],
+  ['fr', /^((fr|fra|fre)([-_.@]|$)|french|fran[çc]ais)/],
+]
+
+// Claude Code's `language` setting is free text ("日本語", "Korean", "zh-TW"), and a locale reads "ja_JP.UTF-8".
 function recognize(value: unknown): Language | undefined {
   if (typeof value !== 'string') return undefined
   const v = value.trim().toLowerCase()
-  if (/^(kor?([-_.@]|$)|korean|한국|한글)/.test(v)) return 'ko'
-  if (/^(eng?([-_.@]|$)|english|영어)/.test(v)) return 'en'
-  return undefined
+  // Chinese, named anywhere ("Simplified Chinese"), reads Simplified unless it carries a Taiwan, Hong Kong, Macau or Traditional mark.
+  if (/^(zh|zho|chi)([-_.@]|$)|chinese|中文|汉语|漢語|简体|簡體|繁體|繁体|正體/.test(v)) {
+    return /[-_](tw|hk|mo|hant)\b|traditional|繁|正體/.test(v) ? 'zh-TW' : 'zh-CN'
+  }
+  return NAMES.find(([, pattern]) => pattern.test(v))?.[0]
 }
 
 // The plugin option wins; `auto` follows Claude Code's language setting, then the system locale, then English.
 export function pickLanguage(option: unknown, claudeLanguage: unknown, locale: unknown): Language {
-  if (option === 'en' || option === 'ko') return option
+  if (isLanguage(option)) return option
   return recognize(claudeLanguage) ?? recognize(locale) ?? 'en'
 }

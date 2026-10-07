@@ -6,13 +6,13 @@ All notable changes to this mod. Versions follow `version` in `.claude-plugin/pl
 
 ### Added
 
-- `language` option (`auto`, `en`, `ko`). The band, drawer, toasts, the review request put into the prompt and the model-written summaries all follow it. `auto` follows Claude Code's `language` setting, then the system locale, then English.
-- English interface and English summaries.
+- `language` option: `auto`, or one of nine languages — English (`en`), Korean (`ko`), Japanese (`ja`), Simplified Chinese (`zh-CN`), Traditional Chinese (`zh-TW`), Spanish (`es`), Brazilian Portuguese (`pt-BR`), German (`de`) and French (`fr`). The band, drawer, toasts, the review request put into the prompt and the model-written summaries all follow it. `auto` follows Claude Code's `language` setting, then the system locale, then English.
+- The interface and summaries in every language above; Korean was the only one before.
 - CI: `claude plugin validate --strict` and `claude plugin test` on the tested Claude Code build.
 
 ### Changed
 
-- The default language is now `auto`. A setup stays in Korean when its Claude Code `language` setting names Korean, or when that setting names neither English nor Korean and the system locale is Korean; everything else switches to English. Set `language` to `ko` to keep Korean regardless.
+- The default language is now `auto`. A setup stays in Korean when its Claude Code `language` setting names Korean, or when that setting names none of the nine languages and the system locale is Korean; otherwise it switches to the language found, or to English. Set `language` to `ko` to keep Korean regardless.
 - Summaries and hidden PRs are kept per language. After updating, every PR waiting for your review is summarized once more, and PRs hidden before the update show again until you hide them.
 
 ## 0.1.0 — 2026-10-07
