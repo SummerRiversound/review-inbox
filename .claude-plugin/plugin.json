@@ -1,0 +1,25 @@
+{
+  "name": "review-inbox",
+  "version": "0.1.0",
+  "description": "A drawer of the GitHub PRs waiting for your review, each summarized in plain Korean",
+  "author": {
+    "name": "SummerRiversound"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SummerRiversound/review-inbox",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "scope": {
+      "type": "string",
+      "title": "Search scope",
+      "description": "GitHub search qualifiers that narrow the inbox, e.g. org:my-org or repo:owner/name; empty watches every repository",
+      "default": ""
+    },
+    "githubUser": {
+      "type": "string",
+      "title": "GitHub account",
+      "description": "gh account to use when several are logged in; empty uses the active one",
+      "default": ""
+    }
+  }
+}

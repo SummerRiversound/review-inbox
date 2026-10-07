@@ -1,0 +1,13 @@
+{
+  "name": "review-inbox",
+  "description": "Claude Code mod: a drawer of the GitHub PRs waiting for your review",
+  "owner": {
+    "name": "SummerRiversound"
+  },
+  "plugins": [
+    {
+      "name": "review-inbox",
+      "source": "./"
+    }
+  ]
+}
