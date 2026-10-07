@@ -163,6 +163,12 @@ claude --plugin-dir .
 
 `claude plugin validate` と `claude plugin test` はログイン不要で、CI は動作確認済みの Claude Code ビルドでその両方を実行します。`tsconfig.json` は `.claude-plugin/types/tsconfig.json` を継承します。このファイルは Claude Code がこのフォルダから mod を初めて読み込むときに生成するもの（`.gitignore` で除外済み）なので、`tsc -p .` で型チェックする前に `claude --plugin-dir .` を一度実行してください。
 
+## サポート
+
+Review Inbox が時間の節約に役立ったら、[コーヒーを一杯](https://ko-fi.com/riversound) ☕ おごっていただけると、プロジェクトの継続に大きな励みになります。ありがとうございます！
+
+<a href="https://ko-fi.com/riversound"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="36"></a>
+
 ## ライセンス
 
 [MIT](LICENSE)

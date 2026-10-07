@@ -163,6 +163,12 @@ claude --plugin-dir .
 
 `claude plugin validate` 和 `claude plugin test` 不需要登入，CI 會在經過測試的 Claude Code 版本上執行這兩者。`tsconfig.json` 繼承 `.claude-plugin/types/tsconfig.json`，這個檔案是 Claude Code 第一次從這個資料夾載入 mod 時產生的（並由 `.gitignore` 排除），因此在用 `tsc -p .` 進行型別檢查之前，請先執行一次 `claude --plugin-dir .`。
 
+## 支持
+
+如果 Review Inbox 幫你省下了時間，歡迎[請我喝杯咖啡](https://ko-fi.com/riversound) ☕ —— 這能讓專案持續前進。謝謝！
+
+<a href="https://ko-fi.com/riversound"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="36"></a>
+
 ## 授權
 
 [MIT](LICENSE)

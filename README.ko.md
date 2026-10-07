@@ -163,6 +163,12 @@ claude --plugin-dir .
 
 `claude plugin validate`와 `claude plugin test`는 로그인 없이 실행되며, CI가 검증한 Claude Code 빌드로 둘 다 실행합니다. `tsconfig.json`은 `.claude-plugin/types/tsconfig.json`을 상속합니다. 이 파일은 Claude Code가 이 폴더의 mod를 처음 읽을 때 생성하고 `.gitignore`가 제외하므로, `tsc -p .`로 타입 검사를 하기 전에 `claude --plugin-dir .`를 한 번 실행하십시오.
 
+## 후원
+
+Review Inbox가 시간을 아껴 주었다면 [커피 한 잔](https://ko-fi.com/riversound)으로 응원해 주십시오 ☕. 프로젝트를 이어 가는 데 큰 힘이 됩니다. 감사합니다.
+
+<a href="https://ko-fi.com/riversound"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="36"></a>
+
 ## 라이선스
 
 [MIT](LICENSE)
