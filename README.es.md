@@ -1,5 +1,7 @@
 # Review Inbox
 
+[![validates](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-validates.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
+
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | **Español** | [Português](README.pt-BR.md) | [Deutsch](README.de.md) | [Français](README.fr.md)
 
 Un mod de [Claude Code](https://claude.com/claude-code) que mantiene a la vista tu trabajo en GitHub mientras programas: los pull requests que esperan tu revisión, cada uno resumido en lenguaje sencillo antes de que lo abras; tus propios PR abiertos y las revisiones que reciben, y las incidencias en las que te involucran.
@@ -122,6 +124,8 @@ Los idiomas distintos del inglés y el coreano se tradujeron con Claude y todav�
 ## Qué lee y qué ejecuta
 
 El mod accede a GitHub solo a través de tu propio `gh`, envía a Claude el texto de los PR para escribir los resúmenes y, una vez por semana, tus propios comentarios de revisión para describir tu estilo, y solo escribe en su propia carpeta de caché. A continuación se detalla cada cosa a la que accede y por qué; coincide con lo que `claude plugin validate .` enumera para el mod.
+
+[![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **Ejecuta `gh`**: `gh api graphql` para las listas y, una vez por semana, para tus comentarios de revisión recientes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para un PR con revisión solicitada de nuevo, y `gh auth token -u <githubUser>` cuando `githubUser` está definido. El mod no hace por su cuenta ninguna otra llamada de red.
 - **Consulta a Claude** (el modelo `sonnet`) para cada resumen y le envía el nombre del repositorio del PR, el título, la descripción (los primeros 12 000 caracteres), las rutas de los archivos modificados (hasta 80) y el tamaño; para un PR con revisión solicitada de nuevo, también la primera línea de cada mensaje de commit y hasta 60 rutas de archivo desde tu última revisión. Esto cuenta para tu uso de Claude Code. Cada PR se resume una vez por commit head e idioma; un resumen que falla se intenta como máximo tres veces por commit. Una vez por semana también envía tus propios comentarios de revisión en hasta 30 PR que revisaste recientemente, cada uno recortado a 500 caracteres, con un máximo de 60 comentarios y 12 000 caracteres en total, para describir tu estilo de revisión; si hay menos de cinco, no se envía nada.
