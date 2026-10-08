@@ -1,5 +1,7 @@
 # Review Inbox
 
+[![validates](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-validates.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
+
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | **繁體中文** | [Español](README.es.md) | [Português](README.pt-BR.md) | [Deutsch](README.de.md) | [Français](README.fr.md)
 
 一個 [Claude Code](https://claude.com/claude-code) mod，讓你寫程式時也能隨時掌握 GitHub 上的工作：等待你審查的 pull request（開啟前就先用淺白的文字摘要好）、你自己開啟中的 PR 與它們收到的審查，以及牽涉到你的議題。
@@ -122,6 +124,8 @@ user:my-username
 ## 讀取與執行的內容
 
 這個 mod 只透過你自己的 `gh` 存取 GitHub；它會把 PR 的文字送給 Claude 撰寫摘要，並每週一次把你自己的審查留言送給 Claude 描述你的風格；它只會寫入自己的快取資料夾。以下逐項列出它存取的內容和原因，與 `claude plugin validate .` 為這個 mod 列出的項目一致。
+
+[![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **執行 `gh`**：以 `gh api graphql` 取得清單，並每週一次取得你最近的審查留言；對已重新請求審查的 PR 執行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；設定了 `githubUser` 時執行 `gh auth token -u <githubUser>`。除此之外，mod 本身不會發出任何網路請求。
 - **詢問 Claude**（`sonnet` 模型）：為每份摘要傳送 PR 的儲存庫名稱、標題、說明（前 12,000 個字元）、變更的檔案路徑（最多 80 個）和變更規模；若是已重新請求審查的 PR，還會傳送你上次審查後每個 commit 訊息的第一行，以及最多 60 個檔案路徑。這會計入你的 Claude Code 用量。每個 PR 在每個 head commit 和語言下只摘要一次；摘要失敗時，每個 commit 最多嘗試三次。此外，每週一次會傳送你在最近審查過的至多 30 個 PR 上留下的審查留言，用來描述你的審查風格：每則截至 500 個字元，最多 60 則，總計不超過 12,000 個字元；少於 5 則時不會傳送任何內容。

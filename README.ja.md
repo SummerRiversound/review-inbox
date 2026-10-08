@@ -1,5 +1,7 @@
 # Review Inbox
 
+[![validates](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-validates.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
+
 [English](README.md) | [한국어](README.ko.md) | **日本語** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Deutsch](README.de.md) | [Français](README.fr.md)
 
 コーディング中も GitHub での自分の作業を見失わないための [Claude Code](https://claude.com/claude-code) の mod です。自分のレビューを待っているプルリクエスト（それぞれ開く前にわかりやすい言葉で要約します）、オープン中の自分の PR とそれに付いたレビュー、そして自分に声がかかった Issue を表示します。
@@ -122,6 +124,8 @@ user:my-username
 ## 読み取るものと実行するもの
 
 この mod は、自分の `gh` を通してのみ GitHub にアクセスします。要約を作成するために PR のテキストを、レビュースタイルを説明するために週に1回自分のレビューコメントを Claude に送り、ファイルは自身のキャッシュフォルダにのみ書き込みます。以下は、mod がアクセスするものとその理由の一覧で、`claude plugin validate .` がこの mod について表示する内容と一致します。
+
+[![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **`gh` の実行**: 一覧の取得と、週に1回の最近のレビューコメントの取得に `gh api graphql` を、再リクエストされた PR には `gh api repos/<owner>/<repo>/compare/<from>...<to>` を、`githubUser` が設定されている場合は `gh auth token -u <githubUser>` を実行します。mod 自身がこれ以外のネットワーク呼び出しを行うことはありません。
 - **Claude への依頼**（`sonnet` モデル）: 要約ごとに、PR のリポジトリ名、タイトル、説明（先頭12,000文字）、変更されたファイルのパス（最大80件）、変更規模を送ります。再リクエストされた PR では、前回の自分のレビュー以降の各コミットメッセージの1行目と、最大60件のファイルパスも送ります。これは Claude Code の使用量に含まれます。各 PR の要約は head コミットと言語の組み合わせごとに1回作成し、要約に失敗した場合の試行はコミットごとに最大3回までです。また週に1回、レビュースタイルを説明するために、最近レビューした PR（最大30件）に自分が残したレビューコメントを送ります。コメントはそれぞれ500文字で切り詰め、最大60件、合計12,000文字までです。5件未満の場合は何も送りません。

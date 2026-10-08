@@ -1,5 +1,7 @@
 # Review Inbox
 
+[![validates](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-validates.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
+
 **English** | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Deutsch](README.de.md) | [Français](README.fr.md)
 
 A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
@@ -122,6 +124,8 @@ Languages other than English and Korean were translated with Claude and have not
 ## What it reads and runs
 
 The mod reaches GitHub only through your own `gh`, sends PR text to Claude to write the summaries and, once a week, your own review comments to describe your style, and writes only to its own cache folder. Below is each thing it touches and why; it matches what `claude plugin validate .` lists for the mod.
+
+[![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. The mod makes no other network calls of its own.
 - **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
