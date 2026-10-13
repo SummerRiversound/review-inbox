@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.3.1 — 2026-10-13
+
+### Fixed
+
+- The inbox no longer stays empty after its cache file is left half written, for example when the machine shuts down mid-write. A file that still cannot be read 10 seconds after it was written is fetched again and replaced, including one an earlier version left broken.
+- Cache files are written to a temporary file beside them and moved into place with `mv`, so a session never reads half of one. Where there is no `mv`, as on Windows, they are written in place as before.
+
 ## 0.3.0 — 2026-10-07
 
 ### Added
