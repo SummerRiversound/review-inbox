@@ -11,6 +11,7 @@ import {
   failedSummary,
   hasRequest,
   isHidden,
+  isTorn,
   itemKey,
   lastReviewedSha,
   minutesSince,
@@ -104,19 +105,33 @@ async function cacheDir($: EngineInterface) {
   return `${configDir}/plugins/data/review-inbox`
 }
 
-// undefined when the file exists but does not parse: another session is mid-write, so skip this look.
+// undefined when the file exists but does not parse: another session may be mid-write, so skip this look.
+// One that stays unparsable was cut short, by a crash or an older version of the mod; it reads as missing so the next write replaces it.
 async function readJson<T>($: EngineInterface, name: string, missing: T): Promise<T | undefined> {
   const path = `${await cacheDir($)}/${name}`
   if (!(await $.fs.exists(path))) return missing
   try {
     return JSON.parse(await $.fs.read(path)) as T
   } catch {
-    return undefined
+    const stat = await $.fs.stat(path).catch(() => undefined)
+    return stat !== undefined && isTorn(stat.mtimeMs, Date.now()) ? missing : undefined
   }
 }
 
+// Whether mv runs here; Windows has none, so the file is written in place there.
+let canMove: Promise<boolean> | undefined
+
 async function writeJson($: EngineInterface, name: string, value: unknown) {
-  await $.fs.write(`${await cacheDir($)}/${name}`, JSON.stringify(value))
+  const path = `${await cacheDir($)}/${name}`
+  const text = JSON.stringify(value)
+  canMove ??= $.process.run(['mv']).then(() => true, () => false)
+  if (await canMove) {
+    // Written aside and moved over, so a reader never sees half a file.
+    const temp = `${path}.${sessionToken}.tmp`
+    await $.fs.write(temp, text)
+    if ((await $.process.run(['mv', '-f', temp, path])).exitCode === 0) return
+  }
+  await $.fs.write(path, text)
 }
 
 // One shared file per account, scope and language, so sessions configured differently never overwrite each other

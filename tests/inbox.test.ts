@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  REFRESH_MS, RETRY_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  REFRESH_MS, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -111,6 +111,12 @@ test('a failed fetch is retried in a minute instead of after a full refresh', as
   const now = 1_000_000_000
   expect(shouldFetch({ items: [], fetchedAt: now - 60_000, retryAt: now + RETRY_MS }, now, false)).toBe(false)
   expect(shouldFetch({ items: [], fetchedAt: now - 60_000, retryAt: now }, now, false)).toBe(true)
+})
+
+test('an unreadable cache file is skipped while a write may be running, then read as missing', async () => {
+  const writtenAt = 1_000_000_000
+  expect(isTorn(writtenAt, writtenAt + 1_000)).toBe(false)
+  expect(isTorn(writtenAt, writtenAt + TORN_MS)).toBe(true)
 })
 
 test('an unchanged PR keeps its summary; a failed one is retried three times, then kept', async () => {
