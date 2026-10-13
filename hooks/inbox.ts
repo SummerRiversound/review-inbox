@@ -101,6 +101,8 @@ export const REFRESH_MS = 10 * 60_000
 export const RETRY_MS = 60_000
 // A claim not renewed for this long belongs to a session that died mid-fetch.
 export const CLAIM_MS = 3 * 60_000
+// A write takes milliseconds; a file still unreadable this long after it was written was cut short and never completes.
+export const TORN_MS = 10_000
 const MAX_SUMMARY_TRIES = 3
 
 export function waitingDays(since: string, now: number): number {
@@ -131,6 +133,10 @@ export function shouldFetch(file: InboxFile, now: number, force: boolean): boole
   if (file.retryAt !== undefined) return now >= file.retryAt
   // A file written by an older version of the mod has no tabs; refresh it rather than show them empty.
   return file.mine === undefined || now - file.fetchedAt >= REFRESH_MS
+}
+
+export function isTorn(writtenAt: number, now: number): boolean {
+  return now - writtenAt >= TORN_MS
 }
 
 // Summaries are tied to the head commit, so an unchanged PR keeps its own; a failed one is retried a few times, then kept.
