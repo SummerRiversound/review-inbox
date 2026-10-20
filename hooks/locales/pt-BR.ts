@@ -71,7 +71,26 @@ export const ptBR: Messages = {
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'dia')} · meu trabalho referenciado em outros lugares ${n}`,
   },
+  note: {
+    edit: 'Nota',
+    label: 'Nota',
+    placeholder: 'O que você viu ou pretende fazer',
+    save: 'Salvar',
+    tomorrow: 'Adiar até amanhã',
+    nextWeek: 'Adiar até a próxima semana',
+    cancel: 'Cancelar',
+    clear: 'Apagar',
+    shown: (text: string) => `Nota: ${text}`,
+    until: (month: number, day: number) => `adiado até ${day}/${month}`,
+  },
+  search: {
+    label: 'Buscar',
+    placeholder: 'repo, #número, título, descrição ou nota',
+    empty: 'Nada encontrado.',
+    hidden: 'oculto',
+  },
   toast: {
+    back: 'Um cartão adiado voltou',
     added: (n: number) => `${count(n, 'PR adicionado', 'PRs adicionados')} · Esc coloca os pedidos de revisão no prompt`,
     newRequest: 'Nova solicitação de revisão',
     moreRequests: (n: number) => `Mais ${count(n, 'solicitação de revisão', 'solicitações de revisão')}`,

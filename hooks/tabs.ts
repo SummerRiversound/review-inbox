@@ -3,8 +3,9 @@ import type { Messages } from './i18n'
 
 type Repo = { repository: { nameWithOwner: string } }
 type Item = Repo & { number: number; title: string; url: string }
+type Body = { body?: string | null }
 
-export type GqlMyPr = Item & {
+export type GqlMyPr = Item & Body & {
   isDraft: boolean
   createdAt: string
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
@@ -13,7 +14,7 @@ export type GqlMyPr = Item & {
   reviews: { nodes: { state: string; submittedAt: string | null; author: { login: string } | null }[] }
 }
 
-export type GqlTouched = Item & { updatedAt: string }
+export type GqlTouched = Item & Body & { updatedAt: string }
 
 export type GqlReferenced = Repo & {
   number: number
@@ -26,14 +27,14 @@ export type GqlReferenced = Repo & {
 export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
   viewer { login }
   mine: search(query: $mine, type: ISSUE, first: 100) { nodes { ... on PullRequest {
-    number title url isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
+    number title url body isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
   assigned: search(query: $assigned, type: ISSUE, first: 50) { nodes {
-    ... on Issue { number title url updatedAt repository { nameWithOwner } } } }
+    ... on Issue { number title url body updatedAt repository { nameWithOwner } } } }
   mentioned: search(query: $mentioned, type: ISSUE, first: 50) { nodes {
-    ... on Issue { number title url updatedAt repository { nameWithOwner } }
-    ... on PullRequest { number title url updatedAt repository { nameWithOwner } } } }
+    ... on Issue { number title url body updatedAt repository { nameWithOwner } }
+    ... on PullRequest { number title url body updatedAt repository { nameWithOwner } } } }
 }`
 
 // My PRs and issues touched lately, with who pointed at them from elsewhere; paged.
@@ -111,6 +112,7 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       state: myPrState(pr),
       ciPending: ['PENDING', 'EXPECTED'].includes(pr.commits.nodes[0]?.commit.statusCheckRollup?.state ?? ''),
       newReviews: newReviews(pr, me),
+      ...(pr.body ? { body: pr.body } : {}),
     }))
     .sort(
       (a, b) =>
@@ -148,7 +150,7 @@ export function toIssues(assigned: GqlTouched[], mentioned: GqlTouched[], refere
     // Assigned wins over a mention of the same thread.
     if (seen.has(i.url)) return
     seen.add(i.url)
-    out.push({ kind, repo: i.repository.nameWithOwner, number: i.number, title: i.title, url: i.url, at: i.updatedAt })
+    out.push({ kind, repo: i.repository.nameWithOwner, number: i.number, title: i.title, url: i.url, at: i.updatedAt, ...(i.body ? { body: i.body } : {}) })
   }
   assigned.forEach(i => add('assigned', i))
   mentioned.forEach(i => add('mention', i))

@@ -71,7 +71,26 @@ export const de: Messages = {
     references: (days, n) =>
       `${days === 1 ? 'Letzter' : 'Letzte'} ${count(days, 'Tag', 'Tage')} · anderswo auf meine Arbeit verwiesen ${n}`,
   },
+  note: {
+    edit: 'Notiz',
+    label: 'Notiz',
+    placeholder: 'Was Sie angesehen haben oder vorhaben',
+    save: 'Speichern',
+    tomorrow: 'Bis morgen zurückstellen',
+    nextWeek: 'Bis nächste Woche zurückstellen',
+    cancel: 'Abbrechen',
+    clear: 'Löschen',
+    shown: (text: string) => `Notiz: ${text}`,
+    until: (month: number, day: number) => `zurückgestellt bis ${day}.${month}.`,
+  },
+  search: {
+    label: 'Suche',
+    placeholder: 'Repo, #Nummer, Titel, Beschreibung oder Notiz',
+    empty: 'Keine Treffer.',
+    hidden: 'ausgeblendet',
+  },
   toast: {
+    back: 'Zurückgestellte Karte ist zurück',
     added: n => `${count(n, 'PR', 'PRs')} hinzugefügt · Esc übernimmt die Review-Anfragen in den Prompt`,
     newRequest: 'Neue Review-Anfrage',
     moreRequests: n => count(n, 'weitere Review-Anfrage', 'weitere Review-Anfragen'),
