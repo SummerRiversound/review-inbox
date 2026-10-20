@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.6.0 — 2026-10-20
+
+### Added
+
+- Cards one of your sessions is working on gather under `In progress in a session` at the top of To review and My PRs, with the session's folder name or `this session`. My PR counts when a session's folder is checked out on its branch; any card counts once a prompt in that session links to it, as `Review` does. A session that closes, or stays silent for 10 minutes, lets its cards go back.
+- Every 30 seconds each session runs `git branch --show-current` and `git remote -v` in its folder and writes the result to `sessions.json` in the cache folder.
+
 ## 0.5.0 — 2026-10-20
 
 ### Added
