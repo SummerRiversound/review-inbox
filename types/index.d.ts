@@ -51,6 +51,7 @@ export type MyPr = {
   // Reviews by others, bots included, left on the current head commit; a new push clears them.
   newReviews: { by: string; at: string }[]
   body?: string
+  branch?: string
 }
 
 // Why an issue or PR is in my issues tab.
@@ -70,6 +71,16 @@ export type IssueItem = {
 }
 
 export type Tab = 'review' | 'mine' | 'issues'
+
+// What one live session is on, shared with every other: its folder, branch and remotes, and the PRs its prompts linked to.
+export type Presence = {
+  at: number
+  folder: string
+  branch?: string
+  // GitHub repositories of its remotes, as owner/name.
+  remotes: string[]
+  prs: string[]
+}
 
 // Shared by every session on the machine; whichever finds it stale fetches and rewrites it.
 export type InboxFile = {
@@ -107,6 +118,8 @@ declare module 'claude-code' {
       query: string
       // The card whose note is being written, or empty.
       editing: string
+      // Every live session's entry, this one's included, keyed by session id.
+      sessions: Record<string, Presence>
       added: string[]
       requested: string[]
     }

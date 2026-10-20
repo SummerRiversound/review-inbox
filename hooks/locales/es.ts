@@ -63,6 +63,7 @@ export const es: Messages = {
     issues: 'No hay incidencias asignadas a ti ni que te mencionen.',
   },
   sections: {
+    session: n => `En curso en una sesión ${n}`,
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todo`,
     direct: (n: number) => `Solicitudes directas ${n}`,
     team: (n: number) => `Solicitudes al equipo ${n}`,
@@ -81,6 +82,10 @@ export const es: Messages = {
     clear: 'Borrar',
     shown: (text: string) => `Nota: ${text}`,
     until: (month: number, day: number) => `pospuesto hasta el ${day}/${month}`,
+  },
+  session: {
+    here: 'esta sesión',
+    at: names => `En curso en ${names}`,
   },
   search: {
     label: 'Buscar',

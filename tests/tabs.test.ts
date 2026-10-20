@@ -189,6 +189,11 @@ test('a hidden issue comes back once it has new activity', async () => {
   expect(isIssueHidden(hidden, { ...issue, kind: 'assigned' })).toBe(false)
 })
 
+test('my PR keeps its branch, so a session checked out on it can be found', async () => {
+  const [pr] = toMyPrs([gqlPr({ headRefName: 'feat/x' })], 'me')
+  expect(pr!.branch).toBe('feat/x')
+})
+
 test('my PRs and issues keep their description for search', async () => {
   const [pr] = toMyPrs([gqlPr({ body: 'callback lost its query' })], 'me')
   expect(pr!.body).toBe('callback lost its query')

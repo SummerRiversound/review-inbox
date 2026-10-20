@@ -61,6 +61,7 @@ export const ja: Messages = {
     issues: '自分に割り当てられた Issue や、自分がメンションされた Issue はありません。',
   },
   sections: {
+    session: n => `セッションで作業中 ${n}`,
     hidden: (n: number) => `非表示 ${n} · すべて表示`,
     direct: (n: number) => `直接リクエスト ${n}`,
     team: (n: number) => `チームへのリクエスト ${n}`,
@@ -78,6 +79,10 @@ export const ja: Messages = {
     clear: '消去',
     shown: (text: string) => `メモ: ${text}`,
     until: (month: number, day: number) => `${month}/${day} まで延期`,
+  },
+  session: {
+    here: 'このセッション',
+    at: names => `作業中: ${names}`,
   },
   search: {
     label: '検索',

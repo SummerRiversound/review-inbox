@@ -22,6 +22,8 @@
 
 顶部的搜索框不分标签页，一次搜索全部内容：仓库、编号、标题、作者、正文前 2,000 个字符、摘要和你的备注。已隐藏或已推迟的卡片也能搜到，并标注 `已隐藏`。清空搜索框即可回到标签页。Claude 移动端应用尚不绘制输入框，因此在移动端只显示备注，没有搜索和 `备注` 按钮。
 
+会话正在处理的卡片会集中到待审查和我的 PR 标签页顶部的 `会话中正在处理`，并显示该会话的文件夹名或 `此会话`。如果某个会话的文件夹在该仓库中检出了我的 PR 的分支，这个 PR 就会出现在这里；任何卡片只要其 PR 链接出现在某个会话的提示中（就像 `审查` 所做的那样），也会出现在这里。会话关闭或 10 分钟没有消息后，卡片会回到原来的分组。
+
 ### 待审查
 
 每个等待你审查的 PR 对应一张卡片，内容包括一句话摘要、PR 的原因、影响范围、规模和作者，以及你的审查已等待多久。有风险的事项（例如 schema 变更或必须遵守的部署顺序）会标记 ⚠️。
@@ -138,8 +140,9 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。除此之外，mod 自身不发起任何网络调用。
+- **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
-- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。
+- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。
 - **读取环境变量**：读取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 以找到该文件夹；仅在 `language` 为 `auto` 时读取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不设置任何环境变量。
 - **读取 Claude Code 设置**：仅在 `language` 为 `auto` 时读取，且只使用 `language` 键。
 - **读取并填写输入框**：仅在抽屉打开和关闭时进行。打开抽屉时读取输入框中已有的内容，以标记其中已经请求审查的 PR；关闭抽屉时，把你添加的 PR 的审查请求另起新行，追加到已有内容之后。

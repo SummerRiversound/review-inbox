@@ -64,6 +64,7 @@ export const de: Messages = {
     issues: 'Es gibt keine Issues, die mir zugewiesen sind oder mich erwähnen.',
   },
   sections: {
+    session: n => `In Arbeit in einer Sitzung ${n}`,
     hidden: n => `${n} ausgeblendet · alle anzeigen`,
     direct: n => `Direkte Anfragen ${n}`,
     team: n => `Team-Anfragen ${n}`,
@@ -82,6 +83,10 @@ export const de: Messages = {
     clear: 'Löschen',
     shown: (text: string) => `Notiz: ${text}`,
     until: (month: number, day: number) => `zurückgestellt bis ${day}.${month}.`,
+  },
+  session: {
+    here: 'diese Sitzung',
+    at: names => `In Arbeit: ${names}`,
   },
   search: {
     label: 'Suche',

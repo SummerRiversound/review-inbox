@@ -6,6 +6,7 @@ type Item = Repo & { number: number; title: string; url: string }
 type Body = { body?: string | null }
 
 export type GqlMyPr = Item & Body & {
+  headRefName?: string
   isDraft: boolean
   createdAt: string
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
@@ -27,7 +28,7 @@ export type GqlReferenced = Repo & {
 export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
   viewer { login }
   mine: search(query: $mine, type: ISSUE, first: 100) { nodes { ... on PullRequest {
-    number title url body isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
+    number title url body headRefName isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
   assigned: search(query: $assigned, type: ISSUE, first: 50) { nodes {
@@ -113,6 +114,7 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       ciPending: ['PENDING', 'EXPECTED'].includes(pr.commits.nodes[0]?.commit.statusCheckRollup?.state ?? ''),
       newReviews: newReviews(pr, me),
       ...(pr.body ? { body: pr.body } : {}),
+      ...(pr.headRefName ? { branch: pr.headRefName } : {}),
     }))
     .sort(
       (a, b) =>

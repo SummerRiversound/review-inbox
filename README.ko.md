@@ -22,6 +22,8 @@
 
 맨 위 검색창은 탭과 상관없이 전체를 한 번에 찾습니다. 저장소, 번호, 제목, 작성자, 본문 앞부분 2,000자, 요약, 내 메모가 검색 대상입니다. 숨기거나 미룬 카드도 `숨김` 표시와 함께 찾아 줍니다. 검색창을 비우면 탭 화면으로 돌아갑니다. Claude 모바일 앱은 아직 입력창을 그리지 않아서, 모바일에서는 메모를 보여 주기만 하고 검색과 `메모` 버튼은 없습니다.
 
+세션이 작업 중인 카드는 리뷰 대기와 내 PR 탭 맨 위의 `세션에서 진행 중`에 모이고, 그 세션의 폴더 이름이나 `이 세션`이 함께 표시됩니다. 내 PR은 어떤 세션의 폴더가 그 저장소의 그 브랜치에 체크아웃되어 있으면 여기에 들어가고, 어떤 카드든 세션의 프롬프트에 그 PR 링크가 들어가면(`리뷰하기`가 하는 것처럼) 여기에 들어갑니다. 세션이 닫히거나 10분 동안 소식이 없으면 카드는 원래 묶음으로 돌아갑니다.
+
 ### 리뷰 대기
 
 내 리뷰를 기다리는 PR마다 카드 한 장을 보여 줍니다. 한 문장 요약, PR 이유, 영향 범위, 변경 규모와 작성자, 리뷰 대기 일수가 들어갑니다. DB 스키마 변경이나 배포 순서 제약처럼 위험한 항목에는 ⚠️를 붙입니다.
@@ -138,8 +140,9 @@ user:my-username
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
+- **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해, 내 PR 브랜치에 있는 세션을 찾습니다.
 - **Claude 호출**(`sonnet` 모델): PR의 저장소 이름, 제목, 설명(앞 12,000자), 변경 파일 경로(최대 80개), 변경 규모를 보내 요약을 받습니다. 재요청 PR은 지난 리뷰 이후 커밋 메시지의 첫 줄과 파일 경로(최대 60개)도 보냅니다. Claude Code 사용량에 포함됩니다. 요약은 PR의 head 커밋과 언어마다 한 번 작성하고, 실패하면 커밋마다 최대 세 번까지 시도합니다. 또한 일주일에 한 번, 최근 내가 리뷰한 PR 최대 30개에서 내가 남긴 리뷰 코멘트를 보내 리뷰 방식을 정리합니다. 코멘트마다 500자까지 자르고 최대 60개, 합계 12,000자까지 보내며, 다섯 개보다 적으면 보내지 않습니다.
-- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다.
+- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다.
 - **환경 변수 읽기**: 그 폴더를 찾기 위해 `CLAUDE_CONFIG_DIR`, `HOME`, `USERPROFILE`을 읽습니다. 또한 `language`가 `auto`일 때만 `LC_ALL`, `LC_MESSAGES`, `LANG`을 읽습니다. 환경 변수를 설정하지는 않습니다.
 - **Claude Code 설정 읽기**: `language`가 `auto`일 때만 읽고, `language` 키 하나만 사용합니다.
 - **입력창 읽기·채우기**: 목록 창을 열고 닫을 때만 합니다. 열 때는 이미 요청한 PR을 표시하기 위해 작성 중인 내용을 읽고, 닫을 때는 추가한 PR의 요청 문장을 작성 중인 내용 다음 줄에 붙입니다.
