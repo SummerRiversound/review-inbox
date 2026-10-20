@@ -64,6 +64,7 @@ export const fr: Messages = {
     issues: 'Aucune issue ne vous est assignée ni ne vous mentionne.',
   },
   sections: {
+    session: n => `En cours dans une session ${n}`,
     hidden: n => `${count(n, 'masquée')} · tout afficher`,
     direct: n => `Demandes directes ${n}`,
     team: n => `Demandes via l'équipe ${n}`,
@@ -81,6 +82,10 @@ export const fr: Messages = {
     clear: 'Effacer',
     shown: (text: string) => `Note : ${text}`,
     until: (month: number, day: number) => `reportée au ${day}/${month}`,
+  },
+  session: {
+    here: 'cette session',
+    at: names => `En cours dans : ${names}`,
   },
   search: {
     label: 'Rechercher',

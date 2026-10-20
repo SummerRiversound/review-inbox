@@ -64,6 +64,7 @@ export const ptBR: Messages = {
     issues: 'Não há issues atribuídas a você ou que mencionem você.',
   },
   sections: {
+    session: n => `Em andamento em uma sessão ${n}`,
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todos`,
     direct: (n: number) => `Solicitações diretas ${n}`,
     team: (n: number) => `Solicitações à equipe ${n}`,
@@ -82,6 +83,10 @@ export const ptBR: Messages = {
     clear: 'Apagar',
     shown: (text: string) => `Nota: ${text}`,
     until: (month: number, day: number) => `adiado até ${day}/${month}`,
+  },
+  session: {
+    here: 'esta sessão',
+    at: names => `Em andamento: ${names}`,
   },
   search: {
     label: 'Buscar',

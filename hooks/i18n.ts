@@ -72,6 +72,7 @@ const en = {
     issues: 'No issues are assigned to you or mention you.',
   },
   sections: {
+    session: (n: number) => `In progress in a session ${n}`,
     hidden: (n: number) => `${n} hidden · show all`,
     direct: (n: number) => `Direct requests ${n}`,
     team: (n: number) => `Team requests ${n}`,
@@ -89,6 +90,10 @@ const en = {
     clear: 'Clear',
     shown: (text: string) => `Note: ${text}`,
     until: (month: number, day: number) => `snoozed until ${month}/${day}`,
+  },
+  session: {
+    here: 'this session',
+    at: (names: string) => `Working in ${names}`,
   },
   search: {
     label: 'Search',

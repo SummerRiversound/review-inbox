@@ -61,6 +61,7 @@ export const zhCN: Messages = {
     issues: '没有分配给你或提及你的议题。',
   },
   sections: {
+    session: n => `会话中正在处理 ${n}`,
     hidden: n => `已隐藏 ${n} · 全部显示`,
     direct: n => `直接请求 ${n}`,
     team: n => `团队请求 ${n}`,
@@ -78,6 +79,10 @@ export const zhCN: Messages = {
     clear: '清除',
     shown: (text: string) => `备注：${text}`,
     until: (month: number, day: number) => `推迟到 ${month}/${day}`,
+  },
+  session: {
+    here: '此会话',
+    at: names => `正在处理：${names}`,
   },
   search: {
     label: '搜索',

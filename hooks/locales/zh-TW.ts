@@ -61,6 +61,7 @@ export const zhTW: Messages = {
     issues: '沒有指派給您或提及您的議題。',
   },
   sections: {
+    session: n => `工作階段中正在處理 ${n}`,
     hidden: n => `已隱藏 ${n} · 全部顯示`,
     direct: n => `直接請求 ${n}`,
     team: n => `團隊請求 ${n}`,
@@ -78,6 +79,10 @@ export const zhTW: Messages = {
     clear: '清除',
     shown: (text: string) => `備註：${text}`,
     until: (month: number, day: number) => `延後到 ${month}/${day}`,
+  },
+  session: {
+    here: '此工作階段',
+    at: names => `正在處理：${names}`,
   },
   search: {
     label: '搜尋',

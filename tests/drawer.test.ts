@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import type { IssueItem, MyPr } from '../types'
+import type { InboxItem, IssueItem, MyPr, Presence } from '../types'
 import { cacheKey } from '../hooks/inbox'
 
 const PANE = {
@@ -14,21 +14,35 @@ const PANE = {
 } as const
 
 const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
+const SESSIONS = '/home/me/.claude/plugins/data/review-inbox/sessions.json'
 
 const pr = (number: number, state: MyPr['state'], body?: string): MyPr =>
   ({ repo: 'o/r', number, title: `t${number}`, url: `u${number}`, createdAt: '2026-10-01T00:00:00Z', state, ciPending: false, newReviews: [], ...(body ? { body } : {}) })
 const issue = (number: number, kind: IssueItem['kind']): IssueItem =>
   ({ kind, repo: 'o/i', number, title: `i${number}`, url: `i${number}`, at: '2026-10-01T00:00:00Z' })
 
+// The last opened session's files, as it wrote them.
+let files = new Map<string, string>()
+
 // A session whose shared file was just fetched, so it shows the lists without going to GitHub; mv is missing, so files are written in place.
-async function opened($: Parameters<TestBody>[0], on: On, mine: MyPr[], issues: IssueItem[], tab: string) {
+async function opened(
+  $: Parameters<TestBody>[0],
+  on: On,
+  mine: MyPr[],
+  issues: IssueItem[],
+  tab: string,
+  more: { items?: InboxItem[]; sessions?: Record<string, Presence> } = {},
+) {
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/home/me' })
   on('settings.read', async () => ({ value: {} }))
   on('session.start', async () => ({ cwd: '/work' }))
+  on('session.id', async () => ({ value: 'self' }))
+  on('session.cwd', async () => ({ value: '/work/review-inbox' }))
   on('ui.panes', async () => ({ value: [] }))
   on('command.register', async () => ({ value: { command: 'review-inbox' } }))
-  const store = new Map([[INBOX, JSON.stringify({ items: [], mine, issues, fetchedAt: Date.now() })]])
+  const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, fetchedAt: Date.now() })]])
+  if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
   on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
   on('fs.read', async ($, e) => ({ value: store.get(e.path)! }))
   on('fs.write', async ($, e) => {
@@ -42,6 +56,7 @@ async function opened($: Parameters<TestBody>[0], on: On, mine: MyPr[], issues: 
   for (let i = 0; i < 6; i++) await clock.advance(1_000)
   const ui = await $.ui.mount(PANE)
   await ui.press({ key: `tab-${tab}` })
+  files = store
   return ui
 }
 
@@ -116,5 +131,37 @@ test('a snoozed card leaves its tab with its note, and search still finds it, ma
 
   await ui.input({ key: 'search', text: '', kind: 'change' })
   expect(await ui.find({ key: 'tab-review' })).toBeDefined()
+  await ui.unmount()
+})
+
+const item = (number: number): InboxItem => ({
+  repo: 'o/r', number, title: `r${number}`, url: `https://github.com/o/r/pull/${number}`, headSha: 'a', author: 'kim',
+  createdAt: '2026-10-01T00:00:00Z', requestedAt: '2026-10-01T00:00:00Z', isDraft: false, files: 1, additions: 1, deletions: 0,
+  summary: 's', why: '', impact: [], isRerequest: false,
+})
+
+test('my PR whose branch another session is on moves to in progress, named by that session\'s folder', async ($, on) => {
+  const other: Presence = { at: Date.now(), folder: 'wt-x', branch: 'feat/x', remotes: ['o/r'], prs: [] }
+  const ui = await opened($, on, [{ ...pr(1, 'changes'), branch: 'feat/x' }, pr(2, 'changes')], [], 'mine', { sessions: { other } })
+
+  expect(await shown(ui, /wt-x/)).toBe(true)
+  await ui.press({ key: 'fold-mine:session' })
+  expect(await shown(ui, /#1/)).toBe(false)
+  expect(await shown(ui, /#2/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a review request linked in this session\'s prompt moves to in progress here, and other sessions can see it', async ($, on) => {
+  on('prompt.submit', async ($, e) => ({ text: e.text }))
+  const ui = await opened($, on, [], [], 'review', { items: [item(5), item(6)] })
+
+  await $.prompt.submit({ text: 'Review https://github.com/o/r/pull/5 please', wait: false, origin: { kind: 'composer' } })
+  expect(await shown(ui, /this session/)).toBe(true)
+  await ui.press({ key: 'fold-review:session' })
+  expect(await shown(ui, /#5/)).toBe(false)
+  expect(await shown(ui, /#6/)).toBe(true)
+
+  const sessions = JSON.parse(files.get(SESSIONS)!) as Record<string, Presence>
+  expect(Object.values(sessions).flatMap(s => s.prs)).toEqual(['https://github.com/o/r/pull/5'])
   await ui.unmount()
 })

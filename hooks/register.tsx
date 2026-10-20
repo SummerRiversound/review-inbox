@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Tab } from '../types'
+import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, Tab } from '../types'
 import {
   CLAIM_MS,
   cacheKey,
@@ -35,6 +35,7 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
+import { liveSessions, repoOf, workingOn } from './sessions'
 import type { Language, Messages } from './i18n'
 import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
@@ -87,6 +88,7 @@ const collapsed = atom({ plugin: 'review-inbox', key: 'collapsed' } as const, []
 const notes = atom({ plugin: 'review-inbox', key: 'notes' } as const, {} as Record<string, Note>)
 const query = atom({ plugin: 'review-inbox', key: 'query' } as const, '')
 const editing = atom({ plugin: 'review-inbox', key: 'editing' } as const, '')
+const sessions = atom({ plugin: 'review-inbox', key: 'sessions' } as const, {} as Record<string, Presence>)
 // The cards whose review request is in the prompt, so pressing Review again adds nothing.
 // PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
@@ -110,6 +112,9 @@ let draft = ''
 let wanted: 'sync' | 'fetch' | undefined
 let toastFreeAt = 0
 const sessionToken = Math.random().toString(36).slice(2)
+// The session's own id, which a reload keeps, and the PRs its prompts linked to.
+let selfId = ''
+let linked: string[] = []
 
 // Claude Code's per-plugin data folder; a mod is not told its id, so it falls back to a fixed name there.
 async function cacheDir($: EngineInterface) {
@@ -157,6 +162,8 @@ const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, con
 // Not keyed by language: a note I wrote stays when the language changes.
 const notesFile = () => `notes-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+// One for every account: a session's branch and links say nothing about who is signed in.
+const SESSIONS_FILE = 'sessions.json'
 
 async function resolveLanguage($: EngineInterface): Promise<Language> {
   const read = async <T,>(get: () => Promise<T>) => {
@@ -586,6 +593,27 @@ async function unsnooze($: EngineInterface, keys: string[]) {
   )
 }
 
+// Tells the other sessions what this one is on, and reads what they are on.
+// shortcut: two sessions writing in the same instant can drop one entry until its next check-in, 30 seconds on; lock the file if that shows
+async function checkIn($: EngineInterface, leaving = false) {
+  const file = await readJson<Record<string, Presence>>($, SESSIONS_FILE, {})
+  if (file === undefined) return
+  const { [selfId]: old, ...others } = liveSessions(file, Date.now())
+  let next = others
+  if (!leaving) {
+    const cwd = await $.session.cwd()
+    const git = (args: string[]) =>
+      $.process.run(['git', '-C', cwd, ...args]).then(r => (r.exitCode === 0 ? r.stdout : ''), () => '')
+    const branch = (await git(['branch', '--show-current'])).trim()
+    const remotes = [...new Set((await git(['remote', '-v'])).split('\n').flatMap(line => repoOf(line.split(/\s+/)[1] ?? '') ?? []))]
+    const prs = [...new Set([...(old?.prs ?? []), ...linked])].slice(-20)
+    const folder = cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd
+    next = { ...others, [selfId]: { at: Date.now(), folder, remotes, prs, ...(branch ? { branch } : {}) } }
+  }
+  await writeJson($, SESSIONS_FILE, next)
+  await update($, sessions, () => next)
+}
+
 // Read-modify-write on its own file, so a hide never races a fetch rewriting the inbox.
 async function setHidden($: EngineInterface, change: (h: Record<string, string>) => Record<string, string>) {
   const current = await readJson<Record<string, string>>($, hiddenFile(), {})
@@ -617,12 +645,30 @@ export const register: Register = (on, options) => {
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
+    selfId = await $.session.id()
+    $.clock.after(1_000, () => void checkIn($).catch(() => undefined))
+    $.clock.every(SYNC_MS, () => void checkIn($).catch(() => undefined))
     $.clock.every(1_000, () => {
       if (!wanted) return
       const force = wanted === 'fetch'
       wanted = undefined
       void sync($, force)
     })
+    return next(e)
+  })
+
+  // A prompt that links to a PR on the lists puts it in progress in this session.
+  on('prompt.submit', async ($, e, next) => {
+    const urls = [...(await read($, items)), ...(await read($, mine))].map(pr => pr.url).filter(url => hasRequest(e.text, url))
+    if (urls.length > 0) {
+      linked = [...linked, ...urls]
+      await checkIn($).catch(() => undefined)
+    }
+    return next(e)
+  })
+
+  on('session.end', async ($, e, next) => {
+    await checkIn($, true).catch(() => undefined)
     return next(e)
   })
 
@@ -692,6 +738,13 @@ export const register: Register = (on, options) => {
     const myIssues = allIssues.filter(i => !away.issue(i))
     const shut = await read($, collapsed)
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
+    const live = liveSessions(await read($, sessions), now)
+    const where = (pr: { repo: string; url: string; branch?: string }) =>
+      workingOn(live, pr).map(id => (id === selfId ? m.session.here : live[id]!.folder))
+    const sessionLine = (pr: { repo: string; url: string; branch?: string }) => {
+      const names = where(pr)
+      return names.length > 0 && <Text color="suggestion">{m.session.at(names.join(', '))}</Text>
+    }
 
     // My note above the title, with its snooze day.
     const noteLine = (key: string) => {
@@ -781,6 +834,7 @@ export const register: Register = (on, options) => {
                 {item.team === undefined ? m.card.direct : m.card.team(item.team)}
               </Text>
             </Box>
+            {sessionLine(item)}
             {noteLine(itemKey(item))}
             <Text dimColor wrap="truncate-end">
               <Link href={item.url}>{item.title} ↗</Link>
@@ -871,6 +925,7 @@ export const register: Register = (on, options) => {
               </Text>
             </Text>
           </Box>
+          {sessionLine(pr)}
           {noteLine(prHideKey(pr))}
           {titleRow(pr.url, pr.title, [
             noteButton(prHideKey(pr)),
@@ -1002,8 +1057,13 @@ export const register: Register = (on, options) => {
         {isAway && <Text dimColor>{m.search.hidden}</Text>}
       </Box>
     )
-    const directReady = ready.filter(i => i.team === undefined)
-    const teamReady = ready.filter(i => i.team !== undefined)
+    // Cards some session is working on gather at the top of their tab; the counts stay as they are.
+    const reviewing = list.filter(i => where(i).length > 0)
+    const idle = ready.filter(i => !reviewing.includes(i))
+    const directReady = idle.filter(i => i.team === undefined)
+    const teamReady = idle.filter(i => i.team !== undefined)
+    const idleDrafts = drafts.filter(i => !reviewing.includes(i))
+    const working = myPrs.filter(pr => where(pr).length > 0)
 
     return (
       <Box flexDirection="column" paddingX={1}>
@@ -1060,9 +1120,10 @@ export const register: Register = (on, options) => {
               <Box flexDirection="column">
                 {unhide(everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
+                {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
                 {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
                 {section('review:team', m.sections.team(teamReady.length), teamReady, card)}
-                {section('review:drafts', m.sections.drafts(drafts.length), drafts, card)}
+                {section('review:drafts', m.sections.drafts(idleDrafts.length), idleDrafts, card)}
               </Box>
             )}
 
@@ -1070,8 +1131,9 @@ export const register: Register = (on, options) => {
               <Box flexDirection="column">
                 {unhide(allPrs.filter(away.pr).map(prHideKey))}
                 {myPrs.length === 0 && empty(m.empty.mine)}
+                {section('mine:session', m.sections.session(working.length), working, prCard)}
                 {ORDER.map(s => {
-                  const group = myPrs.filter(pr => pr.state === s)
+                  const group = myPrs.filter(pr => pr.state === s && !working.includes(pr))
                   return section(`mine:${s}`, `${m.state[s]} ${group.length}`, group, prCard)
                 })}
               </Box>

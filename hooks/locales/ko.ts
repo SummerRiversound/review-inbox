@@ -61,6 +61,7 @@ export const ko: Messages = {
     issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
   },
   sections: {
+    session: n => `세션에서 진행 중 ${n}`,
     hidden: n => `숨김 ${n} · 모두 보이기`,
     direct: n => `직접 요청 ${n}`,
     team: n => `팀 요청 ${n}`,
@@ -78,6 +79,10 @@ export const ko: Messages = {
     clear: '지우기',
     shown: (text: string) => `메모: ${text}`,
     until: (month: number, day: number) => `${month}/${day}까지 미룸`,
+  },
+  session: {
+    here: '이 세션',
+    at: names => `작업 중: ${names}`,
   },
   search: {
     label: '검색',
