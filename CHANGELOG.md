@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.4.0 — 2026-10-20
+
+### Added
+
+- `Hide` on My PRs and My issues. A hidden PR shows again when it turns to another state or someone reviews it after the hide; your own push alone does not bring it back. A hidden issue shows again when it has new activity.
+- Every tab groups its cards under headers that fold and open with a press: direct requests, team requests and drafts on To review; one group per state on My PRs; assigned, mentions and references on My issues.
+
+### Changed
+
+- My issues lists assigned issues and mentions in separate groups instead of one list.
+- Hidden PRs and issues leave the tab and band counts, and `N hidden · show all` brings back only the current tab's cards.
+
 ## 0.3.1 — 2026-10-13
 
 ### Fixed
