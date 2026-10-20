@@ -16,6 +16,8 @@ Oberfläche und Zusammenfassungen gibt es in neun Sprachen; siehe [Sprache](#spr
 
 ## Tabs
 
+Jeder Tab fasst seine Karten nach Kategorien zusammen. Ein Druck auf die Überschrift einer Kategorie klappt sie zu, ein weiterer klappt sie auf. `N ausgeblendet · alle anzeigen` oben im Tab zeigt nur die ausgeblendeten Karten dieses Tabs wieder an.
+
 ### Zu reviewen
 
 Eine Karte pro PR, der auf Ihr Review wartet: eine Zusammenfassung in einem Satz, der Grund für den PR, seine Auswirkungen, Größe und Autor sowie die Zeit, seit der Ihr Review aussteht. Riskante Punkte wie eine Schemaänderung oder eine vorgeschriebene Deploy-Reihenfolge werden mit ⚠️ markiert.
@@ -23,7 +25,7 @@ Eine Karte pro PR, der auf Ihr Review wartet: eine Zusammenfassung in einem Satz
 - `Reviewen` markiert die Karte als `Hinzugefügt` und lässt das Panel geöffnet, sodass Sie mehrere PRs auswählen können. Wenn Sie das Panel schließen (Esc oder ×), wird für jeden hinzugefügten PR eine Review-Anfrage in Ihren Prompt eingefügt, samt Warnhinweisen und den Änderungen seit Ihrem letzten Review. Gesendet wird erst, wenn Sie Enter drücken. Ein PR, für den Ihr bereits eingegebener Text schon eine Anfrage enthält, erscheint beim Öffnen des Panels als `Hinzugefügt`.
 - `Ausblenden` blendet die Karte aus, bis der PR einen neuen Commit erhält.
 - `erneut angefragt` kennzeichnet einen PR, den Sie bereits reviewt haben und der Sie erneut anfragt, mit einer kurzen Zusammenfassung der Änderungen seit Ihrem letzten Review.
-- Direkte Anfragen stehen vor Team-Anfragen. Entwürfe werden separat aufgeführt.
+- Die Karten sind in direkte Anfragen, Team-Anfragen und Entwürfe gruppiert.
 
 ![Reviewen auf zwei Karten markiert sie als Hinzugefügt, Ausblenden blendet eine dritte aus, und Esc übernimmt beide Review-Anfragen in den Prompt](docs/images/en/review.gif)
 
@@ -33,6 +35,8 @@ Die Anfrage enthält außerdem eine Zeile, die beschreibt, wie Sie üblicherweis
 
 Ihre offenen PRs, statt mit einer Zusammenfassung mit ihrem Zustand, in der Reihenfolge, in der Sie tätig werden müssen: Änderungen angefordert, CI fehlgeschlagen, Mergekonflikt, wartet auf Review (älteste zuerst), genehmigt, Entwurf. Läuft gerade eine CI, steht „CI läuft“ neben dem Zustand.
 
+`Ausblenden` blendet einen PR aus, bis sich sein Zustand ändert oder jemand ihn reviewt; Ihr eigener Push allein holt ihn nicht zurück.
+
 ![Meine PRs: sechs PRs von „Änderungen angefordert“ bis „Entwurf“, zwei davon mit neuem Review](docs/images/en/my-prs.png)
 
 Ein Review, das nach Ihrem letzten Commit eingereicht wurde, erscheint als `Neues Review` mit Angabe, von wem es stammt, bis Sie erneut committen. Das umfasst Genehmigungen, Änderungsanforderungen und reine Kommentar-Reviews einschließlich Antworten in Threads, von Menschen wie von Bots; ein verworfenes (dismissed) Review zählt nicht. Ein solcher PR zählt als zu bearbeiten und steht vor PRs ohne Neuigkeiten im selben Zustand. Es wird kein Modell aufgerufen.
@@ -40,6 +44,8 @@ Ein Review, das nach Ihrem letzten Commit eingereicht wurde, erscheint als `Neue
 ### Meine Issues
 
 Offene Issues, die Ihnen zugewiesen sind, sowie offene Issues und PRs, die Sie erwähnen; ein Eintrag, auf den beides zutrifft, erscheint nur einmal, als „Mir zugewiesen“. Darunter stehen andere Issues und PRs aus den letzten 30 Tagen, die auf eines Ihrer Issues oder einen Ihrer PRs verwiesen haben, jeweils mit Angabe, von wem. Verweise, die Sie selbst gesetzt haben, werden ausgelassen, und nur die neuesten 20 werden angezeigt. Es wird kein Modell aufgerufen.
+
+Die Einträge sind in zugewiesen, Erwähnungen und Verweise gruppiert. `Ausblenden` blendet einen Eintrag aus, bis es neue Aktivität darauf gibt.
 
 ![Meine Issues: zugewiesene Issues, Erwähnungen und Verweise von anderswo auf Ihre Arbeit](docs/images/en/my-issues.png)
 

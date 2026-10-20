@@ -62,6 +62,8 @@ export const zhTW: Messages = {
   },
   sections: {
     hidden: n => `已隱藏 ${n} · 全部顯示`,
+    direct: n => `直接請求 ${n}`,
+    team: n => `團隊請求 ${n}`,
     drafts: n => `草稿 · 尚未準備好審查 ${n}`,
     references: (days, n) => `最近 ${days} 天 · 我的工作在別處被引用 ${n}`,
   },

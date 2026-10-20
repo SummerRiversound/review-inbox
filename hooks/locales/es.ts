@@ -64,6 +64,8 @@ export const es: Messages = {
   },
   sections: {
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todo`,
+    direct: (n: number) => `Solicitudes directas ${n}`,
+    team: (n: number) => `Solicitudes al equipo ${n}`,
     drafts: (n: number) => `Borradores · aún no listos para revisión ${n}`,
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'día')} · referencias a mi trabajo en otros lugares ${n}`,

@@ -62,6 +62,8 @@ export const zhCN: Messages = {
   },
   sections: {
     hidden: n => `已隐藏 ${n} · 全部显示`,
+    direct: n => `直接请求 ${n}`,
+    team: n => `团队请求 ${n}`,
     drafts: n => `草稿 · 尚未准备好审查 ${n}`,
     references: (days, n) => `最近 ${days} 天 · 我的工作在别处被引用 ${n}`,
   },

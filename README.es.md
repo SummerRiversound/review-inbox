@@ -16,6 +16,8 @@ La interfaz y los resúmenes están disponibles en nueve idiomas; consulta [Idio
 
 ## Pestañas
 
+Cada pestaña agrupa sus tarjetas por categoría. Pulsa el encabezado de una categoría para plegarla y otra vez para abrirla. `N ocultos · mostrar todo`, arriba de la pestaña, vuelve a mostrar solo las tarjetas ocultas de esa pestaña.
+
 ### Por revisar
 
 Una tarjeta por cada PR que espera tu revisión: un resumen de una frase, el motivo del PR, su alcance, su tamaño y autor, y cuánto tiempo lleva pendiente tu revisión. Los puntos de riesgo, como un cambio de esquema o un orden de despliegue obligatorio, se marcan con ⚠️.
@@ -23,7 +25,7 @@ Una tarjeta por cada PR que espera tu revisión: un resumen de una frase, el mot
 - `Revisar` marca la tarjeta como `Añadido` y deja la bandeja abierta, para que puedas elegir varios PR. Al cerrar la bandeja (Esc o ×), se añade a tu prompt una solicitud de revisión por cada PR añadido, con sus advertencias y lo que cambió desde tu última revisión. No se envía nada hasta que pulses Enter. Si el texto que tienes en el prompt ya pide un PR, ese PR aparece como `Añadido` al abrir la bandeja.
 - `Ocultar` oculta la tarjeta hasta que el PR reciba un commit nuevo.
 - `revisión solicitada de nuevo` marca un PR que ya revisaste y que vuelve a pedir tu revisión, con un breve resumen de lo que cambió desde tu última revisión.
-- Las solicitudes directas aparecen antes que las solicitudes al equipo. Los borradores se muestran aparte.
+- Las tarjetas se agrupan en solicitudes directas, solicitudes al equipo y borradores.
 
 ![Revisar en dos tarjetas las marca como Añadido, Ocultar oculta una tercera y Esc pone ambas solicitudes de revisión en el prompt](docs/images/en/review.gif)
 
@@ -33,6 +35,8 @@ La solicitud también incluye una línea que describe cómo sueles revisar, para
 
 Tus PR abiertos, con su estado en lugar de un resumen, en el orden en que tienes que atenderlos: cambios solicitados, CI con errores, conflicto de fusión, pendiente de revisión (los más antiguos primero), aprobado y borrador. Si hay CI en ejecución, se indica junto al estado.
 
+`Ocultar` oculta un PR hasta que cambie de estado o alguien lo revise; tu propio push no lo vuelve a mostrar.
+
 ![Mis PR: seis PR, de cambios solicitados a borrador, dos de ellos con una nueva revisión](docs/images/en/my-prs.png)
 
 Una revisión enviada después de tu último commit aparece como `Nueva revisión`, junto con quién la hizo, hasta que vuelvas a hacer commit. Esto incluye aprobaciones, solicitudes de cambios y revisiones solo con comentarios, respuestas en hilos incluidas, tanto de personas como de bots; una revisión descartada no cuenta. Ese PR cuenta como pendiente de atender y pasa por delante de los PR sin novedades que están en el mismo estado. No se llama a ningún modelo.
@@ -40,6 +44,8 @@ Una revisión enviada después de tu último commit aparece como `Nueva revisió
 ### Mis incidencias
 
 Las incidencias abiertas asignadas a ti, y las incidencias y PR abiertos que te mencionan; si un elemento cumple ambas condiciones, aparece una sola vez, como asignado. Debajo, otras incidencias y PR de los últimos 30 días que hicieron referencia a alguno de los tuyos, junto con quién lo hizo. Se excluyen las referencias que hiciste tú, y solo se muestran las 20 más recientes. No se llama a ningún modelo.
+
+Los elementos se agrupan en asignados, menciones y referencias. `Ocultar` oculta un elemento hasta que tenga actividad nueva.
 
 ![Mis incidencias: incidencias asignadas, menciones y referencias a tu trabajo desde otros lugares](docs/images/en/my-issues.png)
 

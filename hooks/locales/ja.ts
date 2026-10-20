@@ -62,6 +62,8 @@ export const ja: Messages = {
   },
   sections: {
     hidden: (n: number) => `非表示 ${n} · すべて表示`,
+    direct: (n: number) => `直接リクエスト ${n}`,
+    team: (n: number) => `チームへのリクエスト ${n}`,
     drafts: (n: number) => `ドラフト · レビュー準備中 ${n}`,
     references: (days: number, n: number) => `過去${days}日間 · 他の場所で参照された自分の作業 ${n}`,
   },

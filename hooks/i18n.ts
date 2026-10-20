@@ -73,6 +73,8 @@ const en = {
   },
   sections: {
     hidden: (n: number) => `${n} hidden · show all`,
+    direct: (n: number) => `Direct requests ${n}`,
+    team: (n: number) => `Team requests ${n}`,
     drafts: (n: number) => `Drafts · not ready for review ${n}`,
     references: (days: number, n: number) => `Last ${days} days · my work referenced elsewhere ${n}`,
   },

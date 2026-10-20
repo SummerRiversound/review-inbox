@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Tab } from '../types'
 import {
@@ -40,14 +40,21 @@ import type { GqlReviewed, StyleFile } from './style'
 import {
   REFERENCES_QUERY,
   AUTHORED_DAYS,
+  ORDER,
   REFERENCE_DAYS,
   TABS_QUERY,
   bandCounts,
   bandLabels,
+  isIssueHidden,
+  isPrHidden,
   issueAlerts,
+  issueHide,
+  issueHideKey,
   issueKey,
   prAlertText,
   prAlerts,
+  prHide,
+  prHideKey,
   prSeenKeys,
   reviewers,
   referencesQuery,
@@ -75,6 +82,7 @@ const hidden = atom({ plugin: 'review-inbox', key: 'hidden' } as const, {} as Re
 const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[])
 const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
+const collapsed = atom({ plugin: 'review-inbox', key: 'collapsed' } as const, [] as string[])
 // The cards whose review request is in the prompt, so pressing Review again adds nothing.
 // PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
@@ -507,7 +515,11 @@ async function setHidden($: EngineInterface, change: (h: Record<string, string>)
     $.ui.toast(m.toast.retry)
     return
   }
-  const live = new Set((await read($, items)).map(itemKey))
+  const live = new Set([
+    ...(await read($, items)).map(itemKey),
+    ...(await read($, mine)).map(prHideKey),
+    ...(await read($, issues)).map(issueHideKey),
+  ])
   const next = Object.fromEntries(Object.entries(change(current)).filter(([key]) => live.has(key)))
   await writeJson($, hiddenFile(), next)
   await update($, hidden, () => next)
@@ -562,7 +574,9 @@ export const register: Register = (on, options) => {
     if (e.props.hasSurvey) return next(e)
     const hiddenMap = await read($, hidden)
     const reviews = (await read($, items)).filter(i => !i.isDraft && !isHidden(hiddenMap, i))
-    const counts = bandLabels(bandCounts(reviews.length, await read($, mine), await read($, issues)), m)
+    const prs = (await read($, mine)).filter(pr => !isPrHidden(hiddenMap, pr))
+    const issueList = (await read($, issues)).filter(i => !isIssueHidden(hiddenMap, i))
+    const counts = bandLabels(bandCounts(reviews.length, prs, issueList), m)
     if (counts.length === 0) return next(e)
 
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -586,14 +600,16 @@ export const register: Register = (on, options) => {
     const hiddenMap = await read($, hidden)
     const everything = await read($, items)
     const list = everything.filter(i => !isHidden(hiddenMap, i))
-    const hiddenCount = everything.length - list.length
     const state = await read($, status)
     const now = Date.now()
     const ready = list.filter(i => !i.isDraft)
     const drafts = list.filter(i => i.isDraft)
     const active = await read($, tab)
-    const myPrs = await read($, mine)
-    const myIssues = await read($, issues)
+    const allPrs = await read($, mine)
+    const myPrs = allPrs.filter(pr => !isPrHidden(hiddenMap, pr))
+    const allIssues = await read($, issues)
+    const myIssues = allIssues.filter(i => !isIssueHidden(hiddenMap, i))
+    const shut = await read($, collapsed)
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
 
     const card = (item: InboxItem) => {
@@ -673,6 +689,17 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const titleRow = (url: string, title: string, key: string, hide: () => void) => (
+      <Box flexDirection="row" justifyContent="space-between" gap={1}>
+        <Box flexShrink={1}>
+          <Text dimColor wrap="truncate-end">
+            <Link href={url}>{title} ↗</Link>
+          </Text>
+        </Box>
+        <Button key={key} label={m.card.hide} dimColor onPress={hide} />
+      </Box>
+    )
+
     const prCard = (pr: MyPr) => (
       <Box key={`pr-${pr.url}`} flexDirection="row" marginBottom={1}>
         <Box width={1} flexShrink={0} backgroundColor={stateColor(pr.state)} />
@@ -690,9 +717,7 @@ export const register: Register = (on, options) => {
               </Text>
             </Text>
           </Box>
-          <Text dimColor wrap="truncate-end">
-            <Link href={pr.url}>{pr.title} ↗</Link>
-          </Text>
+          {titleRow(pr.url, pr.title, `hide-${pr.url}`, () => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) })))}
           {pr.newReviews.length > 0 && (
             <Text color="suggestion" wrap="truncate-end">
               {m.card.newReview(reviewers(pr))}
@@ -714,9 +739,7 @@ export const register: Register = (on, options) => {
               {m.issueKind[issue.kind]} · {m.card.ago(waitingDays(issue.at, now))}
             </Text>
           </Box>
-          <Text dimColor wrap="truncate-end">
-            <Link href={issue.url}>{issue.title} ↗</Link>
-          </Text>
+          {titleRow(issue.url, issue.title, `hide-${issueKey(issue)}`, () => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) })))}
           {issue.kind === 'reference' && (
             <Text dimColor>
               {m.card.referenced(issue.by ?? '', issue.target ?? '')}
@@ -736,7 +759,6 @@ export const register: Register = (on, options) => {
             ? ''
             : m.status.updated(minutes)
 
-    const references = myIssues.filter(i => i.kind === 'reference')
     const direct = myIssues.filter(i => i.kind !== 'reference')
     const tabs: { id: Tab; label: string }[] = [
       { id: 'review', label: m.tabs.review(ready.length) },
@@ -744,11 +766,44 @@ export const register: Register = (on, options) => {
       { id: 'issues', label: m.tabs.issues(direct.length) },
     ]
     const empty = (text: string) =>
-      state.kind === 'loading' && everything.length + myPrs.length + myIssues.length === 0 ? (
+      state.kind === 'loading' && everything.length + allPrs.length + allIssues.length === 0 ? (
         <Text dimColor>{m.status.firstFetch}</Text>
       ) : (
         <Text dimColor>{text}</Text>
       )
+
+    // A category with a header that folds it; an empty one is left out.
+    const section = <T,>(id: string, label: string, list: T[], render: (item: T) => RenderChildren) => {
+      if (list.length === 0) return undefined
+      const isShut = shut.includes(id)
+      return (
+        <Box key={`section-${id}`} flexDirection="column">
+          <Box marginBottom={1}>
+            <Button
+              key={`fold-${id}`}
+              label={`${isShut ? '▸' : '▾'} ${label}`}
+              dimColor
+              onPress={() => void update($, collapsed, ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]))}
+            />
+          </Box>
+          {!isShut && list.map(render)}
+        </Box>
+      )
+    }
+    // Show all brings back only this tab's hidden cards.
+    const unhide = (keys: string[]) =>
+      keys.length > 0 && (
+        <Box marginBottom={1}>
+          <Button
+            key="unhide"
+            label={m.sections.hidden(keys.length)}
+            dimColor
+            onPress={() => void setHidden($, h => Object.fromEntries(Object.entries(h).filter(([k]) => !keys.includes(k))))}
+          />
+        </Box>
+      )
+    const directReady = ready.filter(i => i.team === undefined)
+    const teamReady = ready.filter(i => i.team !== undefined)
 
     return (
       <Box flexDirection="column" paddingX={1}>
@@ -776,43 +831,34 @@ export const register: Register = (on, options) => {
 
         {active === 'review' && (
           <Box flexDirection="column">
-            {hiddenCount > 0 && (
-              <Box marginBottom={1}>
-                <Button key="unhide" label={m.sections.hidden(hiddenCount)} dimColor onPress={() => void setHidden($, () => ({}))} />
-              </Box>
-            )}
+            {unhide(everything.filter(i => isHidden(hiddenMap, i)).map(itemKey))}
             {list.length === 0 && empty(m.empty.review)}
-            {ready.map(card)}
-            {drafts.length > 0 && (
-              <Box flexDirection="column" marginTop={1}>
-                <Box marginBottom={1}>
-                  <Text dimColor>{m.sections.drafts(drafts.length)}</Text>
-                </Box>
-                {drafts.map(card)}
-              </Box>
-            )}
+            {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
+            {section('review:team', m.sections.team(teamReady.length), teamReady, card)}
+            {section('review:drafts', m.sections.drafts(drafts.length), drafts, card)}
           </Box>
         )}
 
         {active === 'mine' && (
           <Box flexDirection="column">
+            {unhide(allPrs.filter(pr => isPrHidden(hiddenMap, pr)).map(prHideKey))}
             {myPrs.length === 0 && empty(m.empty.mine)}
-            {myPrs.map(prCard)}
+            {ORDER.map(s => {
+              const group = myPrs.filter(pr => pr.state === s)
+              return section(`mine:${s}`, `${m.state[s]} ${group.length}`, group, prCard)
+            })}
           </Box>
         )}
 
         {active === 'issues' && (
           <Box flexDirection="column">
+            {unhide(allIssues.filter(i => isIssueHidden(hiddenMap, i)).map(issueHideKey))}
             {myIssues.length === 0 && empty(m.empty.issues)}
-            {direct.map(issueCard)}
-            {references.length > 0 && (
-              <Box flexDirection="column" marginTop={1}>
-                <Box marginBottom={1}>
-                  <Text dimColor>{m.sections.references(REFERENCE_DAYS, references.length)}</Text>
-                </Box>
-                {references.map(issueCard)}
-              </Box>
-            )}
+            {(['assigned', 'mention', 'reference'] as const).map(kind => {
+              const group = myIssues.filter(i => i.kind === kind)
+              const label = kind === 'reference' ? m.sections.references(REFERENCE_DAYS, group.length) : `${m.issueKind[kind]} ${group.length}`
+              return section(`issues:${kind}`, label, group, issueCard)
+            })}
           </Box>
         )}
       </Box>

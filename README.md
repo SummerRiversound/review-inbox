@@ -16,6 +16,8 @@ The interface and the summaries come in nine languages; see [Language](#language
 
 ## Tabs
 
+Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the top of a tab brings back that tab's hidden cards.
+
 ### To review
 
 One card per PR waiting for your review: a one-sentence summary, why the PR exists, what it touches, its size and author, and how long your review has been pending. Risky items, such as a schema change or a required deploy order, are marked ⚠️.
@@ -23,7 +25,7 @@ One card per PR waiting for your review: a one-sentence summary, why the PR exis
 - `Review` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
 - `Hide` hides the card until the PR gets a new commit.
 - `re-requested` marks a PR you already reviewed that asks for you again, with a short summary of what changed since your last review.
-- Direct requests come before team requests. Drafts are listed separately.
+- Cards are grouped into direct requests, team requests and drafts.
 
 ![Review on two cards marks them Added, Hide hides a third, and Esc puts both review requests into the prompt](docs/images/en/review.gif)
 
@@ -33,6 +35,8 @@ The request also carries one line describing how you usually review, so Claude r
 
 Your open PRs with their state instead of a summary, in the order you have to act on them: changes requested, CI failing, merge conflict, waiting for review (oldest first), approved, draft. Running CI is shown next to the state.
 
+`Hide` hides a PR until it turns to another state or someone reviews it; your own push alone does not bring it back.
+
 ![My PRs: six PRs from changes requested to draft, two with a new review](docs/images/en/my-prs.png)
 
 A review submitted after your latest commit shows as `New review` with who left it, until you commit again. That covers approvals, change requests and comment-only reviews, thread replies included, from people or bots; a dismissed review does not count. Such a PR counts as something to do and moves ahead of quiet ones in the same state. No model calls.
@@ -40,6 +44,8 @@ A review submitted after your latest commit shows as `New review` with who left 
 ### My issues
 
 Open issues assigned to you, and open issues and PRs that mention you; an item that is both shows once, as assigned. Below them, other issues and PRs from the last 30 days that referenced one of yours, with who did it. References you made yourself are left out, and only the newest 20 are shown. No model calls.
+
+Items are grouped into assigned, mentions and references. `Hide` hides an item until it has new activity.
 
 ![My issues: assigned issues, mentions, and references to your work from elsewhere](docs/images/en/my-issues.png)
 

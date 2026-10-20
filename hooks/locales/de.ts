@@ -65,6 +65,8 @@ export const de: Messages = {
   },
   sections: {
     hidden: n => `${n} ausgeblendet · alle anzeigen`,
+    direct: n => `Direkte Anfragen ${n}`,
+    team: n => `Team-Anfragen ${n}`,
     drafts: n => `Entwürfe · noch nicht bereit für Review ${n}`,
     references: (days, n) =>
       `${days === 1 ? 'Letzter' : 'Letzte'} ${count(days, 'Tag', 'Tage')} · anderswo auf meine Arbeit verwiesen ${n}`,
