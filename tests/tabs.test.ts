@@ -188,3 +188,10 @@ test('a hidden issue comes back once it has new activity', async () => {
   expect(isIssueHidden(hidden, { ...issue, at: '2026-10-02T00:00:00Z' })).toBe(false)
   expect(isIssueHidden(hidden, { ...issue, kind: 'assigned' })).toBe(false)
 })
+
+test('my PRs and issues keep their description for search', async () => {
+  const [pr] = toMyPrs([gqlPr({ body: 'callback lost its query' })], 'me')
+  expect(pr!.body).toBe('callback lost its query')
+  const issues = toIssues([{ ...touched('a', '2026-10-01T00:00:00Z'), body: 'steps to reproduce' }], [touched('m', '2026-10-02T00:00:00Z')], [])
+  expect(issues.map(i => i.body)).toEqual([undefined, 'steps to reproduce'])
+})

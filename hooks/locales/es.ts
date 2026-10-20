@@ -70,7 +70,26 @@ export const es: Messages = {
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'día')} · referencias a mi trabajo en otros lugares ${n}`,
   },
+  note: {
+    edit: 'Nota',
+    label: 'Nota',
+    placeholder: 'Qué revisaste o qué piensas hacer',
+    save: 'Guardar',
+    tomorrow: 'Posponer hasta mañana',
+    nextWeek: 'Posponer hasta la próxima semana',
+    cancel: 'Cancelar',
+    clear: 'Borrar',
+    shown: (text: string) => `Nota: ${text}`,
+    until: (month: number, day: number) => `pospuesto hasta el ${day}/${month}`,
+  },
+  search: {
+    label: 'Buscar',
+    placeholder: 'repo, #número, título, descripción o nota',
+    empty: 'No hay coincidencias.',
+    hidden: 'oculto',
+  },
   toast: {
+    back: 'Vuelve una tarjeta pospuesta',
     added: (n: number) => `${count(n, 'PR añadido', 'PR añadidos')} · Esc pone sus solicitudes de revisión en el prompt`,
     newRequest: 'Nueva solicitud de revisión',
     moreRequests: (n: number) => `${count(n, 'solicitud', 'solicitudes')} de revisión más`,

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Tab } from '../types'
+import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Tab } from '../types'
 import {
   CLAIM_MS,
   cacheKey,
@@ -34,6 +34,7 @@ import {
 } from './inbox'
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
+import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
 import type { Language, Messages } from './i18n'
 import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
@@ -83,6 +84,9 @@ const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[]
 const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
 const collapsed = atom({ plugin: 'review-inbox', key: 'collapsed' } as const, [] as string[])
+const notes = atom({ plugin: 'review-inbox', key: 'notes' } as const, {} as Record<string, Note>)
+const query = atom({ plugin: 'review-inbox', key: 'query' } as const, '')
+const editing = atom({ plugin: 'review-inbox', key: 'editing' } as const, '')
 // The cards whose review request is in the prompt, so pressing Review again adds nothing.
 // PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
@@ -99,6 +103,9 @@ let terminalColumns = 160
 let shownKeys: string[] | undefined
 let shownPrKeys: string[] | undefined
 let shownIssueKeys: string[] | undefined
+let shownSnoozed: string[] | undefined
+// What the open note field holds; a button beside it saves this.
+let draft = ''
 // A button's or a command's dispatch ends before a fetch would, so they only ask; the session's timer does it.
 let wanted: 'sync' | 'fetch' | undefined
 let toastFreeAt = 0
@@ -147,6 +154,8 @@ async function writeJson($: EngineInterface, name: string, value: unknown) {
 const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // Keyed like the inbox: a hide prunes the entries its own list no longer has, so it must not share a file with another list.
 const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+// Not keyed by language: a note I wrote stays when the language changes.
+const notesFile = () => `notes-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 
 async function resolveLanguage($: EngineInterface): Promise<Language> {
@@ -240,7 +249,7 @@ async function fetchTabs(
     await gh(
       $,
       ['api', 'graphql', '-f', `query=${TABS_QUERY}`, '-f', `mine=${q.mine}`, '-f', `assigned=${q.assigned}`,
-        '-f', `mentioned=${q.mentioned}`, '--jq', '.data'],
+        '-f', `mentioned=${q.mentioned}`, '--jq', `.data | (.mine.nodes[], .assigned.nodes[], .mentioned.nodes[]) |= (if .body then .body |= .[:${BODY_CHARS}] else . end)`],
       env,
     ),
   ) as {
@@ -330,6 +339,7 @@ async function fetchInbox(
           isRerequest: reviewedSha !== undefined,
           ...(reviewedSha ? { reviewedSha } : {}),
           ...(sinceLastReview ? { sinceLastReview } : {}),
+          ...(pr.body ? { body: pr.body.slice(0, BODY_CHARS) } : {}),
           author: pr.author?.login ?? 'ghost',
           createdAt: pr.createdAt,
           requestedAt: requestedAt(pr, me),
@@ -435,6 +445,8 @@ async function show($: EngineInterface, file: InboxFile) {
   )
   const hiddenNow = await readJson<Record<string, string>>($, hiddenFile(), {})
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
+  const notesNow = await readJson<Record<string, Note>>($, notesFile(), {})
+  if (notesNow !== undefined) await update($, notes, () => notesNow)
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
@@ -458,6 +470,21 @@ async function show($: EngineInterface, file: InboxFile) {
     }
     if (newIssues.length > 3) toast($, m.toast.moreIssueAlerts(newIssues.length - 3))
     shownIssueKeys = issueList.map(issueKey)
+  }
+  if (notesNow !== undefined) {
+    // Snoozed alone: a card that was away at the last look and no longer is came back by its day or its news.
+    const snoozed = awayTests({}, notesNow, Date.now())
+    const cards = [
+      ...file.items.map(i => ({ key: itemKey(i), name: `${i.repo} #${i.number}`, isAway: snoozed.review(i) })),
+      ...(prs ?? []).map(pr => ({ key: prHideKey(pr), name: `${pr.repo} #${pr.number}`, isAway: snoozed.pr(pr) })),
+      ...(issueList ?? []).map(i => ({ key: issueHideKey(i), name: `${i.repo} #${i.number}`, isAway: snoozed.issue(i) })),
+    ]
+    const before = shownSnoozed
+    shownSnoozed = cards.filter(c => c.isAway).map(c => c.key)
+    // A note cleared or unsnoozed by hand has no snooze left, so it is not announced.
+    for (const c of cards.filter(c => before?.includes(c.key) && !c.isAway && notesNow[c.key]?.until !== undefined)) {
+      toast($, [m.toast.back, c.name, notesNow[c.key]?.text].filter(Boolean).join(' · '))
+    }
   }
 }
 
@@ -508,6 +535,57 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   return true
 }
 
+// Whether each kind of card is out of view: hidden until its news, or snoozed until its day or its news.
+function awayTests(hiddenMap: Record<string, string>, notesMap: Record<string, Note>, now: number) {
+  const away = (key: string, test: (h: Record<string, string>) => boolean) => test(hiddenMap) || isSnoozed(notesMap[key], key, now, test)
+  return {
+    review: (i: InboxItem) => away(itemKey(i), h => isHidden(h, i)),
+    pr: (pr: MyPr) => away(prHideKey(pr), h => isPrHidden(h, pr)),
+    issue: (i: IssueItem) => away(issueHideKey(i), h => isIssueHidden(h, i)),
+  }
+}
+
+async function liveKeys($: EngineInterface) {
+  return new Set([
+    ...(await read($, items)).map(itemKey),
+    ...(await read($, mine)).map(prHideKey),
+    ...(await read($, issues)).map(issueHideKey),
+  ])
+}
+
+// Read-modify-write on its own file, like a hide.
+async function setNotes($: EngineInterface, change: (n: Record<string, Note>) => Record<string, Note>) {
+  const current = await readJson<Record<string, Note>>($, notesFile(), {})
+  if (current === undefined) {
+    $.ui.toast(m.toast.retry)
+    return
+  }
+  const next = keptNotes(change(current), await liveKeys($), Date.now())
+  await writeJson($, notesFile(), next)
+  await update($, notes, () => next)
+}
+
+// Saving the text keeps a snooze already set; an empty note with no snooze is no note.
+async function saveNote($: EngineInterface, key: string, text: string, snooze?: { until: number; mark: string }) {
+  await setNotes($, n => {
+    const { [key]: old, ...rest } = n
+    const note = { ...old, ...snooze, text: text.trim(), savedAt: Date.now() }
+    return note.text || note.until !== undefined ? { ...rest, [key]: note } : rest
+  })
+  await update($, editing, () => '')
+}
+
+// Show all ends the snoozes of the same cards; their text stays.
+async function unsnooze($: EngineInterface, keys: string[]) {
+  await setNotes($, n =>
+    Object.fromEntries(
+      Object.entries(n)
+        .map(([k, note]): [string, Note] => [k, keys.includes(k) ? { text: note.text, savedAt: note.savedAt } : note])
+        .filter(([, note]) => note.text || note.until !== undefined),
+    ),
+  )
+}
+
 // Read-modify-write on its own file, so a hide never races a fetch rewriting the inbox.
 async function setHidden($: EngineInterface, change: (h: Record<string, string>) => Record<string, string>) {
   const current = await readJson<Record<string, string>>($, hiddenFile(), {})
@@ -515,11 +593,7 @@ async function setHidden($: EngineInterface, change: (h: Record<string, string>)
     $.ui.toast(m.toast.retry)
     return
   }
-  const live = new Set([
-    ...(await read($, items)).map(itemKey),
-    ...(await read($, mine)).map(prHideKey),
-    ...(await read($, issues)).map(issueHideKey),
-  ])
+  const live = await liveKeys($)
   const next = Object.fromEntries(Object.entries(change(current)).filter(([key]) => live.has(key)))
   await writeJson($, hiddenFile(), next)
   await update($, hidden, () => next)
@@ -572,10 +646,10 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.viewport) terminalColumns = e.viewport.columns
     if (e.props.hasSurvey) return next(e)
-    const hiddenMap = await read($, hidden)
-    const reviews = (await read($, items)).filter(i => !i.isDraft && !isHidden(hiddenMap, i))
-    const prs = (await read($, mine)).filter(pr => !isPrHidden(hiddenMap, pr))
-    const issueList = (await read($, issues)).filter(i => !isIssueHidden(hiddenMap, i))
+    const away = awayTests(await read($, hidden), await read($, notes), Date.now())
+    const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
+    const prs = (await read($, mine)).filter(pr => !away.pr(pr))
+    const issueList = (await read($, issues)).filter(i => !away.issue(i))
     const counts = bandLabels(bandCounts(reviews.length, prs, issueList), m)
     if (counts.length === 0) return next(e)
 
@@ -596,21 +670,96 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button, Link } = $.ui.resolve(e)
-    const hiddenMap = await read($, hidden)
-    const everything = await read($, items)
-    const list = everything.filter(i => !isHidden(hiddenMap, i))
-    const state = await read($, status)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Button, Link } = elements
+    // The mobile app draws no field yet: no search there, and notes are shown but not written.
+    const Input = 'Input' in elements ? elements.Input : undefined
     const now = Date.now()
+    const notesMap = await read($, notes)
+    const away = awayTests(await read($, hidden), notesMap, now)
+    const rawQuery = await read($, query)
+    const q = rawQuery.trim()
+    const editingKey = await read($, editing)
+    const everything = await read($, items)
+    const list = everything.filter(i => !away.review(i))
+    const state = await read($, status)
     const ready = list.filter(i => !i.isDraft)
     const drafts = list.filter(i => i.isDraft)
     const active = await read($, tab)
     const allPrs = await read($, mine)
-    const myPrs = allPrs.filter(pr => !isPrHidden(hiddenMap, pr))
+    const myPrs = allPrs.filter(pr => !away.pr(pr))
     const allIssues = await read($, issues)
-    const myIssues = allIssues.filter(i => !isIssueHidden(hiddenMap, i))
+    const myIssues = allIssues.filter(i => !away.issue(i))
     const shut = await read($, collapsed)
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
+
+    // My note above the title, with its snooze day.
+    const noteLine = (key: string) => {
+      const note = notesMap[key]
+      const until = note?.until === undefined ? undefined : new Date(note.until)
+      const parts = [note?.text && m.note.shown(note.text), until && m.note.until(until.getMonth() + 1, until.getDate())].filter(Boolean)
+      if (parts.length === 0) return undefined
+      return (
+        <Box flexDirection="row" justifyContent="space-between" gap={1}>
+          <Box flexShrink={1}>
+            <Text color="suggestion" wrap="truncate-end">
+              {parts.join(' · ')}
+            </Text>
+          </Box>
+          <Button
+            key={`note-clear-${key}`}
+            label={m.note.clear}
+            dimColor
+            onPress={() => void setNotes($, n => Object.fromEntries(Object.entries(n).filter(([k]) => k !== key)))}
+          />
+        </Box>
+      )
+    }
+    const noteButton = (key: string) =>
+      Input && (
+        <Button
+          key={`note-${key}`}
+          label={m.note.edit}
+          dimColor
+          onPress={() => {
+            draft = notesMap[key]?.text ?? ''
+            void update($, editing, () => key)
+          }}
+        />
+      )
+    // `mark` is read at the press: the hide mark a snooze ends on.
+    const noteEditor = (key: string, mark: () => string) =>
+      Input &&
+      editingKey === key && (
+        <Box flexDirection="column" marginTop={1}>
+          <Input
+            key={`note-input-${key}`}
+            label={m.note.label}
+            placeholder={m.note.placeholder}
+            value={notesMap[key]?.text ?? ''}
+            submitLabel={m.note.save}
+            autoFocus
+            onInput={value => {
+              draft = value
+            }}
+            onSubmit={value => void saveNote($, key, value)}
+          />
+          <Box flexDirection="row" gap={1}>
+            <Button key={`note-save-${key}`} label={m.note.save} variant="primary" onPress={() => void saveNote($, key, draft)} />
+            <Button
+              key={`note-tomorrow-${key}`}
+              label={m.note.tomorrow}
+              onPress={() => void saveNote($, key, draft, { until: snoozeUntil('tomorrow', new Date()), mark: mark() })}
+            />
+            <Button
+              key={`note-week-${key}`}
+              label={m.note.nextWeek}
+              onPress={() => void saveNote($, key, draft, { until: snoozeUntil('nextWeek', new Date()), mark: mark() })}
+            />
+            <Button key={`note-cancel-${key}`} label={m.note.cancel} dimColor onPress={() => void update($, editing, () => '')} />
+          </Box>
+        </Box>
+      )
 
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
@@ -632,6 +781,7 @@ export const register: Register = (on, options) => {
                 {item.team === undefined ? m.card.direct : m.card.team(item.team)}
               </Text>
             </Box>
+            {noteLine(itemKey(item))}
             <Text dimColor wrap="truncate-end">
               <Link href={item.url}>{item.title} ↗</Link>
             </Text>
@@ -670,6 +820,7 @@ export const register: Register = (on, options) => {
                 {item.author} · {m.card.size(item.files, item.additions.toLocaleString(), item.deletions.toLocaleString())}
               </Text>
               <Box flexDirection="row" gap={1}>
+                {noteButton(itemKey(item))}
                 <Button
                   key={`hide-${item.repo}-${item.number}`}
                   label={m.card.hide}
@@ -684,19 +835,22 @@ export const register: Register = (on, options) => {
                 />
               </Box>
             </Box>
+            {noteEditor(itemKey(item), () => item.headSha)}
           </Box>
         </Box>
       )
     }
 
-    const titleRow = (url: string, title: string, key: string, hide: () => void) => (
+    const titleRow = (url: string, title: string, actions: RenderChildren) => (
       <Box flexDirection="row" justifyContent="space-between" gap={1}>
         <Box flexShrink={1}>
           <Text dimColor wrap="truncate-end">
             <Link href={url}>{title} ↗</Link>
           </Text>
         </Box>
-        <Button key={key} label={m.card.hide} dimColor onPress={hide} />
+        <Box flexDirection="row" gap={1} flexShrink={0}>
+          {actions}
+        </Box>
       </Box>
     )
 
@@ -717,12 +871,22 @@ export const register: Register = (on, options) => {
               </Text>
             </Text>
           </Box>
-          {titleRow(pr.url, pr.title, `hide-${pr.url}`, () => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) })))}
+          {noteLine(prHideKey(pr))}
+          {titleRow(pr.url, pr.title, [
+            noteButton(prHideKey(pr)),
+            <Button
+              key={`hide-${pr.url}`}
+              label={m.card.hide}
+              dimColor
+              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
+            />,
+          ])}
           {pr.newReviews.length > 0 && (
             <Text color="suggestion" wrap="truncate-end">
               {m.card.newReview(reviewers(pr))}
             </Text>
           )}
+          {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
         </Box>
       </Box>
     )
@@ -739,12 +903,22 @@ export const register: Register = (on, options) => {
               {m.issueKind[issue.kind]} · {m.card.ago(waitingDays(issue.at, now))}
             </Text>
           </Box>
-          {titleRow(issue.url, issue.title, `hide-${issueKey(issue)}`, () => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) })))}
+          {noteLine(issueHideKey(issue))}
+          {titleRow(issue.url, issue.title, [
+            noteButton(issueHideKey(issue)),
+            <Button
+              key={`hide-${issueKey(issue)}`}
+              label={m.card.hide}
+              dimColor
+              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
+            />,
+          ])}
           {issue.kind === 'reference' && (
             <Text dimColor>
               {m.card.referenced(issue.by ?? '', issue.target ?? '')}
             </Text>
           )}
+          {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
         </Box>
       </Box>
     )
@@ -798,10 +972,36 @@ export const register: Register = (on, options) => {
             key="unhide"
             label={m.sections.hidden(keys.length)}
             dimColor
-            onPress={() => void setHidden($, h => Object.fromEntries(Object.entries(h).filter(([k]) => !keys.includes(k))))}
+            onPress={async () => {
+              await setHidden($, h => Object.fromEntries(Object.entries(h).filter(([k]) => !keys.includes(k))))
+              await unsnooze($, keys)
+            }}
           />
         </Box>
       )
+    // Across every tab, hidden and snoozed cards included, so a card put away can be found again.
+    const found = q
+      ? {
+          review: everything.filter(i => matches(q, [`${i.repo} #${i.number}`, i.title, i.author, i.summary, i.why, i.body, notesMap[itemKey(i)]?.text])),
+          mine: allPrs.filter(pr => matches(q, [`${pr.repo} #${pr.number}`, pr.title, pr.body, notesMap[prHideKey(pr)]?.text])),
+          issues: allIssues.filter(i =>
+            matches(q, [`${i.repo} #${i.number}`, i.title, i.body, i.by, i.target, notesMap[issueHideKey(i)]?.text]),
+          ),
+        }
+      : undefined
+    const resultRow = (key: string, item: { repo: string; number: number; title: string; url: string }, isAway: boolean) => (
+      <Box key={`found-${key}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
+        <Box flexShrink={1}>
+          <Text wrap="truncate-end">
+            <Text bold>
+              {item.repo} #{item.number}
+            </Text>{' '}
+            <Link href={item.url}>{item.title} ↗</Link>
+          </Text>
+        </Box>
+        {isAway && <Text dimColor>{m.search.hidden}</Text>}
+      </Box>
+    )
     const directReady = ready.filter(i => i.team === undefined)
     const teamReady = ready.filter(i => i.team !== undefined)
 
@@ -818,47 +1018,76 @@ export const register: Register = (on, options) => {
               }} />
           </Box>
         </Box>
-        <Box flexDirection="row" gap={1} marginY={1}>
-          {tabs.map(t => (
-            <Button
-              key={`tab-${t.id}`}
-              label={t.label}
-              {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
-              onPress={() => void update($, tab, () => t.id)}
+        {Input && (
+          <Box marginTop={1}>
+            <Input
+              key="search"
+              label={m.search.label}
+              placeholder={m.search.placeholder}
+              value={rawQuery}
+              submitLabel={m.search.label}
+              onInput={value => void update($, query, () => value)}
+              onSubmit={value => void update($, query, () => value)}
             />
-          ))}
-        </Box>
-
-        {active === 'review' && (
-          <Box flexDirection="column">
-            {unhide(everything.filter(i => isHidden(hiddenMap, i)).map(itemKey))}
-            {list.length === 0 && empty(m.empty.review)}
-            {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
-            {section('review:team', m.sections.team(teamReady.length), teamReady, card)}
-            {section('review:drafts', m.sections.drafts(drafts.length), drafts, card)}
           </Box>
         )}
 
-        {active === 'mine' && (
-          <Box flexDirection="column">
-            {unhide(allPrs.filter(pr => isPrHidden(hiddenMap, pr)).map(prHideKey))}
-            {myPrs.length === 0 && empty(m.empty.mine)}
-            {ORDER.map(s => {
-              const group = myPrs.filter(pr => pr.state === s)
-              return section(`mine:${s}`, `${m.state[s]} ${group.length}`, group, prCard)
-            })}
+        {found && (
+          <Box flexDirection="column" marginTop={1}>
+            {found.review.length + found.mine.length + found.issues.length === 0 && <Text dimColor>{m.search.empty}</Text>}
+            {section('search:review', m.tabs.review(found.review.length), found.review, i => resultRow(itemKey(i), i, away.review(i)))}
+            {section('search:mine', m.tabs.mine(found.mine.length), found.mine, pr => resultRow(prHideKey(pr), pr, away.pr(pr)))}
+            {section('search:issues', m.tabs.issues(found.issues.length), found.issues, i =>
+              resultRow(issueHideKey(i), i, away.issue(i)),
+            )}
           </Box>
         )}
 
-        {active === 'issues' && (
+        {!found && (
           <Box flexDirection="column">
-            {unhide(allIssues.filter(i => isIssueHidden(hiddenMap, i)).map(issueHideKey))}
-            {myIssues.length === 0 && empty(m.empty.issues)}
-            {(['assigned', 'mention', 'reference'] as const).map(kind => {
-              const group = myIssues.filter(i => i.kind === kind)
-              const label = kind === 'reference' ? m.sections.references(REFERENCE_DAYS, group.length) : `${m.issueKind[kind]} ${group.length}`
-              return section(`issues:${kind}`, label, group, issueCard)
-            })}
+            <Box flexDirection="row" gap={1} marginY={1}>
+              {tabs.map(t => (
+                <Button
+                  key={`tab-${t.id}`}
+                  label={t.label}
+                  {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
+                  onPress={() => void update($, tab, () => t.id)}
+                />
+              ))}
+            </Box>
+
+            {active === 'review' && (
+              <Box flexDirection="column">
+                {unhide(everything.filter(away.review).map(itemKey))}
+                {list.length === 0 && empty(m.empty.review)}
+                {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
+                {section('review:team', m.sections.team(teamReady.length), teamReady, card)}
+                {section('review:drafts', m.sections.drafts(drafts.length), drafts, card)}
+              </Box>
+            )}
+
+            {active === 'mine' && (
+              <Box flexDirection="column">
+                {unhide(allPrs.filter(away.pr).map(prHideKey))}
+                {myPrs.length === 0 && empty(m.empty.mine)}
+                {ORDER.map(s => {
+                  const group = myPrs.filter(pr => pr.state === s)
+                  return section(`mine:${s}`, `${m.state[s]} ${group.length}`, group, prCard)
+                })}
+              </Box>
+            )}
+
+            {active === 'issues' && (
+              <Box flexDirection="column">
+                {unhide(allIssues.filter(away.issue).map(issueHideKey))}
+                {myIssues.length === 0 && empty(m.empty.issues)}
+                {(['assigned', 'mention', 'reference'] as const).map(kind => {
+                  const group = myIssues.filter(i => i.kind === kind)
+                  const label = kind === 'reference' ? m.sections.references(REFERENCE_DAYS, group.length) : `${m.issueKind[kind]} ${group.length}`
+                  return section(`issues:${kind}`, label, group, issueCard)
+                })}
+              </Box>
+            )}
           </Box>
         )}
       </Box>

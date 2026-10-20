@@ -1,5 +1,14 @@
 export type Impact = { text: string; warn: boolean }
 
+// A line I wrote on a card, optionally snoozing it: away until `until`, or sooner on the news that ends a hide.
+export type Note = {
+  text: string
+  savedAt: number
+  until?: number
+  // The card's hide mark when it was snoozed.
+  mark?: string
+}
+
 export type InboxItem = {
   repo: string
   number: number
@@ -24,6 +33,8 @@ export type InboxItem = {
   isRerequest: boolean
   reviewedSha?: string
   sinceLastReview?: string
+  // The start of the PR's description, for search.
+  body?: string
 }
 
 // My open PR, judged by what I have to do next.
@@ -39,6 +50,7 @@ export type MyPr = {
   ciPending: boolean
   // Reviews by others, bots included, left on the current head commit; a new push clears them.
   newReviews: { by: string; at: string }[]
+  body?: string
 }
 
 // Why an issue or PR is in my issues tab.
@@ -54,6 +66,7 @@ export type IssueItem = {
   // reference: who pointed at my item, and which of mine.
   by?: string
   target?: string
+  body?: string
 }
 
 export type Tab = 'review' | 'mine' | 'issues'
@@ -89,6 +102,11 @@ declare module 'claude-code' {
       tab: Tab
       // Section ids folded shut, as `<tab>:<category>`.
       collapsed: string[]
+      notes: Record<string, Note>
+      // What the search field holds; empty shows the tabs.
+      query: string
+      // The card whose note is being written, or empty.
+      editing: string
       added: string[]
       requested: string[]
     }
