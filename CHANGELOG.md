@@ -2,6 +2,14 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.5.0 — 2026-10-20
+
+### Added
+
+- `Note` on every card writes one line above its title, such as what you checked or what you agreed to do and when. `Clear` removes it.
+- `Snooze until tomorrow` and `Snooze until next week` hide a card until 9 a.m. the next day or the next Monday. It comes back sooner on the same news that ends a hide, and a toast shows its note when it does. `N hidden · show all` also ends the current tab's snoozes.
+- A search field above the tabs finds cards in every tab, hidden and snoozed ones included, by repository, number, title, author, summary, note and the first 2,000 characters of the description. The Claude mobile app has no text field, so search and `Note` are left out there; notes still show.
+
 ## 0.4.0 — 2026-10-20
 
 ### Added
