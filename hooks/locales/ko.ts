@@ -62,6 +62,8 @@ export const ko: Messages = {
   },
   sections: {
     hidden: n => `숨김 ${n} · 모두 보이기`,
+    direct: n => `직접 요청 ${n}`,
+    team: n => `팀 요청 ${n}`,
     drafts: n => `초안 · 아직 리뷰 준비 전 ${n}`,
     references: (days, n) => `최근 ${days}일 · 다른 곳에서 내 작업을 언급 ${n}`,
   },

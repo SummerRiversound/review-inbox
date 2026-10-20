@@ -65,6 +65,8 @@ export const ptBR: Messages = {
   },
   sections: {
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todos`,
+    direct: (n: number) => `Solicitações diretas ${n}`,
+    team: (n: number) => `Solicitações à equipe ${n}`,
     drafts: (n: number) => `Rascunhos · ainda não prontos para revisão ${n}`,
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'dia')} · meu trabalho referenciado em outros lugares ${n}`,

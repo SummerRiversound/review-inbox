@@ -16,6 +16,8 @@ A interface e os resumos estão disponíveis em nove idiomas; veja [Idioma](#idi
 
 ## Abas
 
+Cada aba agrupa seus cartões por categoria. Pressione o título de uma categoria para recolhê-la e de novo para abri-la. `N ocultos · mostrar todos`, no topo da aba, mostra de novo apenas os cartões ocultos daquela aba.
+
 ### Para revisar
 
 Um cartão para cada PR aguardando sua revisão: um resumo de uma frase, o motivo do PR, o que ele afeta, o tamanho e o autor, e há quanto tempo a sua revisão está pendente. Itens de risco, como uma mudança de schema ou uma ordem de deploy obrigatória, são marcados com ⚠️.
@@ -23,7 +25,7 @@ Um cartão para cada PR aguardando sua revisão: um resumo de uma frase, o motiv
 - `Revisar` marca o cartão como `Adicionado` e mantém a caixa de revisões aberta, para que você possa escolher vários PRs. Quando você fecha a caixa (Esc ou ×), um pedido de revisão para cada PR adicionado vai para o seu prompt, com os avisos do PR e o que mudou desde a sua última revisão. Nada é enviado até você pressionar Enter. Se o texto que você está escrevendo no prompt já pede a revisão de um PR, ele aparece como `Adicionado` quando a caixa de revisões abre.
 - `Ocultar` oculta o cartão até o PR receber um novo commit.
 - `revisão solicitada novamente` marca um PR que você já revisou e que pede a sua revisão de novo, com um breve resumo do que mudou desde a sua última revisão.
-- Solicitações diretas vêm antes das solicitações à equipe. Os rascunhos aparecem em uma lista separada.
+- Os cartões são agrupados em solicitações diretas, solicitações à equipe e rascunhos.
 
 ![Revisar em dois cartões os marca como Adicionado, Ocultar oculta um terceiro, e Esc coloca os dois pedidos de revisão no prompt](docs/images/en/review.gif)
 
@@ -33,6 +35,8 @@ O pedido também leva uma linha que descreve como você costuma revisar, para qu
 
 Os seus PRs abertos, com o estado no lugar do resumo, na ordem em que você precisa agir sobre eles: alterações solicitadas, CI com falha, conflito de merge, aguardando revisão (os mais antigos primeiro), aprovado, rascunho. O CI em execução aparece ao lado do estado.
 
+`Ocultar` oculta um PR até ele mudar de estado ou alguém revisá-lo; o seu próprio push não o traz de volta.
+
 ![Meus PRs: seis PRs, de alterações solicitadas a rascunho, dois deles com uma nova revisão](docs/images/en/my-prs.png)
 
 Uma revisão enviada depois do seu commit mais recente aparece como `Nova revisão`, com o nome de quem a deixou, até você fazer um novo commit. Isso vale para aprovações, solicitações de alteração e revisões só com comentários, incluindo respostas em threads, de pessoas ou de bots; uma revisão descartada (dismissed) não conta. Um PR nessa situação conta como algo a resolver e passa à frente dos PRs sem novidades no mesmo estado. Não há chamadas ao modelo.
@@ -40,6 +44,8 @@ Uma revisão enviada depois do seu commit mais recente aparece como `Nova revis�
 ### Minhas issues
 
 Issues abertas atribuídas a você e issues e PRs abertos que mencionam você; um item que se encaixa nos dois casos aparece uma vez só, como atribuído. Abaixo deles, outras issues e PRs dos últimos 30 dias que referenciaram algum item seu, com quem fez a referência. Referências feitas por você mesmo ficam de fora, e só as 20 mais recentes são mostradas. Não há chamadas ao modelo.
+
+Os itens são agrupados em atribuídos, menções e referências. `Ocultar` oculta um item até ele ter atividade nova.
 
 ![Minhas issues: issues atribuídas, menções e referências ao seu trabalho vindas de outros lugares](docs/images/en/my-issues.png)
 

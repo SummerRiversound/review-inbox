@@ -87,6 +87,8 @@ declare module 'claude-code' {
       status: InboxStatus
       hidden: Record<string, string>
       tab: Tab
+      // Section ids folded shut, as `<tab>:<category>`.
+      collapsed: string[]
       added: string[]
       requested: string[]
     }

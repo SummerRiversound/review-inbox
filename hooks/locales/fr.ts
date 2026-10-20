@@ -65,6 +65,8 @@ export const fr: Messages = {
   },
   sections: {
     hidden: n => `${count(n, 'masquée')} · tout afficher`,
+    direct: n => `Demandes directes ${n}`,
+    team: n => `Demandes via l'équipe ${n}`,
     drafts: n => `Brouillons · pas encore prêts pour la revue ${n}`,
     references: (days, n) => `Depuis ${count(days, 'jour')} · mon travail référencé ailleurs ${n}`,
   },

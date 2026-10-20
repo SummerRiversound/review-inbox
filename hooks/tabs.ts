@@ -77,7 +77,7 @@ export function referencesQuery(scope: string, touchedSince: string): string {
 }
 
 // Ordered by what I have to do next.
-const ORDER: MyPrState[] = ['changes', 'ci-failing', 'conflict', 'waiting', 'approved', 'draft']
+export const ORDER: MyPrState[] = ['changes', 'ci-failing', 'conflict', 'waiting', 'approved', 'draft']
 
 export function myPrState(pr: GqlMyPr): MyPrState {
   const ci = pr.commits.nodes[0]?.commit.statusCheckRollup?.state
@@ -205,6 +205,21 @@ export function prAlertText({ pr, turned, by }: PrAlert, m: Messages): string {
 export const prSeenKeys = (prs: MyPr[]) => prs.flatMap(pr => [stateKey(pr), ...pr.newReviews.map(r => reviewKey(pr, r))])
 
 export const issueKey = (i: IssueItem) => `${i.kind}:${i.url}:${i.target ?? ''}`
+
+// Hidden until it turns to another state or someone reviews it after the hide; my own push alone does not bring it back.
+export const prHideKey = (pr: MyPr) => `pr:${pr.url}`
+export const prHide = (pr: MyPr, now: number): [string, string] => [prHideKey(pr), `${pr.state}@${now}`]
+
+export function isPrHidden(hidden: Record<string, string>, pr: MyPr): boolean {
+  const [state, at] = (hidden[prHideKey(pr)] ?? '').split('@')
+  return state === pr.state && pr.newReviews.every(r => Date.parse(r.at) <= Number(at))
+}
+
+// Hidden until the thread has new activity.
+export const issueHideKey = (i: IssueItem) => `issue:${issueKey(i)}`
+export const issueHide = (i: IssueItem): [string, string] => [issueHideKey(i), i.at]
+
+export const isIssueHidden = (hidden: Record<string, string>, i: IssueItem) => hidden[issueHideKey(i)] === i.at
 
 export function issueAlerts(seen: string[] | undefined, issues: IssueItem[]): IssueItem[] {
   if (seen === undefined) return []

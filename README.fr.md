@@ -16,6 +16,8 @@ L'interface et les résumés existent en neuf langues ; voir [Langue](#langue).
 
 ## Onglets
 
+Chaque onglet regroupe ses cartes par catégorie. Appuyez sur l'en-tête d'une catégorie pour la replier, et de nouveau pour la déplier. `N masquées · tout afficher`, en haut de l'onglet, ne réaffiche que les cartes masquées de cet onglet.
+
 ### Revues à faire
 
 Une carte par PR en attente de votre revue : un résumé en une phrase, la raison d'être de la PR, ce qu'elle touche, sa taille et son auteur, et depuis combien de temps votre revue est attendue. Les points à risque, comme un changement de schéma ou un ordre de déploiement imposé, sont signalés par ⚠️.
@@ -23,7 +25,7 @@ Une carte par PR en attente de votre revue : un résumé en une phrase, la raiso
 - `Faire la revue` marque la carte comme `Ajouté` et laisse la boîte de réception ouverte : vous pouvez ainsi choisir plusieurs PR. Quand vous fermez la boîte de réception (Échap ou ×), une demande de revue est insérée dans votre prompt pour chaque PR ajoutée, avec ses avertissements et ce qui a changé depuis votre dernière revue. Rien n'est envoyé tant que vous n'appuyez pas sur Entrée. Une PR que le texte de votre prompt demande déjà apparaît comme `Ajouté` à l'ouverture de la boîte de réception.
 - `Masquer` masque la carte jusqu'à ce que la PR reçoive un nouveau commit.
 - `revue redemandée` signale une PR dont vous avez déjà fait la revue et qui vous sollicite à nouveau, avec un court résumé de ce qui a changé depuis votre dernière revue.
-- Les demandes directes passent avant les demandes via l'équipe. Les brouillons sont listés à part.
+- Les cartes sont regroupées en demandes directes, demandes via l'équipe et brouillons.
 
 ![Faire la revue sur deux cartes les marque Ajouté, Masquer cache une troisième carte, et Échap place les deux demandes de revue dans le prompt](docs/images/en/review.gif)
 
@@ -33,6 +35,8 @@ La demande contient aussi une ligne qui décrit votre façon habituelle de faire
 
 Vos PR ouvertes, avec leur état au lieu d'un résumé, dans l'ordre où vous devez vous en occuper : modifications demandées, CI en échec, conflit de fusion, en attente de revue (la plus ancienne d'abord), approuvée, brouillon. Une CI en cours s'affiche à côté de l'état.
 
+`Masquer` cache une PR jusqu'à ce qu'elle change d'état ou que quelqu'un la relise ; votre propre push ne suffit pas à la faire réapparaître.
+
 ![Mes PR : six PR, de Modifications demandées à Brouillon, dont deux avec une nouvelle revue](docs/images/en/my-prs.png)
 
 Une revue soumise après votre dernier commit apparaît comme `Nouvelle revue`, avec son auteur, jusqu'à votre prochain commit. Cela couvre les approbations, les demandes de modifications et les revues qui ne contiennent que des commentaires, réponses dans les fils de discussion comprises, qu'elles viennent de personnes ou de bots ; une revue rejetée (dismissed) ne compte pas. Une telle PR compte comme une action à faire et passe devant les PR sans nouveauté qui sont dans le même état. Aucun appel au modèle.
@@ -40,6 +44,8 @@ Une revue soumise après votre dernier commit apparaît comme `Nouvelle revue`, 
 ### Mes issues
 
 Les issues ouvertes qui vous sont assignées, ainsi que les issues et PR ouvertes qui vous mentionnent ; un élément qui relève des deux cas n'apparaît qu'une fois, sous « Assignée à moi ». En dessous, les autres issues et PR des 30 derniers jours qui ont fait référence à l'une des vôtres, avec l'auteur de la référence. Les références que vous avez faites vous-même sont exclues, et seules les 20 plus récentes sont affichées. Aucun appel au modèle.
+
+Les éléments sont regroupés en assignés, mentions et références. `Masquer` cache un élément jusqu'à ce qu'il ait une nouvelle activité.
 
 ![Mes issues : issues assignées, mentions et références à votre travail faites ailleurs](docs/images/en/my-issues.png)
 

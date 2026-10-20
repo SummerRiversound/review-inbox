@@ -4,7 +4,7 @@ import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, bandLabels, issueAlerts, issueKey, prAlertText, prAlerts, prSeenKeys, referencesQuery, tabQueries, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, tabQueries, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -167,4 +167,24 @@ test('a review that also turns my PR to changes requested is one toast, not two'
   expect(prAlertText({ pr: after[0]!, turned: true }, ko)).toBe('내 PR 변경 요청 · o/r #5')
   expect(alerts.map(a => prAlertText(a, en))).toEqual(['My PR: Changes requested · new review kim · o/r #5'])
   expect(prAlertText({ pr: after[0]!, turned: false, by: 'review-bot' }, en)).toBe('New review on my PR · review-bot · o/r #5')
+})
+
+test('a hidden PR of mine comes back when it turns to another state or gets a review after the hide', async () => {
+  const pr = myPr('changes', 'a', [{ by: 'kim', at: '2026-10-06T00:00:00Z' }])
+  const [key, mark] = prHide(pr, Date.parse('2026-10-07T00:00:00Z'))
+  const hidden = { [key]: mark }
+  expect(isPrHidden(hidden, pr)).toBe(true)
+  // My own push clears the new reviews; that alone is no reason to show it again.
+  expect(isPrHidden(hidden, { ...pr, newReviews: [] })).toBe(true)
+  expect(isPrHidden(hidden, { ...pr, state: 'waiting' })).toBe(false)
+  expect(isPrHidden(hidden, { ...pr, newReviews: [{ by: 'lee', at: '2026-10-08T00:00:00Z' }] })).toBe(false)
+  expect(isPrHidden(hidden, myPr('changes', 'b'))).toBe(false)
+})
+
+test('a hidden issue comes back once it has new activity', async () => {
+  const issue: IssueItem = { kind: 'mention', repo: 'o/r', number: 1, title: 't', url: 'x', at: '2026-10-01T00:00:00Z' }
+  const hidden = Object.fromEntries([issueHide(issue)])
+  expect(isIssueHidden(hidden, issue)).toBe(true)
+  expect(isIssueHidden(hidden, { ...issue, at: '2026-10-02T00:00:00Z' })).toBe(false)
+  expect(isIssueHidden(hidden, { ...issue, kind: 'assigned' })).toBe(false)
 })
