@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.6.1 — 2026-10-22
+
+### Fixed
+
+- My issues no longer stop at 50: assigned and mentioning issues are read 100 at a time, as To review and My PRs already were. When a tab has more than one page, its count in the band and the tab title reads `100+`, or `N+` once hidden and snoozed cards are left out.
+
 ## 0.6.0 — 2026-10-20
 
 ### Added
