@@ -157,7 +157,7 @@ Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cart
 
 ## Limites
 
-- No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 50 issues atribuídas e 50 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro.
+- No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 100 issues atribuídas e 100 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro. Quando uma lista tem mais que isso, a contagem aparece como `100+`.
 - Uma referência a um item em que você não mexe há 60 dias passa despercebida.
 - `Nova revisão` some com qualquer novo commit no PR, inclusive um feito pelo botão "Update branch" do GitHub ou por um bot.
 - Depois de um force-push que reescreveu o commit que você revisou, um PR com revisão solicitada novamente não mostra a linha "Desde a minha última revisão".

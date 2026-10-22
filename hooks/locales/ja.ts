@@ -8,15 +8,15 @@ export const ja: Messages = {
   },
   band: {
     open: '開く',
-    reviews: (n: number) => `要レビュー ${n}`,
-    prTodo: (n: number) => `要対応の自分の PR ${n}`,
-    issues: (n: number) => `自分の Issue ${n}`,
+    reviews: (n: string) => `要レビュー ${n}`,
+    prTodo: (n: string) => `要対応の自分の PR ${n}`,
+    issues: (n: string) => `自分の Issue ${n}`,
     oldest: (days: number) => ` · 最長${days}日待ち`,
   },
   tabs: {
-    review: (n: number) => `要レビュー ${n}`,
-    mine: (n: number) => `自分の PR ${n}`,
-    issues: (n: number) => `自分の Issue ${n}`,
+    review: (n: string) => `要レビュー ${n}`,
+    mine: (n: string) => `自分の PR ${n}`,
+    issues: (n: string) => `自分の Issue ${n}`,
   },
   card: {
     rerequest: '再リクエスト',

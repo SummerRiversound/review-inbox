@@ -10,15 +10,15 @@ export const es: Messages = {
   },
   band: {
     open: 'Abrir',
-    reviews: (n: number) => `Por revisar ${n}`,
-    prTodo: (n: number) => `Mis PR por atender ${n}`,
-    issues: (n: number) => `Mis incidencias ${n}`,
+    reviews: (n: string) => `Por revisar ${n}`,
+    prTodo: (n: string) => `Mis PR por atender ${n}`,
+    issues: (n: string) => `Mis incidencias ${n}`,
     oldest: (days: number) => ` · solicitud más antigua: ${count(days, 'día')} de espera`,
   },
   tabs: {
-    review: (n: number) => `Por revisar ${n}`,
-    mine: (n: number) => `Mis PR ${n}`,
-    issues: (n: number) => `Mis incidencias ${n}`,
+    review: (n: string) => `Por revisar ${n}`,
+    mine: (n: string) => `Mis PR ${n}`,
+    issues: (n: string) => `Mis incidencias ${n}`,
   },
   card: {
     rerequest: 'revisión solicitada de nuevo',

@@ -1,4 +1,4 @@
-import type { IssueItem, MyPr, MyPrState } from '../types'
+import type { Capped, IssueItem, MyPr, MyPrState } from '../types'
 import type { Messages } from './i18n'
 
 type Repo = { repository: { nameWithOwner: string } }
@@ -27,13 +27,13 @@ export type GqlReferenced = Repo & {
 // Assigned and mentioned issues plus my open PRs: one request, three aliased searches.
 export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
   viewer { login }
-  mine: search(query: $mine, type: ISSUE, first: 100) { nodes { ... on PullRequest {
+  mine: search(query: $mine, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes { ... on PullRequest {
     number title url body headRefName isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
-  assigned: search(query: $assigned, type: ISSUE, first: 50) { nodes {
+  assigned: search(query: $assigned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
     ... on Issue { number title url body updatedAt repository { nameWithOwner } } } }
-  mentioned: search(query: $mentioned, type: ISSUE, first: 50) { nodes {
+  mentioned: search(query: $mentioned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
     ... on Issue { number title url body updatedAt repository { nameWithOwner } }
     ... on PullRequest { number title url body updatedAt repository { nameWithOwner } } } }
 }`
@@ -234,6 +234,9 @@ export function issueAlerts(seen: string[] | undefined, issues: IssueItem[]): Is
 // The band counts only what needs action.
 export type BandCounts = { reviews: number; prTodo: number; issues: number }
 
+// Each tab reads one page of search results; past it, a count is only a lower bound.
+export const atLeast = (n: number, capped = false) => (capped ? `${n}+` : `${n}`)
+
 export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): BandCounts {
   return {
     reviews,
@@ -243,6 +246,7 @@ export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): B
 }
 
 // Zeros are left out.
-export function bandLabels(counts: BandCounts, m: Messages): string[] {
-  return (['reviews', 'prTodo', 'issues'] as const).filter(k => counts[k] > 0).map(k => m.band[k](counts[k]))
+export function bandLabels(counts: BandCounts, m: Messages, capped: Capped = {}): string[] {
+  const tabOf = { reviews: 'review', prTodo: 'mine', issues: 'issues' } as const
+  return (['reviews', 'prTodo', 'issues'] as const).filter(k => counts[k] > 0).map(k => m.band[k](atLeast(counts[k], capped[tabOf[k]])))
 }

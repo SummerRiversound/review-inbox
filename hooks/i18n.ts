@@ -19,15 +19,15 @@ const en = {
   },
   band: {
     open: 'Open',
-    reviews: (n: number) => `To review ${n}`,
-    prTodo: (n: number) => `My PRs to act on ${n}`,
-    issues: (n: number) => `My issues ${n}`,
+    reviews: (n: string) => `To review ${n}`,
+    prTodo: (n: string) => `My PRs to act on ${n}`,
+    issues: (n: string) => `My issues ${n}`,
     oldest: (days: number) => ` · oldest waiting ${count(days, 'day')}`,
   },
   tabs: {
-    review: (n: number) => `To review ${n}`,
-    mine: (n: number) => `My PRs ${n}`,
-    issues: (n: number) => `My issues ${n}`,
+    review: (n: string) => `To review ${n}`,
+    mine: (n: string) => `My PRs ${n}`,
+    issues: (n: string) => `My issues ${n}`,
   },
   card: {
     rerequest: 're-requested',

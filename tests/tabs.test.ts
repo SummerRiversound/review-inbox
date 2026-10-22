@@ -4,7 +4,7 @@ import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, tabQueries, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -101,6 +101,18 @@ test('the band counts only what needs me and leaves out zeros', async () => {
   expect(bandLabels(busy, MESSAGES.ko)).toEqual(['리뷰 2', '내 PR 할 일 1', '내 이슈 1'])
   expect(bandLabels(busy, MESSAGES.en)).toEqual(['To review 2', 'My PRs to act on 1', 'My issues 1'])
   expect(bandLabels({ reviews: 0, prTodo: 3, issues: 0 }, MESSAGES.en)).toEqual(['My PRs to act on 3'])
+})
+
+test('a count from a search that had more than one page reads as at least that many', async () => {
+  const counts = { reviews: 100, prTodo: 2, issues: 97 }
+  expect(bandLabels(counts, MESSAGES.ko, { review: true, issues: true })).toEqual(['리뷰 100+', '내 PR 할 일 2', '내 이슈 97+'])
+  expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'My issues 97'])
+})
+
+test('my issues are read a full page at a time, newest first', async () => {
+  expect(TABS_QUERY).toContain('assigned: search(query: $assigned, type: ISSUE, first: 100)')
+  expect(TABS_QUERY).toContain('mentioned: search(query: $mentioned, type: ISSUE, first: 100)')
+  expect(TABS_QUERY.match(/pageInfo \{ hasNextPage \}/g)).toHaveLength(3)
 })
 
 test('a PR turning to needs-me is announced once, never on the first look', async () => {
