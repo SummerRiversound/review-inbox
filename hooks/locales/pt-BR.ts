@@ -11,15 +11,15 @@ export const ptBR: Messages = {
   },
   band: {
     open: 'Abrir',
-    reviews: (n: number) => `Para revisar ${n}`,
-    prTodo: (n: number) => `Meus PRs a resolver ${n}`,
-    issues: (n: number) => `Minhas issues ${n}`,
+    reviews: (n: string) => `Para revisar ${n}`,
+    prTodo: (n: string) => `Meus PRs a resolver ${n}`,
+    issues: (n: string) => `Minhas issues ${n}`,
     oldest: (days: number) => ` · solicitação mais antiga: ${count(days, 'dia')} de espera`,
   },
   tabs: {
-    review: (n: number) => `Para revisar ${n}`,
-    mine: (n: number) => `Meus PRs ${n}`,
-    issues: (n: number) => `Minhas issues ${n}`,
+    review: (n: string) => `Para revisar ${n}`,
+    mine: (n: string) => `Meus PRs ${n}`,
+    issues: (n: string) => `Minhas issues ${n}`,
   },
   card: {
     rerequest: 'revisão solicitada novamente',

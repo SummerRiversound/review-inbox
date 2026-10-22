@@ -83,10 +83,14 @@ export type Presence = {
 }
 
 // Shared by every session on the machine; whichever finds it stale fetches and rewrites it.
+export type Capped = Partial<Record<Tab, boolean>>
+
 export type InboxFile = {
   items: InboxItem[]
   mine?: MyPr[]
   issues?: IssueItem[]
+  // Tabs whose search had more results than one page holds.
+  capped?: Capped
   fetchedAt?: number
   // The claim of the session fetching right now, renewed while it works.
   fetchingSince?: number
@@ -108,6 +112,7 @@ declare module 'claude-code' {
       items: InboxItem[]
       mine: MyPr[]
       issues: IssueItem[]
+      capped: Capped
       status: InboxStatus
       hidden: Record<string, string>
       tab: Tab

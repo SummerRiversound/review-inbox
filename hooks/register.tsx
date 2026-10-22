@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, Tab } from '../types'
+import type { Capped, InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, Tab } from '../types'
 import {
   CLAIM_MS,
   cacheKey,
@@ -45,6 +45,7 @@ import {
   ORDER,
   REFERENCE_DAYS,
   TABS_QUERY,
+  atLeast,
   bandCounts,
   bandLabels,
   isIssueHidden,
@@ -83,6 +84,7 @@ const status = atom({ plugin: 'review-inbox', key: 'status' } as const, {
 const hidden = atom({ plugin: 'review-inbox', key: 'hidden' } as const, {} as Record<string, string>)
 const mine = atom({ plugin: 'review-inbox', key: 'mine' } as const, [] as MyPr[])
 const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as IssueItem[])
+const capped = atom({ plugin: 'review-inbox', key: 'capped' } as const, {} as Capped)
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
 const collapsed = atom({ plugin: 'review-inbox', key: 'collapsed' } as const, [] as string[])
 const notes = atom({ plugin: 'review-inbox', key: 'notes' } as const, {} as Record<string, Note>)
@@ -250,7 +252,7 @@ async function fetchTabs(
   $: EngineInterface,
   env: Record<string, string>,
   previous: IssueItem[],
-): Promise<{ mine: MyPr[]; issues: IssueItem[] }> {
+): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
   const q = tabQueries(config.scope)
   const data = JSON.parse(
     await gh(
@@ -261,9 +263,9 @@ async function fetchTabs(
     ),
   ) as {
     viewer: { login: string }
-    mine: { nodes: Partial<GqlMyPr>[] }
-    assigned: { nodes: Partial<GqlTouched>[] }
-    mentioned: { nodes: Partial<GqlTouched>[] }
+    mine: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlMyPr>[] }
+    assigned: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlTouched>[] }
+    mentioned: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlTouched>[] }
   }
   const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
     nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
@@ -297,6 +299,7 @@ async function fetchTabs(
   return {
     mine: toMyPrs(real<GqlMyPr>(data.mine.nodes), data.viewer.login),
     issues: toIssues(real<GqlTouched>(data.assigned.nodes), real<GqlTouched>(data.mentioned.nodes), references),
+    capped: { mine: data.mine.pageInfo.hasNextPage, issues: data.assigned.pageInfo.hasNextPage || data.mentioned.pageInfo.hasNextPage },
   }
 }
 
@@ -305,7 +308,7 @@ async function fetchInbox(
   env: Record<string, string>,
   previous: InboxItem[],
   heartbeat: () => Promise<void>,
-): Promise<InboxItem[]> {
+): Promise<{ items: InboxItem[]; capped: boolean }> {
   const data = JSON.parse(
     await gh(
       $,
@@ -313,7 +316,7 @@ async function fetchInbox(
         '-f', `q=${searchQuery(config.scope)}`, '--jq', '.data | .search.nodes |= map(if .body then .body |= .[:12000] else . end)'],
       env,
     ),
-  ) as { viewer: { login: string }; search: { nodes: Partial<GqlPr>[] } }
+  ) as { viewer: { login: string }; search: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlPr>[] } }
   const me = data.viewer.login
   // Search can return non-PR nodes as empty objects.
   const prs = data.search.nodes.filter((n): n is GqlPr => typeof n.number === 'number')
@@ -362,7 +365,7 @@ async function fetchInbox(
     next.push(...batch)
     await heartbeat()
   }
-  return sortItems(next)
+  return { items: sortItems(next), capped: data.search.pageInfo.hasNextPage }
 }
 
 function toast($: EngineInterface, text: string) {
@@ -420,11 +423,11 @@ async function sync($: EngineInterface, force = false) {
       const fetched = await fetchInbox($, env, file.items, () =>
         writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
       )
-      result = { items: fetched, ...tabs, fetchedAt: Date.now() }
+      result = { items: fetched.items, ...tabs, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       // Keep the last good list and try again in a minute, not after a full refresh interval.
-      result = { items: file.items, mine: file.mine, issues: file.issues, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
+      result = { items: file.items, mine: file.mine, issues: file.issues, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }
     await writeJson($, inboxFile(), result)
     await show($, result)
@@ -443,6 +446,7 @@ async function show($: EngineInterface, file: InboxFile) {
   await update($, items, () => file.items)
   if (prs) await update($, mine, () => prs)
   if (issueList) await update($, issues, () => issueList)
+  await update($, capped, () => file.capped ?? {})
   await update($, status, () =>
     claimed
       ? { kind: 'loading' as const, updatedAt: file.fetchedAt }
@@ -696,7 +700,7 @@ export const register: Register = (on, options) => {
     const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
     const prs = (await read($, mine)).filter(pr => !away.pr(pr))
     const issueList = (await read($, issues)).filter(i => !away.issue(i))
-    const counts = bandLabels(bandCounts(reviews.length, prs, issueList), m)
+    const counts = bandLabels(bandCounts(reviews.length, prs, issueList), m, await read($, capped))
     if (counts.length === 0) return next(e)
 
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -736,6 +740,7 @@ export const register: Register = (on, options) => {
     const myPrs = allPrs.filter(pr => !away.pr(pr))
     const allIssues = await read($, issues)
     const myIssues = allIssues.filter(i => !away.issue(i))
+    const cappedTabs = await read($, capped)
     const shut = await read($, collapsed)
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
     const live = liveSessions(await read($, sessions), now)
@@ -990,9 +995,9 @@ export const register: Register = (on, options) => {
 
     const direct = myIssues.filter(i => i.kind !== 'reference')
     const tabs: { id: Tab; label: string }[] = [
-      { id: 'review', label: m.tabs.review(ready.length) },
-      { id: 'mine', label: m.tabs.mine(myPrs.length) },
-      { id: 'issues', label: m.tabs.issues(direct.length) },
+      { id: 'review', label: m.tabs.review(atLeast(ready.length, cappedTabs.review)) },
+      { id: 'mine', label: m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)) },
+      { id: 'issues', label: m.tabs.issues(atLeast(direct.length, cappedTabs.issues)) },
     ]
     const empty = (text: string) =>
       state.kind === 'loading' && everything.length + allPrs.length + allIssues.length === 0 ? (
@@ -1095,9 +1100,9 @@ export const register: Register = (on, options) => {
         {found && (
           <Box flexDirection="column" marginTop={1}>
             {found.review.length + found.mine.length + found.issues.length === 0 && <Text dimColor>{m.search.empty}</Text>}
-            {section('search:review', m.tabs.review(found.review.length), found.review, i => resultRow(itemKey(i), i, away.review(i)))}
-            {section('search:mine', m.tabs.mine(found.mine.length), found.mine, pr => resultRow(prHideKey(pr), pr, away.pr(pr)))}
-            {section('search:issues', m.tabs.issues(found.issues.length), found.issues, i =>
+            {section('search:review', m.tabs.review(`${found.review.length}`), found.review, i => resultRow(itemKey(i), i, away.review(i)))}
+            {section('search:mine', m.tabs.mine(`${found.mine.length}`), found.mine, pr => resultRow(prHideKey(pr), pr, away.pr(pr)))}
+            {section('search:issues', m.tabs.issues(`${found.issues.length}`), found.issues, i =>
               resultRow(issueHideKey(i), i, away.issue(i)),
             )}
           </Box>
