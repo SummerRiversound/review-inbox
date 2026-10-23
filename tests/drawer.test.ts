@@ -3,7 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
-import { cacheKey } from '../hooks/inbox'
+import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
 import { prSeenKeys } from '../hooks/tabs'
 
 const PANE = {
@@ -14,7 +14,9 @@ const PANE = {
   props: { title: 'Review inbox', isFocused: true, bodyColumns: 100, placement: 'dock', scroll: { offset: 0, bodyRows: 80 }, view: {} },
 } as const
 
-const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
+const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}-f${INBOX_FORMAT}.json`
+// The name every release before formats were numbered reads and writes.
+const LEGACY_INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
 const SESSIONS = '/home/me/.claude/plugins/data/review-inbox/sessions.json'
 const REPOS = '/home/me/.claude/plugins/data/review-inbox/repos.json'
 const SHOWN = `/home/me/.claude/plugins/data/review-inbox/shown-${cacheKey('', '')}.json`
@@ -42,6 +44,8 @@ async function opened(
     env?: Record<string, string>
     groups?: Record<string, GroupResult>
     activity?: Activity
+    // The version this session's plugin.json states.
+    version?: string
     // Answers a command, joined by spaces; anything it leaves fails as if missing.
     run?: (args: string) => { exitCode: number; stdout?: string; stderr?: string } | undefined
   } = {},
@@ -58,7 +62,11 @@ async function opened(
   if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
   for (const [path, text] of Object.entries(more.files ?? {})) store.set(path, text)
   on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
-  on('fs.read', async ($, e) => ({ value: store.get(e.path)! }))
+  on('fs.read', async ($, e) => {
+    if (e.path.endsWith('/.claude-plugin/plugin.json') && more.version) return { value: JSON.stringify({ version: more.version }) }
+    if (!store.has(e.path)) throw new Error(`ENOENT: ${e.path}`)
+    return { value: store.get(e.path)! }
+  })
   on('fs.write', async ($, e) => {
     store.set(e.path, e.text)
     return { value: undefined }
@@ -286,6 +294,27 @@ test('nothing needing me shows the inbox-zero line', async ($, on) => {
 test('a PR to act on keeps the inbox-zero line away', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
   expect(await shown(ui, /Nothing needs you/)).toBe(false)
+  await ui.unmount()
+})
+
+test('the drawer names the other sessions on an older release with how to update them, and writes this session\'s release for others', async ($, on) => {
+  const sessions: Record<string, Presence> = {
+    old: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [] },
+    oldToo: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [], version: '0.11.0' },
+    same: { at: Date.now(), folder: 'web', remotes: [], prs: [], version: '0.12.0' },
+  }
+  const ui = await opened($, on, [], [], 'mine', { sessions, version: '0.12.0' })
+  expect(await shown(ui, /2 sessions on an older version \(dhub2\)/)).toBe(true)
+  expect(await shown(ui, /web/)).toBe(false)
+  expect(JSON.parse(files.get(SESSIONS)!).self.version).toBe('0.12.0')
+  await ui.unmount()
+})
+
+test('the drawer never reads the shared file an older release keeps writing, nor shows its error', async ($, on) => {
+  const legacy = JSON.stringify({ items: [], mine: [], issues: [], fetchedAt: Date.now(), error: 'old release broke' })
+  const ui = await opened($, on, [pr(1, 'waiting')], [], 'mine', { files: { [LEGACY_INBOX]: legacy } })
+  expect(await shown(ui, /old release broke/)).toBe(false)
+  expect(await shown(ui, /#1/)).toBe(true)
   await ui.unmount()
 })
 

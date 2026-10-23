@@ -79,6 +79,10 @@ export function cacheKey(...parts: string[]): string {
   return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
+// Part of the shared inbox file's name, so a session still running an older release, which keeps writing its own file,
+// never hands a newer one its lists or errors. Raise it in a release that changes what the file holds or how it is fetched.
+export const INBOX_FORMAT = 2
+
 export function toDetail(pr: GqlPr): PrDetail {
   return {
     headRefOid: pr.headRefOid,

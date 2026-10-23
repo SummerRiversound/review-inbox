@@ -71,6 +71,7 @@ export const zhTW: Messages = {
     updated: minutes => (minutes < 1 ? '剛剛更新' : `${minutes} 分鐘前更新`),
     firstFetch: '正在從 GitHub 擷取資料。第一次大約需要 1 分鐘。',
     timeout: 'GitHub 回應逾時；請在 Search scope 設定中縮小範圍（例如 org:my-org）',
+    older: (n, folders) => `${n} 個工作階段仍是舊版本 (${folders}) · 請在那些工作階段執行 /reload-plugins`,
   },
   empty: {
     zero: '✓ 沒有需要你處理的事項',

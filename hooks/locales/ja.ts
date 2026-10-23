@@ -71,6 +71,7 @@ export const ja: Messages = {
     updated: (minutes: number) => (minutes < 1 ? 'たった今更新' : `${minutes}分前に更新`),
     firstFetch: 'GitHub から取得しています。初回は1分ほどかかります。',
     timeout: 'GitHub がタイムアウトしました。Search scope 設定で範囲を絞ってください (例: org:my-org)',
+    older: (n, folders) => `古いバージョンのセッション ${n}件 (${folders}) · そのセッションで /reload-plugins を実行してください`,
   },
   empty: {
     zero: '✓ 対応が必要なものはありません',

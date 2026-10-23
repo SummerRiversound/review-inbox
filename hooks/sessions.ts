@@ -12,6 +12,14 @@ export function liveSessions(sessions: Record<string, Presence>, now: number): R
   return Object.fromEntries(Object.entries(sessions).filter(([, s]) => now - s.at < SESSION_STALE_MS))
 }
 
+// The folders of other sessions running an older release than mine; one that states none predates the field.
+export function olderSessions(sessions: Record<string, Presence>, selfId: string, version: string | undefined): string[] {
+  if (!version) return []
+  return Object.entries(sessions)
+    .filter(([id, s]) => id !== selfId && (!s.version || s.version.localeCompare(version, undefined, { numeric: true }) < 0))
+    .map(([, s]) => s.folder)
+}
+
 // The sessions working on a PR: checked out on its branch in its repository, or asked about it by link.
 export function workingOn(sessions: Record<string, Presence>, pr: { repo: string; url: string; branch?: string }): string[] {
   return Object.entries(sessions)
