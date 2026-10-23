@@ -5,7 +5,7 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
 export const es: Messages = {
   title: 'Bandeja de revisiones',
   command: {
-    description: 'Abrir la bandeja de revisiones: PR pendientes de mi revisión, mis PR y mis incidencias',
+    description: 'Abrir la bandeja de revisiones: PR pendientes de mi revisión, mis PR e incidencias asignadas a mí o que me mencionan',
     opened: 'Bandeja de revisiones abierta.',
     filled: 'Añadido al prompt; pulsa Enter para enviarlo.',
   },
@@ -13,16 +13,16 @@ export const es: Messages = {
     open: 'Abrir',
     reviews: (n: string) => `Por revisar ${n}`,
     prTodo: (n: string) => `Mis PR por atender ${n}`,
-    issues: (n: string) => `Mis incidencias ${n}`,
-    searches: (n: string) => `Búsquedas ${n}`,
+    issues: (n: string) => `Asignadas y mencionadas ${n}`,
+    searches: (n: string) => `Búsquedas guardadas ${n}`,
     oldest: (days: number) => ` · solicitud más antigua: ${count(days, 'día')} de espera`,
   },
   tabs: {
     review: (n: string) => `Por revisar ${n}`,
     mine: (n: string) => `Mis PR ${n}`,
-    issues: (n: string) => `Mis incidencias ${n}`,
+    issues: (n: string) => `Asignadas y mencionadas ${n}`,
     searches: 'Búsquedas guardadas',
-    activity: (n: string) => `Actividad ${n}`,
+    activity: (n: string) => `Notificaciones ${n}`,
   },
   card: {
     rerequest: 'revisión solicitada de nuevo',
@@ -36,7 +36,7 @@ export const es: Messages = {
     impact: 'Alcance',
     size: (files: number, added: string, removed: string) => `${count(files, 'archivo')} (+${added} −${removed})`,
     hide: 'Ocultar',
-    review: 'Revisar',
+    review: 'Revisar con Claude',
     added: 'Añadido',
     task: {
       changes: 'Atender comentarios',
@@ -80,7 +80,7 @@ export const es: Messages = {
     review: 'Ningún PR espera tu revisión.',
     mine: 'No tienes PR abiertos.',
     issues: 'No hay incidencias asignadas a ti ni que te mencionen.',
-    searches: "No hay grupos de búsqueda. Añade uno con /review-inbox add-search.",
+    searches: "No hay búsquedas guardadas. Añade una con /review-inbox add-search.",
     activity: "No hay otras notificaciones. Las solicitudes de revisión, asignaciones y menciones están en las otras pestañas.",
   },
   sections: {
@@ -134,9 +134,9 @@ export const es: Messages = {
     by: (who: string) => `nueva revisión de ${who}`,
   },
   buttons: {
-    more: "Más",
+    more: "Acciones",
     none: "Aún no tienes botones propios; se muestran los integrados.",
-    counts: (buttons, groups) => `Propios: ${buttons} botones, ${groups} grupos de búsqueda`,
+    counts: (buttons, groups) => `Propios: ${buttons} botones, ${groups} búsquedas guardadas`,
     how: "Con /review-inbox add-button o /review-inbox add-search, Claude escribe uno contigo.",
     hint: "Detalles: /review-inbox buttons",
     file: (path: string) => `Mis botones: ${path}`,
@@ -147,8 +147,8 @@ export const es: Messages = {
       fields: "necesita id, name y prompt",
       scope: (scope: string) => `el scope "${scope}" no es review, pr ni issue`,
       variables: (names: string) => `variable desconocida ${names}`,
-      groupFields: "un grupo de búsqueda necesita id, name y query",
-      groupScope: (scope: string) => `el scope "${scope}" del grupo de búsqueda no es prs ni issues`,
+      groupFields: "una búsqueda guardada necesita id, name y query",
+      groupScope: (scope: string) => `el scope "${scope}" de la búsqueda guardada no es prs ni issues`,
     },
     builtIn: {
       "summarize-risks": { name: "Resumir riesgos", prompt: "Resume los riesgos de {{.PrUrl}}: lee el diff con `gh pr diff {{.PrUrl}}` y enumera qué podría romperse, para quién, y qué probar primero. No cambies nada." },
@@ -163,7 +163,7 @@ export const es: Messages = {
     none: "No se encontró nada.",
     failed: (message: string) => `La búsqueda falló: ${message}`,
     more: (n: number) => `${n} más en GitHub`,
-    tooMany: (n: number) => `Se omiten ${n} grupos de búsqueda después de los primeros 15`,
+    tooMany: (n: number) => `Se omiten ${n} búsquedas guardadas después de las primeras 15`,
   },
   activity: {
     reasons: { comment: "Comentario", state_change: "Cambio de estado", author: "Lo abriste tú", team_mention: "Mención al equipo", security_alert: "Alerta de seguridad", ci_activity: "Ejecución de CI" },
@@ -190,7 +190,7 @@ export const es: Messages = {
   },
   prompt: {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,
-    addGroup: (path: string) => `Añade un grupo de búsqueda a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarlo en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
+    addGroup: (path: string) => `Añade una búsqueda guardada a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarla en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
     review: (url: string) => `Revisa ${url}.`,
     check: 'Fíjate especialmente en: ',
     since: 'Cambios desde mi última revisión: ',
