@@ -1,4 +1,4 @@
-import type { ButtonError, ButtonScope, CardButton } from '../types'
+import type { Actions, ButtonError, ButtonScope, CardButton, GroupScope, SearchGroup } from '../types'
 import type { Messages } from './i18n'
 
 export const ACTIONS_FILE = 'actions.json'
@@ -22,6 +22,7 @@ export type Variable = (typeof VARIABLES)[number]
 export type Vars = Partial<Record<Variable, string>>
 
 const SCOPES: readonly ButtonScope[] = ['review', 'pr', 'issue']
+const GROUP_SCOPES: readonly GroupScope[] = ['prs', 'issues']
 
 // gh-dash's spellings, {{.Name}}, {{Name}} and {{ .Name }}; no pipes or conditions.
 const TEMPLATE = /\{\{\s*\.?\s*([A-Za-z]+)\s*\}\}/g
@@ -48,21 +49,26 @@ export const BUILT_IN: { id: keyof Messages['buttons']['builtIn']; scope: Button
 
 export const builtInButtons = (m: Messages): CardButton[] => BUILT_IN.map(b => ({ ...b, ...m.buttons.builtIn[b.id] }))
 
-// A missing file is no buttons of mine; a broken one, or a broken entry, is listed and leaves the rest working.
-export function parseActions(text: string | undefined): { buttons: CardButton[]; errors: ButtonError[] } {
-  if (text === undefined) return { buttons: [], errors: [] }
+// A missing file is nothing of mine; a broken one, or a broken entry, is listed and leaves the rest working.
+export function parseActions(text: string | undefined): Actions {
+  const broken: Actions = { buttons: [], groups: [], errors: [{ at: ACTIONS_FILE, reason: 'file' }] }
+  if (text === undefined) return { buttons: [], groups: [], errors: [] }
   let data: unknown
   try {
     data = JSON.parse(text)
   } catch {
-    return { buttons: [], errors: [{ at: ACTIONS_FILE, reason: 'file' }] }
+    return broken
   }
-  const entries = (data as { buttons?: unknown } | null)?.buttons
-  if (!Array.isArray(entries)) return { buttons: [], errors: [{ at: ACTIONS_FILE, reason: 'file' }] }
+  const lists = data !== null && typeof data === 'object' && !Array.isArray(data) ? (data as { buttons?: unknown; groups?: unknown }) : {}
+  const isList = (value: unknown) => value === undefined || Array.isArray(value)
+  if ((lists.buttons === undefined && lists.groups === undefined) || !isList(lists.buttons) || !isList(lists.groups)) return broken
+  const buttonEntries = (lists.buttons ?? []) as (Partial<Record<keyof CardButton, unknown>> | null)[]
+  const groupEntries = (lists.groups ?? []) as (Partial<Record<keyof SearchGroup, unknown>> | null)[]
 
   const buttons: CardButton[] = []
+  const groups: SearchGroup[] = []
   const errors: ButtonError[] = []
-  entries.forEach((entry: Partial<Record<keyof CardButton, unknown>> | null, i) => {
+  buttonEntries.forEach((entry, i) => {
     const at = typeof entry?.id === 'string' && entry.id ? entry.id : `#${i + 1}`
     const { id, name, scope, prompt, hidden } = entry ?? {}
     if (typeof id !== 'string' || !id) return errors.push({ at, reason: 'fields' })
@@ -73,11 +79,20 @@ export function parseActions(text: string | undefined): { buttons: CardButton[];
     if (unknown.length > 0) return errors.push({ at, reason: 'variables', detail: unknown.join(', ') })
     buttons.push({ id, name, scope: scope as ButtonScope, prompt })
   })
-  return { buttons, errors }
+  groupEntries.forEach((entry, i) => {
+    const at = typeof entry?.id === 'string' && entry.id ? entry.id : `groups #${i + 1}`
+    const { id, name, query, scope, countInBand, hidden } = entry ?? {}
+    if (typeof id !== 'string' || !id) return errors.push({ at, reason: 'groupFields' })
+    if (hidden === true) return groups.push({ id, name: '', query: '', scope: 'prs', hidden: true })
+    if (!GROUP_SCOPES.includes(scope as GroupScope)) return errors.push({ at, reason: 'groupScope', detail: String(scope) })
+    if (typeof name !== 'string' || !name || typeof query !== 'string' || !query.trim()) return errors.push({ at, reason: 'groupFields' })
+    groups.push({ id, name, query, scope: scope as GroupScope, ...(countInBand === true ? { countInBand: true } : {}) })
+  })
+  return { buttons, groups, errors }
 }
 
-// A button of mine with a built-in id takes its place; `hidden` removes it.
-export function mergeButtons(builtIn: CardButton[], mine: CardButton[]): CardButton[] {
+// A button or search group of mine with a built-in id takes its place; `hidden` removes it.
+export function mergeById<T extends { id: string; hidden?: boolean }>(builtIn: T[], mine: T[]): T[] {
   const byId = new Map(builtIn.map(b => [b.id, b]))
   for (const b of mine) byId.set(b.id, b)
   return [...byId.values()].filter(b => !b.hidden)

@@ -271,27 +271,31 @@ export function issueAlerts(seen: string[] | undefined, issues: IssueItem[]): Is
 }
 
 // The band counts only what needs action.
-export type BandCounts = { reviews: number; prTodo: number; issues: number }
+export type BandCounts = { reviews: number; prTodo: number; issues: number; searches: number }
+// The band's order.
+export const BAND_KEYS = ['reviews', 'prTodo', 'issues', 'searches'] as const
 
 // Each tab reads one page of search results; past it, a count is only a lower bound.
 export const atLeast = (n: number, capped = false) => (capped ? `${n}+` : `${n}`)
 
-export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): BandCounts {
+// `searches` is what the search groups counted in the band found.
+export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[], searches = 0): BandCounts {
   return {
     reviews,
     prTodo: prs.filter(needsMe).length,
     issues: issues.filter(i => i.kind !== 'reference').length,
+    searches,
   }
 }
 
 // Zeros are left out.
 export function bandLabels(counts: BandCounts, m: Messages, capped: Capped = {}): string[] {
-  const tabOf = { reviews: 'review', prTodo: 'mine', issues: 'issues' } as const
-  return (['reviews', 'prTodo', 'issues'] as const).filter(k => counts[k] > 0).map(k => m.band[k](atLeast(counts[k], capped[tabOf[k]])))
+  const tabOf = { reviews: 'review', prTodo: 'mine', issues: 'issues', searches: 'searches' } as const
+  return BAND_KEYS.filter(k => counts[k] > 0).map(k => m.band[k](atLeast(counts[k], capped[tabOf[k]])))
 }
 
 // A count that went down but not to zero, which leaves the band: what the band flashes for a moment.
 export function droppedCounts(before: BandCounts | undefined, after: BandCounts): (keyof BandCounts)[] {
   if (before === undefined) return []
-  return (['reviews', 'prTodo', 'issues'] as const).filter(k => after[k] > 0 && after[k] < before[k])
+  return BAND_KEYS.filter(k => after[k] > 0 && after[k] < before[k])
 }

@@ -2,10 +2,11 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type {
-  ButtonError,
+  Actions,
   ButtonScope,
   Capped,
-  CardButton,
+  GroupHit,
+  GroupResult,
   InboxFile,
   InboxItem,
   InboxStatus,
@@ -14,10 +15,13 @@ import type {
   Note,
   Presence,
   RepoPaths,
+  SearchGroup,
   Tab,
 } from '../types'
-import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeButtons, parseActions } from './actions'
+import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
+import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
+import type { GqlHit } from './searches'
 import {
   CLAIM_MS,
   cacheKey,
@@ -66,6 +70,7 @@ import {
   REFERENCE_DAYS,
   TAB_QUERIES,
   atLeast,
+  BAND_KEYS,
   bandCounts,
   bandLabels,
   droppedCounts,
@@ -121,7 +126,8 @@ const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as stri
 const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
 const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, false)
 const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
-const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], errors: [] } as { buttons: CardButton[]; errors: ButtonError[] })
+const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], groups: [], errors: [] } as Actions)
+const groupResults = atom({ plugin: 'review-inbox', key: 'groups' } as const, {} as Record<string, GroupResult>)
 const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
 
@@ -138,9 +144,10 @@ let lastBand: BandCounts | undefined
 let ghRepo: string | undefined
 // Where actions.json lives, shown in the Edit buttons panel.
 let actionsPath = ''
-// A press of a card's own button is added as the card's key and the button's id; Add button has a key of its own.
+// A press of a card's own button is added as the card's key and the button's id; Add button and Add search group have keys of their own.
 const buttonKey = (key: string, id: string) => `${key}::${id}`
 const ADD_BUTTON = '::add-button'
+const ADD_GROUP = '::add-group'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -397,6 +404,29 @@ async function fetchInbox(
   return { items: sortItems(next), capped: found.capped }
 }
 
+// Each group is its own paged search, three at a time; one that fails keeps its error and leaves the others.
+async function fetchGroups($: EngineInterface, env: Record<string, string>): Promise<Record<string, GroupResult>> {
+  // Read here too: the fetching session may have opened no drawer since the file changed.
+  await loadActions($)
+  const { groups } = searchGroups(m, (await read($, actions)).groups)
+  const results: Record<string, GroupResult> = {}
+  for (let i = 0; i < groups.length; i += 3) {
+    await Promise.all(
+      groups.slice(i, i + 3).map(async group => {
+        const q = groupQuery(group)
+        try {
+          const found = await searchAll<GqlHit>($, GROUP_QUERY, { q }, env, GROUP_HITS)
+          results[group.id] = { query: q, count: found.count ?? found.nodes.length, hits: toHits(found.nodes) }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          results[group.id] = { query: q, count: 0, hits: [], error: isGatewayTimeout(message) ? m.status.timeout : message }
+        }
+      }),
+    )
+  }
+  return results
+}
+
 function toast($: EngineInterface, text: string) {
   const now = Date.now()
   const at = Math.max(now, toastFreeAt)
@@ -446,16 +476,16 @@ async function sync($: EngineInterface, force = false) {
     let env: Record<string, string> | undefined
     try {
       env = await ghEnv($)
-      const tabs = await fetchTabs($, env, file.issues ?? [])
+      const [tabs, groups] = await Promise.all([fetchTabs($, env, file.issues ?? []), fetchGroups($, env)])
       const fetched = await fetchInbox($, env, file.items, () =>
         writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
       )
-      result = { items: fetched.items, ...tabs, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
+      result = { items: fetched.items, ...tabs, groups, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
       const raw = error instanceof Error ? error.message : String(error)
       const message = isGatewayTimeout(raw) ? m.status.timeout : raw
       // Keep the last good list and try again in a minute, not after a full refresh interval.
-      result = { items: file.items, mine: file.mine, issues: file.issues, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
+      result = { items: file.items, mine: file.mine, issues: file.issues, groups: file.groups, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }
     await writeJson($, inboxFile(), result)
     await show($, result)
@@ -475,6 +505,8 @@ async function show($: EngineInterface, file: InboxFile) {
   if (prs) await update($, mine, () => prs)
   if (issueList) await update($, issues, () => issueList)
   await update($, capped, () => file.capped ?? {})
+  const groupList = file.groups
+  if (groupList) await update($, groupResults, () => groupList)
   await update($, status, () =>
     claimed
       ? { kind: 'loading' as const, updatedAt: file.fetchedAt }
@@ -532,7 +564,8 @@ async function show($: EngineInterface, file: InboxFile) {
 async function bandNow($: EngineInterface): Promise<BandCounts> {
   const away = awayTests(await read($, hidden), await read($, notes), Date.now())
   const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
-  return bandCounts(reviews.length, (await read($, mine)).filter(pr => !away.pr(pr)), (await read($, issues)).filter(i => !away.issue(i)))
+  const searches = bandSearchCount(searchGroups(m, (await read($, actions)).groups).groups, await read($, groupResults))
+  return bandCounts(reviews.length, (await read($, mine)).filter(pr => !away.pr(pr)), (await read($, issues)).filter(i => !away.issue(i)), searches)
 }
 
 async function flashDrops($: EngineInterface) {
@@ -553,6 +586,9 @@ async function openDrawer($: EngineInterface) {
     await update($, requested, () => cards.filter(c => hasRequest(text, c.url)).map(c => c.key))
     await update($, added, () => [])
     await loadActions($)
+    // A group added or edited since the last fetch has nothing to show yet.
+    const results = await read($, groupResults)
+    if (searchGroups(m, (await read($, actions)).groups).groups.some(g => !resultOf(g, results))) wanted = 'fetch'
   }
   await $.ui.open({
     id: PANE,
@@ -615,12 +651,12 @@ async function buttonCards($: EngineInterface): Promise<Map<string, Vars>> {
 
 // One line per press of a card's own button, in the order pressed.
 async function buttonPrompts($: EngineInterface, keys: string[]): Promise<string> {
-  const buttons = mergeButtons(builtInButtons(m), (await read($, actions)).buttons)
+  const buttons = mergeById(builtInButtons(m), (await read($, actions)).buttons)
   const cards = await buttonCards($)
   let text = ''
   for (const key of keys) {
-    if (key === ADD_BUTTON) {
-      text += `${m.prompt.addButton(actionsPath, VARIABLES.join(', '))}\n`
+    if (key === ADD_BUTTON || key === ADD_GROUP) {
+      text += `${key === ADD_BUTTON ? m.prompt.addButton(actionsPath, VARIABLES.join(', ')) : m.prompt.addGroup(actionsPath)}\n`
       continue
     }
     const at = key.lastIndexOf('::')
@@ -839,13 +875,11 @@ export const register: Register = (on, options) => {
     if (e.props.hasSurvey) return next(e)
     const away = awayTests(await read($, hidden), await read($, notes), Date.now())
     const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
-    const prs = (await read($, mine)).filter(pr => !away.pr(pr))
-    const issueList = (await read($, issues)).filter(i => !away.issue(i))
-    const band = bandCounts(reviews.length, prs, issueList)
+    const band = await bandNow($)
     const counts = bandLabels(band, m, await read($, capped))
     if (counts.length === 0) return next(e)
     // bandLabels keeps this order and leaves out the same zeros.
-    const keys = (['reviews', 'prTodo', 'issues'] as const).filter(k => band[k] > 0)
+    const keys = BAND_KEYS.filter(k => band[k] > 0)
     const flashing = await read($, dropped)
 
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -942,7 +976,9 @@ export const register: Register = (on, options) => {
     }
 
     const own = await read($, actions)
-    const buttons = mergeButtons(builtInButtons(m), own.buttons)
+    const buttons = mergeById(builtInButtons(m), own.buttons)
+    const { groups, extra: extraGroups } = searchGroups(m, own.groups)
+    const results = await read($, groupResults)
     const moreKey = await read($, more)
     const isEditing = await read($, buttonsOpen)
     const moreButton = (key: string) => (
@@ -1246,13 +1282,15 @@ export const register: Register = (on, options) => {
             : m.status.updated(minutes)
 
     const direct = myIssues.filter(i => i.kind !== 'reference')
-    const band = bandCounts(shownReviews.filter(i => !i.isDraft).length, shownPrs, shownIssues)
-    const isZero = state.kind === 'ready' && state.updatedAt !== undefined && band.reviews + band.prTodo + band.issues === 0
+    const band = bandCounts(shownReviews.filter(i => !i.isDraft).length, shownPrs, shownIssues, bandSearchCount(groups, results))
+    const isZero = state.kind === 'ready' && state.updatedAt !== undefined && BAND_KEYS.every(k => band[k] === 0)
+    const searchTotal = groups.reduce((sum, g) => sum + (resultOf(g, results)?.count ?? 0), 0)
     const tabCards: { repo: string }[] = active === 'review' ? shownReviews : active === 'mine' ? shownPrs : shownIssues
     const tabs: { id: Tab; label: string }[] = [
       { id: 'review', label: m.tabs.review(atLeast(ready.length, cappedTabs.review)) },
       { id: 'mine', label: m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)) },
       { id: 'issues', label: m.tabs.issues(atLeast(direct.length, cappedTabs.issues)) },
+      { id: 'searches', label: m.tabs.searches(`${searchTotal}`) },
     ]
     const empty = (text: string) =>
       state.kind === 'loading' && everything.length + allPrs.length + allIssues.length === 0 ? (
@@ -1317,6 +1355,62 @@ export const register: Register = (on, options) => {
         {isAway && <Text dimColor>{m.search.hidden}</Text>}
       </Box>
     )
+    const hitRow = (groupId: string, hit: GroupHit) => (
+      <Box key={`hit-${groupId}-${hit.url}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
+        <Box flexShrink={1}>
+          <Text wrap="truncate-end">
+            <Text bold>
+              {hit.repo} #{hit.number}
+            </Text>{' '}
+            <Link href={hit.url}>{hit.title} ↗</Link>
+          </Text>
+        </Box>
+        <Text dimColor>
+          {hit.author} · {m.card.ago(waitingDays(hit.updatedAt, now))}
+        </Text>
+      </Box>
+    )
+    // One folding section per group, shown even when empty so a group never seems lost.
+    const groupSection = (group: SearchGroup) => {
+      const id = `searches:${group.id}`
+      const isShut = shut.includes(id)
+      const result = resultOf(group, results)
+      const note = (text: string, color?: 'warning') => (
+        <Box marginBottom={1}>
+          <Text dimColor={!color} color={color}>
+            {text}
+          </Text>
+        </Box>
+      )
+      return (
+        <Box key={`group-${group.id}`} flexDirection="column">
+          <Box marginBottom={1}>
+            <Button
+              key={`fold-${id}`}
+              label={`${isShut ? '▸' : '▾'} ${group.name} ${result ? result.count : '…'}`}
+              dimColor
+              onPress={() => void update($, collapsed, ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]))}
+            />
+          </Box>
+          {!isShut &&
+            (result === undefined
+              ? note(m.status.loading)
+              : result.error !== undefined
+                ? note(m.searches.failed(result.error), 'warning')
+                : result.hits.length === 0
+                  ? note(m.searches.none)
+                  : result.hits.map(hit => hitRow(group.id, hit)))}
+          {!isShut && result && result.count > result.hits.length && (
+            <Box marginBottom={1}>
+              <Text>
+                <Link href={searchUrl(group)}>{m.searches.more(result.count - result.hits.length)} ↗</Link>
+              </Text>
+            </Box>
+          )}
+        </Box>
+      )
+    }
+
     // Cards some session is working on gather at the top of their tab; the counts stay as they are.
     const reviewing = list.filter(i => where(i).length > 0)
     const idle = ready.filter(i => !reviewing.includes(i))
@@ -1370,7 +1464,7 @@ export const register: Register = (on, options) => {
                 <Text color="success">{m.empty.zero}</Text>
               </Box>
             )}
-            {isMixed && (
+            {isMixed && active !== 'searches' && (
               <Box flexDirection="row" gap={1} marginTop={1}>
                 {[
                   { id: 'here', isOn: narrow, label: m.sections.here(tabCards.filter(c => isHere(c.repo, here)).length) },
@@ -1431,6 +1525,14 @@ export const register: Register = (on, options) => {
               </Box>
             )}
 
+            {active === 'searches' && (
+              <Box flexDirection="column">
+                {groups.length === 0 && empty(m.empty.searches)}
+                {groups.map(groupSection)}
+                {extraGroups > 0 && <Text color="warning">{m.searches.tooMany(extraGroups)}</Text>}
+              </Box>
+            )}
+
             <Box flexDirection="column" marginTop={1}>
               <Box>
                 <Button
@@ -1448,7 +1550,7 @@ export const register: Register = (on, options) => {
                   <Text dimColor wrap="truncate-start">
                     {m.buttons.file(home && actionsPath.startsWith(`${home}/`) ? `~${actionsPath.slice(home.length)}` : actionsPath)}
                   </Text>
-                  {own.buttons.length === 0 && own.errors.length === 0 && <Text dimColor>{m.buttons.none}</Text>}
+                  {own.buttons.length + own.groups.length + own.errors.length === 0 && <Text dimColor>{m.buttons.none}</Text>}
                   {own.errors.map(error => (
                     <Text key={`button-error-${error.at}`} color="warning">
                       {errorText(error, m)}
@@ -1459,13 +1561,18 @@ export const register: Register = (on, options) => {
                       {m.buttons.tooMany(n, m.buttons.scopes[scope])}
                     </Text>
                   ))}
-                  <Box marginTop={1}>
-                    <Button
-                      key="add-button"
-                      label={addedKeys.includes(ADD_BUTTON) ? m.card.added : m.buttons.add}
-                      {...(addedKeys.includes(ADD_BUTTON) ? { dimColor: true } : { variant: 'primary' as const })}
-                      onPress={() => void addCard($, ADD_BUTTON)}
-                    />
+                  <Box flexDirection="row" gap={1} marginTop={1}>
+                    {[
+                      { key: ADD_BUTTON, label: m.buttons.add },
+                      { key: ADD_GROUP, label: m.buttons.addGroup },
+                    ].map(a => (
+                      <Button
+                        key={a.key === ADD_BUTTON ? 'add-button' : 'add-group'}
+                        label={addedKeys.includes(a.key) ? m.card.added : a.label}
+                        {...(addedKeys.includes(a.key) ? { dimColor: true } : { variant: 'primary' as const })}
+                        onPress={() => void addCard($, a.key)}
+                      />
+                    ))}
                   </Box>
                 </Box>
               )}

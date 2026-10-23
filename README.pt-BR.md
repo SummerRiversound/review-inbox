@@ -65,6 +65,23 @@ Os itens são agrupados em atribuídos, menções e referências. `Ocultar` ocul
 
 Uma issue atribuída a você tem um botão `Trabalhar nisto` que funciona do mesmo jeito: o Claude lê a issue, planeja a mudança e começa em um branch novo dentro de um worktree novo.
 
+### Buscas
+
+Buscas que você mesmo nomeia, cada uma uma seção com a contagem e os 20 resultados atualizados mais recentemente. Um título abre aquele PR ou issue no GitHub, e `Mais N no GitHub` abre lá a busca inteira. Três já vêm prontas, como na caixa de entrada de PRs do GitHub: `Me envolvem` (PRs abertos de que você participa mas não abriu), `Revisados por mim, ainda abertos` e `Minhas issues abertas`. Toque no cabeçalho de uma seção para recolhê-la. As buscas rodam a cada atualização, três por vez; uma que falha mostra o motivo e não afeta as outras. Nenhuma chamada ao modelo.
+
+Adicione as suas em `groups`, no mesmo `actions.json` dos botões dos cartões; `Adicionar grupo de busca`, em `Editar botões`, pede ao Claude que escreva um com você.
+
+```json
+{
+  "groups": [
+    { "id": "team", "name": "PRs do time", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
+    { "id": "reviewed-by-me", "hidden": true }
+  ]
+}
+```
+
+`query` usa a sintaxe de busca do GitHub. `scope` é `prs` ou `issues`: acrescenta `is:pr` ou `is:issue` a menos que a busca já diga qual, e `sort:updated-desc` é acrescentado a menos que ela tenha seu próprio `sort:`. A configuração `scope` e `Este repositório` não restringem essas buscas; escreva `org:` ou `repo:` na busca quando quiser isso. `"countInBand": true` soma a contagem do grupo à faixa como `Buscas N`. Um grupo com um id pronto o substitui, e `"hidden": true` o remove. Uma entrada com campo faltando ou scope desconhecido fica de fora e aparece em `Editar botões` com o motivo. Só os primeiros 15 grupos são buscados.
+
 ### Notificações
 
 Uma nova solicitação de revisão, uma nova revisão em um dos seus PRs, um dos seus PRs passando para alterações solicitadas, CI com falha ou conflito de merge, e uma nova atribuição, menção ou referência. A primeira consulta de uma sessão não anuncia nada. Quando várias chegam ao mesmo tempo, elas aparecem uma depois da outra, com quatro segundos e meio de intervalo.
@@ -199,6 +216,7 @@ Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cart
 ## Limites
 
 - No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 100 issues atribuídas e 100 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro. Quando uma lista tem mais que isso, a contagem aparece como `100+`. Cada lista é lida de 25 em 25, e uma página em que o GitHub estoura o tempo é pedida de novo com metade do tamanho, então uma conta com muitos PRs fica dentro do limite de tempo do GitHub.
+- Um grupo de busca mostra os 20 resultados atualizados mais recentemente; a contagem é o total que o GitHub dá para a busca.
 - Uma referência a um item em que você não mexe há 60 dias passa despercebida.
 - `Nova revisão` some com qualquer novo commit no PR, inclusive um feito pelo botão "Update branch" do GitHub ou por um bot.
 - Depois de um force-push que reescreveu o commit que você revisou, um PR com revisão solicitada novamente não mostra a linha "Desde a minha última revisão".

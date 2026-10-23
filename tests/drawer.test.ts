@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import type { InboxItem, IssueItem, MyPr, Presence } from '../types'
+import type { GroupResult, InboxItem, IssueItem, MyPr, Presence } from '../types'
 import { cacheKey } from '../hooks/inbox'
 
 const PANE = {
@@ -32,7 +32,7 @@ async function opened(
   mine: MyPr[],
   issues: IssueItem[],
   tab: string,
-  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string>; env?: Record<string, string> } = {},
+  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string>; env?: Record<string, string>; groups?: Record<string, GroupResult> } = {},
 ) {
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/home/me', ...more.env })
@@ -42,7 +42,7 @@ async function opened(
   on('session.cwd', async () => ({ value: '/work/review-inbox' }))
   on('ui.panes', async () => ({ value: [] }))
   on('command.register', async () => ({ value: { command: 'review-inbox' } }))
-  const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, fetchedAt: Date.now() })]])
+  const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, groups: more.groups ?? {}, fetchedAt: Date.now() })]])
   if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
   for (const [path, text] of Object.entries(more.files ?? {})) store.set(path, text)
   on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
@@ -292,4 +292,48 @@ test('Edit buttons names the file and lists an entry left out with its reason, a
   await ui.press({ key: 'add-button' })
   expect(await label('add-button')).toBe('Added')
   await ui.unmount()
+})
+
+test('the Searches tab shows each group with its newest results, a failed one with its error, and a new one as loading', async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const own = {
+    groups: [
+      { id: 'team', name: 'Team PRs', query: 'org:acme', scope: 'prs', countInBand: true },
+      { id: 'bugs', name: 'Bugs', query: 'label:bug', scope: 'issues' },
+    ],
+  }
+  const hit = { repo: 'acme/app', number: 7, title: 'Fix login', url: 'h7', author: 'kim', updatedAt: new Date().toISOString() }
+  const groups = {
+    team: { query: 'org:acme is:pr sort:updated-desc', count: 25, hits: [hit] },
+    'involves-me': { query: 'is:open involves:@me -author:@me is:pr sort:updated-desc', count: 0, hits: [], error: 'HTTP 403: no' },
+  }
+  const ui = await opened($, on, [], [], 'searches', { files: { [ACTIONS]: JSON.stringify(own) }, groups })
+
+  expect(await label('tab-searches')).toBe('Searches 25')
+  expect(await shown(ui, /acme\/app #7/)).toBe(true)
+  expect(await shown(ui, /kim · today/)).toBe(true)
+  expect(await shown(ui, /24 more on GitHub/)).toBe(true)
+  expect(await shown(ui, /Search failed: HTTP 403: no/)).toBe(true)
+  expect(await label('fold-searches:bugs')).toBe('▾ Bugs …')
+  await ui.press({ key: 'fold-searches:team' })
+  expect(await shown(ui, /acme\/app #7/)).toBe(false)
+  await ui.press({ key: 'edit-buttons' })
+  await ui.press({ key: 'add-group' })
+  expect(await label('add-group')).toBe('Added')
+  await ui.unmount()
+})
+
+test('a search group counted in the band adds Searches N to it; the others do not', async ($, on) => {
+  const own = { groups: [{ id: 'team', name: 'Team PRs', query: 'org:acme', scope: 'prs', countInBand: true }] }
+  const groups = {
+    team: { query: 'org:acme is:pr sort:updated-desc', count: 3, hits: [] },
+    'involves-me': { query: 'is:open involves:@me -author:@me is:pr sort:updated-desc', count: 40, hits: [] },
+  }
+  const pane = await opened($, on, [pr(1, 'changes')], [], 'mine', { files: { [ACTIONS]: JSON.stringify(own) }, groups })
+  await pane.unmount()
+  const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+
+  expect(await shown(band, /My PRs to act on 1/)).toBe(true)
+  expect(await shown(band, /Searches 3/)).toBe(true)
+  await band.unmount()
 })

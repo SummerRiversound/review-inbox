@@ -81,7 +81,7 @@ export type IssueItem = CardDetails & {
   body?: string
 }
 
-export type Tab = 'review' | 'mine' | 'issues'
+export type Tab = 'review' | 'mine' | 'issues' | 'searches'
 
 // A button of my own from actions.json, or a built-in one of the same shape; its prompt is a template filled from the card.
 export type ButtonScope = 'review' | 'pr' | 'issue'
@@ -92,8 +92,24 @@ export type CardButton = {
   prompt: string
   hidden?: boolean
 }
+// A search of my own from actions.json, or a built-in one of the same shape: one section of the Searches tab.
+export type GroupScope = 'prs' | 'issues'
+export type SearchGroup = {
+  id: string
+  name: string
+  // GitHub search syntax; the scope's is:pr or is:issue is added unless it says which.
+  query: string
+  scope: GroupScope
+  countInBand?: boolean
+  hidden?: boolean
+}
+export type GroupHit = { repo: string; number: number; title: string; url: string; author: string; updatedAt: string }
+// A group's last results, with the query they answer, so an edited group is fetched again rather than shown stale.
+export type GroupResult = { query: string; count: number; hits: GroupHit[]; error?: string }
+
 // An entry of actions.json left out, by its id or position, or the whole file.
-export type ButtonError = { at: string; reason: 'file' | 'fields' | 'scope' | 'variables'; detail?: string }
+export type ButtonError = { at: string; reason: 'file' | 'fields' | 'scope' | 'variables' | 'groupFields' | 'groupScope'; detail?: string }
+export type Actions = { buttons: CardButton[]; groups: SearchGroup[]; errors: ButtonError[] }
 
 // What one live session is on, shared with every other: its folder, branch and remotes, and the PRs its prompts linked to.
 export type Presence = {
@@ -117,6 +133,8 @@ export type InboxFile = {
   issues?: IssueItem[]
   // Tabs whose search had more results than one page holds.
   capped?: Capped
+  // Search group results by group id.
+  groups?: Record<string, GroupResult>
   fetchedAt?: number
   // The claim of the session fetching right now, renewed while it works.
   fetchingSince?: number
@@ -156,8 +174,9 @@ declare module 'claude-code' {
       onlyHere: boolean
       // A band count that just went down, shown in the success color for a moment.
       dropped: string[]
-      // actions.json as last read: my buttons and the entries left out.
-      actions: { buttons: CardButton[]; errors: ButtonError[] }
+      // actions.json as last read: my buttons and search groups, and the entries left out.
+      actions: Actions
+      groups: Record<string, GroupResult>
       // The card whose row of buttons is open, or empty.
       more: string
       // The Edit buttons panel is open.

@@ -8,7 +8,7 @@ export const SEARCH_LIMIT = 100
 
 export type Page<T> = {
   viewer?: { login: string }
-  search: { pageInfo: { hasNextPage: boolean; endCursor?: string | null }; nodes: Partial<T>[] }
+  search: { issueCount?: number; pageInfo: { hasNextPage: boolean; endCursor?: string | null }; nodes: Partial<T>[] }
 }
 
 // Each paged query takes these two variables and asks `pageInfo { hasNextPage endCursor }`.
@@ -20,15 +20,16 @@ export const isGatewayTimeout = (message: string) => /HTTP 50[234]|invalid chara
 
 export const smallerPage = (size: number) => (size > MIN_PAGE ? Math.max(MIN_PAGE, Math.floor(size / 2)) : undefined)
 
-// Pages until GitHub has no more or `limit` nodes are read; `capped` says there were more.
+// Pages until GitHub has no more or `limit` nodes are read; `capped` says there were more, `count` how many when the query asks.
 export async function readPages<T>(
   fetchPage: (first: number, after?: string) => Promise<Page<T>>,
   limit: number,
-): Promise<{ login?: string; nodes: Partial<T>[]; capped: boolean }> {
+): Promise<{ login?: string; count?: number; nodes: Partial<T>[]; capped: boolean }> {
   const nodes: Partial<T>[] = []
   let size = PAGE_SIZE
   let after: string | undefined
   let login: string | undefined
+  let count: number | undefined
   for (;;) {
     let page: Page<T>
     try {
@@ -41,10 +42,11 @@ export async function readPages<T>(
       continue
     }
     login ??= page.viewer?.login
+    count ??= page.search.issueCount
     nodes.push(...page.search.nodes)
     const { hasNextPage, endCursor } = page.search.pageInfo
-    if (!hasNextPage || !endCursor) return { login, nodes, capped: false }
-    if (nodes.length >= limit) return { login, nodes, capped: true }
+    if (!hasNextPage || !endCursor) return { login, count, nodes, capped: false }
+    if (nodes.length >= limit) return { login, count, nodes, capped: true }
     after = endCursor
   }
 }

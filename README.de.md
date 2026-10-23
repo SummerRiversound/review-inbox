@@ -65,6 +65,23 @@ Die Einträge sind in zugewiesen, Erwähnungen und Verweise gruppiert. `Ausblend
 
 Ein Ihnen zugewiesenes Issue hat eine Schaltfläche `Daran arbeiten`, die genauso funktioniert: Claude liest das Issue, plant die Änderung und beginnt auf einem neuen Branch in einem neuen Worktree.
 
+### Suchen
+
+Suchen, die Sie selbst benennen, jede ein Abschnitt mit ihrer Anzahl und den 20 zuletzt geänderten Treffern. Ein Titel öffnet diesen PR oder dieses Issue auf GitHub, und `N weitere auf GitHub` öffnet dort die ganze Suche. Drei sind eingebaut, wie im PR-Posteingang von GitHub: `Betrifft mich` (offene PRs, an denen Sie beteiligt sind, die Sie aber nicht eröffnet haben), `Von mir reviewt, noch offen` und `Meine offenen Issues`. Ein Klick auf die Überschrift eines Abschnitts klappt ihn ein. Die Suchen laufen bei jeder Aktualisierung, drei gleichzeitig; eine, die fehlschlägt, zeigt den Grund und lässt die anderen unberührt. Keine Modellaufrufe.
+
+Eigene Suchen tragen Sie unter `groups` in dieselbe `actions.json` ein wie die Kartenschaltflächen; `Suchgruppe hinzufügen` unter `Schaltflächen bearbeiten` bittet Claude, eine mit Ihnen zu schreiben.
+
+```json
+{
+  "groups": [
+    { "id": "team", "name": "Team-PRs", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
+    { "id": "reviewed-by-me", "hidden": true }
+  ]
+}
+```
+
+`query` ist GitHub-Suchsyntax. `scope` ist `prs` oder `issues`: Es fügt `is:pr` bzw. `is:issue` hinzu, sofern die Suche die Art nicht schon nennt, und `sort:updated-desc` wird ergänzt, sofern sie kein eigenes `sort:` hat. Die Einstellung `scope` und `Dieses Repository` schränken diese Suchen nicht ein; schreiben Sie dafür `org:` oder `repo:` in die Suche. `"countInBand": true` zählt die Anzahl der Gruppe als `Suchen N` in der Leiste mit. Eine Gruppe mit einer eingebauten id ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld oder unbekanntem scope wird ausgelassen und unter `Schaltflächen bearbeiten` mit dem Grund aufgeführt. Nur die ersten 15 Gruppen werden durchsucht.
+
 ### Benachrichtigungen
 
 Benachrichtigt wird bei einer neuen Review-Anfrage, einem neuen Review zu einem Ihrer PRs, wenn einer Ihrer PRs zu „Änderungen angefordert“, „CI fehlgeschlagen“ oder „Mergekonflikt“ wechselt, sowie bei einer neuen Zuweisung, Erwähnung oder einem neuen Verweis. Wenn eine Sitzung die Listen zum ersten Mal liest, wird nichts gemeldet. Treffen mehrere gleichzeitig ein, erscheinen sie nacheinander im Abstand von viereinhalb Sekunden.
@@ -199,6 +216,7 @@ Eine einzige GraphQL-Suche liefert alle PRs, die auf Ihr Review warten, samt all
 ## Einschränkungen
 
 - Höchstens 100 PRs, die auf Ihr Review warten, in GitHubs Reihenfolge nach bester Übereinstimmung. Die anderen Tabs lesen bis zu 100 Ihrer offenen PRs, 100 zugewiesene und 100 Sie erwähnende Issues sowie Verweise aus bis zu 500 kürzlich geänderten Einträgen, jeweils mit der neuesten Aktivität zuerst. Gibt es mehr, wird die Anzahl als `100+` angezeigt. Jede Liste wird in Schritten von 25 gelesen; eine Seite, bei der GitHub in ein Timeout läuft, wird mit halber Größe erneut angefragt, sodass auch ein Konto mit vielen PRs im Zeitlimit von GitHub bleibt.
+- Eine Suchgruppe zeigt ihre 20 zuletzt geänderten Treffer; ihre Anzahl ist GitHubs Gesamtzahl für die Suche.
 - Ein Verweis auf einen Eintrag, den Sie seit 60 Tagen nicht angefasst haben, wird nicht erfasst.
 - `Neues Review` verschwindet bei jedem neuen Commit auf dem PR, auch bei einem, den GitHubs Schaltfläche „Update branch“ oder ein Bot erstellt hat.
 - Nach einem Force-Push, der den von Ihnen reviewten Commit umgeschrieben hat, zeigt ein erneut angefragter PR keine Zeile „Seit meinem letzten Review“.
