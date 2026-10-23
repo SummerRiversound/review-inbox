@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.12.1 — 2026-10-23
+
+### Changed
+
+- Tab names no longer start with their key number, so the only number on a tab is its count. The keys 1 to 5 still switch tabs, counting from the left.
+
 ## 0.12.0 — 2026-10-23
 
 ### Added
