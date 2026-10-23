@@ -3,7 +3,7 @@ import type { Messages } from '../i18n'
 export const ja: Messages = {
   title: 'レビュー受信トレイ',
   command: {
-    description: 'レビュー受信トレイを開く: 自分のレビューを待っている PR、自分の PR、自分の Issue',
+    description: 'レビュー受信トレイを開く: 自分のレビューを待っている PR、自分の PR、自分に割り当てられた Issue と自分がメンションされた Issue',
     opened: 'レビュー受信トレイを開きました。',
     filled: 'プロンプトに入れました。Enter で送信します。',
   },
@@ -11,16 +11,16 @@ export const ja: Messages = {
     open: '開く',
     reviews: (n: string) => `要レビュー ${n}`,
     prTodo: (n: string) => `要対応の自分の PR ${n}`,
-    issues: (n: string) => `自分の Issue ${n}`,
-    searches: (n: string) => `検索 ${n}`,
+    issues: (n: string) => `割り当て・メンション ${n}`,
+    searches: (n: string) => `保存した検索 ${n}`,
     oldest: (days: number) => ` · 最長${days}日待ち`,
   },
   tabs: {
     review: (n: string) => `要レビュー ${n}`,
     mine: (n: string) => `自分の PR ${n}`,
-    issues: (n: string) => `自分の Issue ${n}`,
+    issues: (n: string) => `割り当て・メンション ${n}`,
     searches: '保存した検索',
-    activity: (n: string) => `アクティビティ ${n}`,
+    activity: (n: string) => `通知 ${n}`,
   },
   card: {
     rerequest: '再リクエスト',
@@ -34,7 +34,7 @@ export const ja: Messages = {
     impact: '影響範囲',
     size: (files: number, added: string, removed: string) => `${files}ファイル (+${added} −${removed})`,
     hide: '非表示',
-    review: 'レビューする',
+    review: 'Claude にレビューを依頼',
     added: '追加済み',
     task: {
       changes: 'コメントに対応',
@@ -78,7 +78,7 @@ export const ja: Messages = {
     review: '自分のレビューを待っている PR はありません。',
     mine: 'オープン中の自分の PR はありません。',
     issues: '自分に割り当てられた Issue や、自分がメンションされた Issue はありません。',
-    searches: "検索グループはありません。/review-inbox add-search で追加してください。",
+    searches: "保存した検索はありません。/review-inbox add-search で追加してください。",
     activity: "ほかの通知はありません。レビュー依頼、割り当て、メンションはほかのタブにあります。",
   },
   sections: {
@@ -131,9 +131,9 @@ export const ja: Messages = {
     by: (who: string) => `新しいレビュー ${who}`,
   },
   buttons: {
-    more: "その他",
+    more: "操作",
     none: "自分のボタンはまだありません。組み込みのボタンだけを表示しています。",
-    counts: (buttons, groups) => `自分のボタン ${buttons} 個、検索グループ ${groups} 個`,
+    counts: (buttons, groups) => `自分のボタン ${buttons} 個、保存した検索 ${groups} 個`,
     how: "/review-inbox add-button または /review-inbox add-search で、Claude と一緒に作成できます。",
     hint: "詳しくは /review-inbox buttons",
     file: (path: string) => `自分のボタン: ${path}`,
@@ -144,8 +144,8 @@ export const ja: Messages = {
       fields: "id、name、prompt が必要です",
       scope: (scope: string) => `scope "${scope}" は review、pr、issue のどれでもありません`,
       variables: (names: string) => `不明な変数 ${names}`,
-      groupFields: "検索グループには id、name、query が必要です",
-      groupScope: (scope: string) => `検索グループの scope "${scope}" は prs でも issues でもありません`,
+      groupFields: "保存した検索には id、name、query が必要です",
+      groupScope: (scope: string) => `保存した検索の scope "${scope}" は prs でも issues でもありません`,
     },
     builtIn: {
       "summarize-risks": { name: "リスクを要約", prompt: "{{.PrUrl}} のリスクをまとめて。`gh pr diff {{.PrUrl}}` で diff を読み、何が誰にとって壊れうるか、先にテストすべきことを挙げて。何も変更しないで。" },
@@ -160,7 +160,7 @@ export const ja: Messages = {
     none: "見つかりませんでした。",
     failed: (message: string) => `検索に失敗しました: ${message}`,
     more: (n: number) => `GitHub でさらに ${n} 件`,
-    tooMany: (n: number) => `最初の15個を超える検索グループ ${n} 個は省かれています`,
+    tooMany: (n: number) => `最初の15個を超える保存した検索 ${n} 個は省かれています`,
   },
   activity: {
     reasons: { comment: "コメント", state_change: "状態の変更", author: "自分が作成", team_mention: "チームへのメンション", security_alert: "セキュリティアラート", ci_activity: "CI 実行" },
@@ -187,7 +187,7 @@ export const ja: Messages = {
   },
   prompt: {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,
-    addGroup: (path: string) => `レビュー受信トレイに検索グループを1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,
+    addGroup: (path: string) => `レビュー受信トレイに保存した検索を1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,
     review: (url: string) => `${url} をレビューして。`,
     check: '特に確認してほしい点: ',
     since: '前回の自分のレビュー以降に変わった点: ',
