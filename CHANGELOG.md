@@ -2,6 +2,14 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.7.0 — 2026-10-23
+
+### Added
+
+- A PR stuck on you gets a button for its next step: `Address comments`, `Fix CI` or `Resolve conflict`. An issue assigned to you gets `Work on this`. Like `Review`, the button adds the card; closing the drawer puts a request in the prompt that names the step, the `gh` commands that read the comments or failing logs, and the folder to work in, in a new worktree that leaves that folder's branch alone.
+- The card shows that folder: `this folder` when the session holds a clone of the repository, the main folder of the last session that ran in it, or `no local clone`, in which case Claude asks where the clone is or offers `gh repo clone` and waits for your yes.
+- Every 30 seconds each session also runs `git rev-parse --path-format=absolute --git-common-dir` and records its repositories' main folder in `repos.json` in the cache folder, written only when a folder changes.
+
 ## 0.6.1 — 2026-10-22
 
 ### Fixed
