@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.8.2 — 2026-10-23
+
+### Fixed
+
+- Every GitHub search reads its results 25 at a time, up to the same limits as before 0.8.1 (100 per list, past it `100+`), and a page GitHub times out on is asked again at half the size. My PRs no longer stops at 30.
+
 ## 0.8.1 — 2026-10-23
 
 ### Fixed
