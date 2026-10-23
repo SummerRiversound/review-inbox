@@ -67,6 +67,7 @@ const en = {
     conflict: 'Merge conflict',
     waiting: 'Waiting for review',
     approved: 'Approved',
+    queued: 'In merge queue',
     draft: 'Draft',
   } satisfies Record<MyPrState, string>,
   issueKind: {

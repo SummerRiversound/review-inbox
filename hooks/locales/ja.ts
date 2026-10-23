@@ -56,6 +56,7 @@ export const ja: Messages = {
     conflict: 'マージコンフリクト',
     waiting: 'レビュー待ち',
     approved: '承認済み',
+    queued: 'マージキュー内',
     draft: 'ドラフト',
   },
   issueKind: {

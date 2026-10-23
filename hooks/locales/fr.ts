@@ -59,6 +59,7 @@ export const fr: Messages = {
     conflict: 'Conflit de fusion',
     waiting: 'En attente de revue',
     approved: 'Approuvée',
+    queued: 'Dans la file de fusion',
     draft: 'Brouillon',
   },
   issueKind: {

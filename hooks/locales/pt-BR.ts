@@ -59,6 +59,7 @@ export const ptBR: Messages = {
     conflict: 'Conflito de merge',
     waiting: 'Aguardando revisão',
     approved: 'Aprovado',
+    queued: 'Na fila de merge',
     draft: 'Rascunho',
   },
   issueKind: {

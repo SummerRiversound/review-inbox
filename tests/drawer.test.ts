@@ -401,3 +401,24 @@ test('without access to notifications the Activity tab says how to get it', asyn
   expect(await shown(ui, /No other notifications/)).toBe(false)
   await ui.unmount()
 })
+
+const touchedPrs = [
+  { ...pr(1, 'changes'), updatedAt: '2026-10-20T00:00:00Z' },
+  { ...pr(2, 'waiting'), updatedAt: '2026-10-10T00:00:00Z' },
+]
+
+test('a card updated since the drawer was last closed is marked', async ($, on) => {
+  const seen = `/home/me/.claude/plugins/data/review-inbox/seen-${cacheKey('', '')}.json`
+  const ui = await opened($, on, touchedPrs, [], 'mine', { files: { [seen]: JSON.stringify({ at: Date.parse('2026-10-15T00:00:00Z') }) } })
+
+  expect(await shown(ui, /● o\/r #1/)).toBe(true)
+  expect(await shown(ui, /● o\/r #2/)).toBe(false)
+  await ui.unmount()
+})
+
+test('nothing is marked before the drawer has been closed once', async ($, on) => {
+  const ui = await opened($, on, touchedPrs, [], 'mine')
+
+  expect(await shown(ui, /●/)).toBe(false)
+  await ui.unmount()
+})

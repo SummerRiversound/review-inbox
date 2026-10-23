@@ -28,6 +28,8 @@ Les cartes du dépôt de cette session passent en tête de chaque groupe, marqu�
 
 Sous son titre, une carte affiche jusqu'à deux labels et combien d'autres il y a, son nombre de commentaires et, pour une PR, `→ branche` quand elle vise une autre branche que celle par défaut du dépôt.
 
+Un `●` devant le dépôt d'une carte marque celle qui a changé depuis votre dernière fermeture de la boîte, comme la boîte de réception de GitHub marque ce qui a changé depuis votre dernière visite. Avant la première fermeture, rien n'est marqué.
+
 Quand rien n'attend votre action (aucune demande de revue, aucune de vos PR à traiter, aucune issue qui vous est assignée ou vous mentionne), la boîte de réception affiche `✓ Rien n'attend votre action` au-dessus des onglets, et la barre reste masquée.
 
 ### Revues à faire
@@ -45,7 +47,7 @@ La demande contient aussi une ligne qui décrit votre façon habituelle de faire
 
 ### Mes PR
 
-Vos PR ouvertes, avec leur état au lieu d'un résumé, dans l'ordre où vous devez vous en occuper : modifications demandées, CI en échec, conflit de fusion, en attente de revue (la plus ancienne d'abord), approuvée, brouillon. Une CI en cours s'affiche à côté de l'état.
+Vos PR ouvertes, avec leur état au lieu d'un résumé, dans l'ordre où vous devez vous en occuper : modifications demandées, CI en échec, conflit de fusion, en attente de revue (la plus ancienne d'abord), approuvée, dans la file de fusion, brouillon. Une CI en cours s'affiche à côté de l'état. Une PR dans une file de fusion affiche `Dans la file de fusion` : GitHub la fusionne une fois les vérifications de la file passées, donc la barre ne la compte pas et elle n'affiche jamais `Prête à merger`.
 
 `Masquer` cache une PR jusqu'à ce qu'elle change d'état ou que quelqu'un la relise ; votre propre push ne suffit pas à la faire réapparaître.
 

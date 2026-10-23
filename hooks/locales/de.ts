@@ -59,6 +59,7 @@ export const de: Messages = {
     conflict: 'Mergekonflikt',
     waiting: 'Wartet auf Review',
     approved: 'Genehmigt',
+    queued: 'In der Merge-Warteschlange',
     draft: 'Entwurf',
   },
   issueKind: {

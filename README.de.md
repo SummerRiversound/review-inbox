@@ -28,6 +28,8 @@ Karten aus dem Repository dieser Sitzung stehen in jeder Gruppe vorn, markiert m
 
 Unter dem Titel zeigt eine Karte bis zu zwei Labels und wie viele es noch gibt, die Zahl der Kommentare und bei einem PR `→ Branch`, wenn er nicht auf den Standard-Branch des Repositorys zielt.
 
+Ein `●` vor dem Repository einer Karte markiert eine, die sich geändert hat, seit Sie das Panel zuletzt geschlossen haben, so wie GitHubs eigener Posteingang markiert, was sich seit Ihrem letzten Besuch geändert hat. Vor dem ersten Schließen ist nichts markiert.
+
 Wenn nichts Ihr Zutun erfordert (keine Review-Anfrage, kein PR mit etwas zu tun, kein Issue, das Ihnen zugewiesen ist oder Sie erwähnt), zeigt das Panel über den Tabs `✓ Nichts wartet auf Sie`, und die Leiste bleibt verborgen.
 
 ### Zu reviewen
@@ -45,7 +47,7 @@ Die Anfrage enthält außerdem eine Zeile, die beschreibt, wie Sie üblicherweis
 
 ### Meine PRs
 
-Ihre offenen PRs, statt mit einer Zusammenfassung mit ihrem Zustand, in der Reihenfolge, in der Sie tätig werden müssen: Änderungen angefordert, CI fehlgeschlagen, Mergekonflikt, wartet auf Review (älteste zuerst), genehmigt, Entwurf. Läuft gerade eine CI, steht „CI läuft“ neben dem Zustand.
+Ihre offenen PRs, statt mit einer Zusammenfassung mit ihrem Zustand, in der Reihenfolge, in der Sie tätig werden müssen: Änderungen angefordert, CI fehlgeschlagen, Mergekonflikt, wartet auf Review (älteste zuerst), genehmigt, in der Merge-Warteschlange, Entwurf. Läuft gerade eine CI, steht „CI läuft“ neben dem Zustand. Ein PR in einer Merge-Warteschlange zeigt `In der Merge-Warteschlange`: GitHub merged ihn, sobald die Prüfungen der Warteschlange bestehen, daher zählt die Leiste ihn nicht mit und er zeigt nie `Bereit zum Mergen`.
 
 `Ausblenden` blendet einen PR aus, bis sich sein Zustand ändert oder jemand ihn reviewt; Ihr eigener Push allein holt ihn nicht zurück.
 

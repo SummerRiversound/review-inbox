@@ -56,6 +56,7 @@ export const zhTW: Messages = {
     conflict: '合併衝突',
     waiting: '等待審查',
     approved: '已核准',
+    queued: '在合併佇列中',
     draft: '草稿',
   },
   issueKind: {
