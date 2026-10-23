@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.11.0 — 2026-10-23
+
+### Added
+
+- One toast when a session opens that sums up what changed while no session was open, such as `While you were away · CI failing 2 · New review on my PR 1`. Before, a new session announced nothing.
+- `/review-inbox buttons` shows where `actions.json` is, what it holds and each entry left out with its reason. `/review-inbox add-button` and `/review-inbox add-search` put a request into your prompt for Claude to write one with you.
+
+### Changed
+
+- `Note` and `Hide` moved into each card's `▸ More` row, so a card shows only its main button.
+- The `▸ Edit buttons` line at the bottom of the drawer is gone. The drawer shows warnings there only when `actions.json` has an entry left out or too many buttons.
+
 ## 0.10.0 — 2026-10-23
 
 ### Added
