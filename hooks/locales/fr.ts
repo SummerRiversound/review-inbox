@@ -35,6 +35,15 @@ export const fr: Messages = {
     hide: 'Masquer',
     review: 'Faire la revue',
     added: 'Ajouté',
+    task: {
+      changes: 'Traiter les commentaires',
+      'ci-failing': 'Réparer la CI',
+      conflict: 'Résoudre le conflit',
+      work: 'Travailler dessus',
+    },
+    here: 'ce dossier',
+    at: path => `dans ${path}`,
+    noClone: 'pas de clone local',
     ciRunning: ' · CI en cours',
     newReview: who => `Nouvelle revue · ${who}`,
     referenced: (by, target) => `${by} a fait référence à mon travail : ${target}`,
@@ -95,7 +104,7 @@ export const fr: Messages = {
   },
   toast: {
     back: 'Une carte reportée est de retour',
-    added: n => `${count(n, 'PR ajoutée', 'PR ajoutées')} · Échap place les demandes de revue dans le prompt`,
+    added: n => `${count(n, 'carte ajoutée', 'cartes ajoutées')} · Échap place leurs demandes dans le prompt`,
     newRequest: 'Nouvelle demande de revue',
     moreRequests: n => count(n, 'autre demande de revue', 'autres demandes de revue'),
     morePrAlerts: n => `${count(n, 'autre alerte', 'autres alertes')} sur mes PR`,
@@ -113,6 +122,19 @@ export const fr: Messages = {
     check: 'Vérifie en particulier : ',
     since: 'Changements depuis ma dernière revue : ',
     style: 'Mon style de revue habituel : ',
+    task: {
+      changes: url => `Traite les commentaires de revue non résolus sur ${url} ; lis-les avec \`gh pr view ${url} --comments\`.`,
+      'ci-failing': url =>
+        `Répare la CI en échec sur ${url} : trouve les checks en échec avec \`gh pr checks ${url}\` et leurs logs avec \`gh run view <run-id> --log-failed\`.`,
+      conflict: (url, base) => `Résous le conflit de merge sur ${url} : merge ${base ? `origin/${base}` : 'sa branche de base'} dans sa branche.`,
+      work: url => `Travaille sur ${url} : lis l'issue, planifie le changement et commence sur une nouvelle branche.`,
+    },
+    here: 'ce dossier',
+    workIn: (where, isPr) =>
+      isPr
+        ? `Travaille dans ${where}, dans un nouveau worktree avec la PR récupérée (\`gh pr checkout\` gère les forks) ; laisse la branche actuelle du dossier telle quelle.`
+        : `Travaille dans ${where}, dans un nouveau worktree sur une nouvelle branche ; laisse la branche actuelle du dossier telle quelle.`,
+    noClone: repo => `Aucun clone local de ${repo} n'est connu : demande-moi où il se trouve, ou propose \`gh repo clone ${repo}\` et attends mon accord.`,
   },
   summaryFailed: reason => `Impossible de rédiger un résumé (${reason}).`,
   model: {

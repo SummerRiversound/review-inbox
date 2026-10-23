@@ -32,6 +32,15 @@ export const zhCN: Messages = {
     hide: '隐藏',
     review: '审查',
     added: '已添加',
+    task: {
+      changes: '处理评论',
+      'ci-failing': '修复 CI',
+      conflict: '解决冲突',
+      work: '开始处理',
+    },
+    here: '此文件夹',
+    at: path => `在 ${path}`,
+    noClone: '没有本地克隆',
     ciRunning: ' · CI 运行中',
     newReview: who => `新审查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
@@ -92,7 +101,7 @@ export const zhCN: Messages = {
   },
   toast: {
     back: '推迟的卡片回来了',
-    added: n => `已添加 ${n} 个 PR · 按 Esc 将审查请求放入输入框`,
+    added: n => `已添加 ${n} 张卡片 · 按 Esc 将请求放入输入框`,
     newRequest: '新的审查请求',
     moreRequests: n => `还有 ${n} 个审查请求`,
     morePrAlerts: n => `我的 PR 还有 ${n} 条通知`,
@@ -110,6 +119,19 @@ export const zhCN: Messages = {
     check: '重点检查：',
     since: '我上次审查后的变更：',
     style: '我平时的审查风格：',
+    task: {
+      changes: url => `帮我处理 ${url} 上未解决的审查评论，用 \`gh pr view ${url} --comments\` 读取。`,
+      'ci-failing': url =>
+        `帮我修复 ${url} 失败的 CI：用 \`gh pr checks ${url}\` 找到失败的检查，用 \`gh run view <run-id> --log-failed\` 查看日志。`,
+      conflict: (url, base) => `帮我解决 ${url} 的合并冲突：把 ${base ? `origin/${base}` : '它的基础分支'} 合并到它的分支。`,
+      work: url => `帮我处理 ${url}：阅读这个 issue，规划改动，并在新分支上开始。`,
+    },
+    here: '此文件夹',
+    workIn: (where, isPr) =>
+      isPr
+        ? `在 ${where} 中工作，新建一个 worktree 并检出该 PR（\`gh pr checkout\` 会处理 fork）；不要动该文件夹当前的分支。`
+        : `在 ${where} 中工作，新建一个 worktree 和新分支；不要动该文件夹当前的分支。`,
+    noClone: repo => `不知道 ${repo} 的本地克隆在哪里：问我它在哪，或者建议 \`gh repo clone ${repo}\` 并等我同意。`,
   },
   summaryFailed: reason => `无法生成摘要 (${reason})。`,
   model: {

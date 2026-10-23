@@ -32,6 +32,15 @@ export const ko: Messages = {
     hide: '숨기기',
     review: '리뷰하기',
     added: '추가됨',
+    task: {
+      changes: '코멘트 반영',
+      'ci-failing': 'CI 고치기',
+      conflict: '충돌 해결',
+      work: '작업하기',
+    },
+    here: '이 폴더',
+    at: path => `${path}에서`,
+    noClone: '로컬 클론 없음',
     ciRunning: ' · CI 진행 중',
     newReview: who => `새 리뷰 · ${who}`,
     referenced: (by, target) => `${by}님이 내 ${target}을(를) 언급`,
@@ -92,7 +101,7 @@ export const ko: Messages = {
   },
   toast: {
     back: '미뤄 둔 카드가 돌아왔습니다',
-    added: n => `PR ${n}개 추가됨 · Esc를 누르면 리뷰 요청이 입력창에 들어갑니다`,
+    added: n => `카드 ${n}개 추가됨 · Esc를 누르면 요청이 입력창에 들어갑니다`,
     newRequest: '새 리뷰 요청',
     moreRequests: n => `새 리뷰 요청이 ${n}건 더 있습니다`,
     morePrAlerts: n => `내 PR 알림이 ${n}건 더 있습니다`,
@@ -110,6 +119,19 @@ export const ko: Messages = {
     check: '특히 확인할 점: ',
     since: '지난 내 리뷰 이후 바뀐 점: ',
     style: '평소 내 리뷰 스타일: ',
+    task: {
+      changes: url => `${url}에서 해결 안 된 리뷰 코멘트를 반영해 줘. 코멘트는 \`gh pr view ${url} --comments\`로 읽어.`,
+      'ci-failing': url =>
+        `${url}에서 실패한 CI를 고쳐 줘. 실패한 체크는 \`gh pr checks ${url}\`로, 로그는 \`gh run view <run-id> --log-failed\`로 찾아.`,
+      conflict: (url, base) => `${url}의 머지 충돌을 해결해 줘. ${base ? `origin/${base}` : '베이스 브랜치'}를 PR 브랜치에 머지해.`,
+      work: url => `${url} 작업해 줘. 이슈를 읽고 변경 계획을 세운 뒤 새 브랜치에서 시작해.`,
+    },
+    here: '이 폴더',
+    workIn: (where, isPr) =>
+      isPr
+        ? `${where}에서, PR을 체크아웃한 새 worktree를 만들어 작업해 (포크는 \`gh pr checkout\`이 처리해). 그 폴더의 현재 브랜치는 그대로 둬.`
+        : `${where}에서, 새 브랜치로 새 worktree를 만들어 작업해. 그 폴더의 현재 브랜치는 그대로 둬.`,
+    noClone: repo => `${repo}의 로컬 클론 위치를 몰라. 어디 있는지 나한테 묻거나, \`gh repo clone ${repo}\`을 제안하고 내가 좋다고 할 때까지 기다려.`,
   },
   summaryFailed: reason => `요약을 만들지 못했습니다 (${reason}).`,
   model: {

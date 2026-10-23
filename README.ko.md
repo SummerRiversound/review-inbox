@@ -47,6 +47,8 @@
 
 마지막 커밋 이후에 제출된 리뷰는 작성자와 함께 `새 리뷰`로 표시하고, 새 커밋을 올리면 사라집니다. 승인, 변경 요청, 코멘트만 남긴 리뷰, 스레드 답글을 모두 포함하며 사람과 봇을 구분하지 않습니다. 취소(dismiss)된 리뷰는 세지 않습니다. 새 리뷰가 달린 PR은 할 일로 세고, 같은 상태 안에서 먼저 보여 줍니다. 모델을 호출하지 않습니다.
 
+내가 처리할 차례인 PR(변경 요청, CI 실패, 충돌)에는 다음 할 일 버튼이 붙습니다: `코멘트 반영`, `CI 고치기`, `충돌 해결`. 옆에는 Claude가 작업할 폴더를 보여 줍니다. 이 세션이 그 저장소의 클론에 있으면 `이 폴더`, 다른 세션이 그 저장소에서 열린 적이 있으면 그 폴더, 둘 다 아니면 `로컬 클론 없음`입니다. 버튼은 `리뷰하기`처럼 카드를 추가합니다. 목록 창을 닫으면 요청 문장에 할 일과 코멘트나 실패 로그를 읽을 `gh` 명령이 들어가고, 그 폴더의 브랜치는 건드리지 말고 새 worktree에서 작업하라는 지시도 붙습니다. 아는 폴더가 없으면 Claude가 클론 위치를 묻거나 `gh repo clone`을 제안하고 내 대답을 기다립니다. GitHub 호출과 모델 호출은 늘지 않습니다.
+
 ### 내 이슈
 
 나에게 할당된 열린 이슈와 나를 언급한 열린 이슈·PR을 보여 줍니다. 둘 다 해당하면 할당으로 한 번만 보여 줍니다. 그 아래에는 최근 30일 동안 다른 이슈·PR이 내 PR이나 이슈를 언급한 곳을 언급한 사람과 함께 보여 줍니다. 내가 직접 건 언급은 제외하고 최신 20건만 보여 줍니다. 모델을 호출하지 않습니다.
@@ -54,6 +56,8 @@
 항목은 할당, 언급, 참조로 나누어 보여 줍니다. `숨기기`는 그 항목에 새 활동이 생길 때까지 카드를 숨깁니다.
 
 ![내 이슈 탭: 할당된 이슈, 나를 언급한 항목, 다른 곳에서 내 작업을 참조한 항목](docs/images/ko/my-issues.png)
+
+나에게 할당된 이슈에는 같은 방식으로 동작하는 `작업하기` 버튼이 붙습니다. Claude가 이슈를 읽고 변경 계획을 세운 뒤 새 worktree의 새 브랜치에서 시작합니다.
 
 ### 알림
 
@@ -140,9 +144,9 @@ user:my-username
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
-- **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해, 내 PR 브랜치에 있는 세션을 찾습니다.
+- **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해 내 PR 브랜치에 있는 세션을 찾고, `git rev-parse --path-format=absolute --git-common-dir`로 그 저장소의 원래 폴더를 기억합니다.
 - **Claude 호출**(`sonnet` 모델): PR의 저장소 이름, 제목, 설명(앞 12,000자), 변경 파일 경로(최대 80개), 변경 규모를 보내 요약을 받습니다. 재요청 PR은 지난 리뷰 이후 커밋 메시지의 첫 줄과 파일 경로(최대 60개)도 보냅니다. Claude Code 사용량에 포함됩니다. 요약은 PR의 head 커밋과 언어마다 한 번 작성하고, 실패하면 커밋마다 최대 세 번까지 시도합니다. 또한 일주일에 한 번, 최근 내가 리뷰한 PR 최대 30개에서 내가 남긴 리뷰 코멘트를 보내 리뷰 방식을 정리합니다. 코멘트마다 500자까지 자르고 최대 60개, 합계 12,000자까지 보내며, 다섯 개보다 적으면 보내지 않습니다.
-- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다.
+- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `repos.json`에 세션이 열렸던 GitHub 저장소마다 원래 폴더를(다음 할 일 버튼이 보여 줄 폴더), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다.
 - **환경 변수 읽기**: 그 폴더를 찾기 위해 `CLAUDE_CONFIG_DIR`, `HOME`, `USERPROFILE`을 읽습니다. 또한 `language`가 `auto`일 때만 `LC_ALL`, `LC_MESSAGES`, `LANG`을 읽습니다. 환경 변수를 설정하지는 않습니다.
 - **Claude Code 설정 읽기**: `language`가 `auto`일 때만 읽고, `language` 키 하나만 사용합니다.
 - **입력창 읽기·채우기**: 목록 창을 열고 닫을 때만 합니다. 열 때는 이미 요청한 PR을 표시하기 위해 작성 중인 내용을 읽고, 닫을 때는 추가한 PR의 요청 문장을 작성 중인 내용 다음 줄에 붙입니다.

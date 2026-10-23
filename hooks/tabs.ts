@@ -1,5 +1,7 @@
-import type { Capped, IssueItem, MyPr, MyPrState } from '../types'
+import type { Capped, IssueItem, MyPr, MyPrState, TaskKind } from '../types'
 import type { Messages } from './i18n'
+import { hasRequest } from './inbox'
+import type { Place } from './sessions'
 
 type Repo = { repository: { nameWithOwner: string } }
 type Item = Repo & { number: number; title: string; url: string }
@@ -7,6 +9,7 @@ type Body = { body?: string | null }
 
 export type GqlMyPr = Item & Body & {
   headRefName?: string
+  baseRefName?: string
   isDraft: boolean
   createdAt: string
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
@@ -28,7 +31,7 @@ export type GqlReferenced = Repo & {
 export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
   viewer { login }
   mine: search(query: $mine, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes { ... on PullRequest {
-    number title url body headRefName isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
+    number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
   assigned: search(query: $assigned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
@@ -115,6 +118,7 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       newReviews: newReviews(pr, me),
       ...(pr.body ? { body: pr.body } : {}),
       ...(pr.headRefName ? { branch: pr.headRefName } : {}),
+      ...(pr.baseRefName ? { base: pr.baseRefName } : {}),
     }))
     .sort(
       (a, b) =>
@@ -180,6 +184,28 @@ export function stateColor(state: MyPrState): 'error' | 'warning' | 'success' | 
 
 const stuck = (pr: MyPr) => pr.state === 'changes' || pr.state === 'ci-failing' || pr.state === 'conflict'
 export const needsMe = (pr: MyPr) => stuck(pr) || pr.newReviews.length > 0
+
+export type Task = { kind: TaskKind; repo: string; url: string; base?: string }
+
+export function taskOf(card: MyPr | IssueItem): TaskKind | undefined {
+  if ('state' in card) return stuck(card) ? (card.state as TaskKind) : undefined
+  return card.kind === 'assigned' ? 'work' : undefined
+}
+
+// Like the review requests: one per card the draft does not link yet, each saying where to work.
+export function taskPrompts(draft: string, tasks: { task: Task; place: Place }[], m: Messages): string {
+  let text = draft
+  for (const { task, place } of tasks) {
+    if (hasRequest(text, task.url)) continue
+    const where =
+      place.kind === 'unknown'
+        ? m.prompt.noClone(task.repo)
+        : m.prompt.workIn(place.kind === 'here' ? m.prompt.here : place.path, task.kind !== 'work')
+    const lines = `${m.prompt.task[task.kind](task.url, task.base)}\n${where}\n`
+    text += text === '' || text.endsWith('\n') ? lines : `\n${lines}`
+  }
+  return text.slice(draft.length)
+}
 
 export const reviewers = (pr: MyPr) => [...new Set(pr.newReviews.map(r => r.by))].join(', ')
 

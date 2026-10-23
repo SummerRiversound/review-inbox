@@ -35,6 +35,15 @@ export const de: Messages = {
     hide: 'Ausblenden',
     review: 'Reviewen',
     added: 'Hinzugefügt',
+    task: {
+      changes: 'Kommentare umsetzen',
+      'ci-failing': 'CI reparieren',
+      conflict: 'Konflikt lösen',
+      work: 'Daran arbeiten',
+    },
+    here: 'dieser Ordner',
+    at: path => `in ${path}`,
+    noClone: 'kein lokaler Klon',
     ciRunning: ' · CI läuft',
     newReview: who => `Neues Review · ${who}`,
     referenced: (by, target) => `${by} hat auf meine Arbeit verwiesen: ${target}`,
@@ -96,7 +105,7 @@ export const de: Messages = {
   },
   toast: {
     back: 'Zurückgestellte Karte ist zurück',
-    added: n => `${count(n, 'PR', 'PRs')} hinzugefügt · Esc übernimmt die Review-Anfragen in den Prompt`,
+    added: n => `${count(n, 'Karte', 'Karten')} hinzugefügt · Esc übernimmt ihre Anfragen in den Prompt`,
     newRequest: 'Neue Review-Anfrage',
     moreRequests: n => count(n, 'weitere Review-Anfrage', 'weitere Review-Anfragen'),
     morePrAlerts: n => `${count(n, 'weitere Benachrichtigung', 'weitere Benachrichtigungen')} zu meinen PRs`,
@@ -114,6 +123,19 @@ export const de: Messages = {
     check: 'Achte besonders auf: ',
     since: 'Seit meinem letzten Review geändert: ',
     style: 'Mein üblicher Review-Stil: ',
+    task: {
+      changes: url => `Setze die offenen Review-Kommentare zu ${url} um; lies sie mit \`gh pr view ${url} --comments\`.`,
+      'ci-failing': url =>
+        `Repariere die fehlschlagende CI von ${url}: finde die fehlgeschlagenen Checks mit \`gh pr checks ${url}\` und ihre Logs mit \`gh run view <run-id> --log-failed\`.`,
+      conflict: (url, base) => `Löse den Merge-Konflikt in ${url}: merge ${base ? `origin/${base}` : 'den Basis-Branch'} in seinen Branch.`,
+      work: url => `Arbeite an ${url}: lies das Issue, plane die Änderung und beginne auf einem neuen Branch.`,
+    },
+    here: 'diesem Ordner',
+    workIn: (where, isPr) =>
+      isPr
+        ? `Arbeite in ${where}, in einem neuen Worktree mit ausgechecktem PR (\`gh pr checkout\` kommt mit Forks klar); lass den aktuellen Branch des Ordners, wie er ist.`
+        : `Arbeite in ${where}, in einem neuen Worktree auf einem neuen Branch; lass den aktuellen Branch des Ordners, wie er ist.`,
+    noClone: repo => `Kein lokaler Klon von ${repo} bekannt: frag mich, wo er liegt, oder biete \`gh repo clone ${repo}\` an und warte auf mein Ja.`,
   },
   summaryFailed: reason => `Zusammenfassung konnte nicht erstellt werden (${reason}).`,
   model: {

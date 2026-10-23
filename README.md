@@ -47,6 +47,8 @@ Your open PRs with their state instead of a summary, in the order you have to ac
 
 A review submitted after your latest commit shows as `New review` with who left it, until you commit again. That covers approvals, change requests and comment-only reviews, thread replies included, from people or bots; a dismissed review does not count. Such a PR counts as something to do and moves ahead of quiet ones in the same state. No model calls.
 
+A PR stuck on you (changes requested, CI failing or a merge conflict) has a button for its next step: `Address comments`, `Fix CI` or `Resolve conflict`. Beside it is the folder Claude would work in: `this folder` when this session holds a clone of the repository, the folder of the last session that ran in it, or `no local clone`. The button adds the card the way `Review` does. When you close the drawer, the request names the step and the `gh` commands that read the comments or the failing logs, and asks Claude to work in a new worktree, leaving that folder's branch alone. With no known folder, Claude asks where your clone is, or offers `gh repo clone` and waits for your yes. No extra GitHub calls and no model calls.
+
 ### My issues
 
 Open issues assigned to you, and open issues and PRs that mention you; an item that is both shows once, as assigned. Below them, other issues and PRs from the last 30 days that referenced one of yours, with who did it. References you made yourself are left out, and only the newest 20 are shown. No model calls.
@@ -54,6 +56,8 @@ Open issues assigned to you, and open issues and PRs that mention you; an item t
 Items are grouped into assigned, mentions and references. `Hide` hides an item until it has new activity.
 
 ![My issues: assigned issues, mentions, and references to your work from elsewhere](docs/images/en/my-issues.png)
+
+An issue assigned to you has a `Work on this` button that works the same way: Claude reads the issue, plans the change and starts on a new branch in a new worktree.
 
 ### Toasts
 
@@ -140,9 +144,9 @@ The mod reaches GitHub only through your own `gh`, sends PR text to Claude to wr
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. The mod makes no other network calls of its own.
-- **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch.
+- **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch, and `git rev-parse --path-format=absolute --git-common-dir`, to remember the main folder of that repository.
 - **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
-- **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, branch, GitHub remotes and the PR links its prompts held, for every account; `style-<hash>.json` holds the description of your review style. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place.
+- **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, branch, GitHub remotes and the PR links its prompts held, for every account; `repos.json` holds the main folder of each GitHub repository a session has run in, for the next-step buttons; `style-<hash>.json` holds the description of your review style. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place.
 - **Reads environment variables**: `CLAUDE_CONFIG_DIR`, `HOME` and `USERPROFILE` to find that folder; `LC_ALL`, `LC_MESSAGES` and `LANG` only when `language` is `auto`. It sets none.
 - **Reads Claude Code settings** only when `language` is `auto`, and uses only the `language` key.
 - **Reads and fills your prompt** only around the drawer: it reads the draft when the drawer opens, to mark the PRs it already asks for, and when the drawer closes it adds the requests for the PRs you added, on new lines after the draft.

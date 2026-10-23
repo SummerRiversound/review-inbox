@@ -15,6 +15,7 @@ const PANE = {
 
 const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
 const SESSIONS = '/home/me/.claude/plugins/data/review-inbox/sessions.json'
+const REPOS = '/home/me/.claude/plugins/data/review-inbox/repos.json'
 
 const pr = (number: number, state: MyPr['state'], body?: string): MyPr =>
   ({ repo: 'o/r', number, title: `t${number}`, url: `u${number}`, createdAt: '2026-10-01T00:00:00Z', state, ciPending: false, newReviews: [], ...(body ? { body } : {}) })
@@ -31,7 +32,7 @@ async function opened(
   mine: MyPr[],
   issues: IssueItem[],
   tab: string,
-  more: { items?: InboxItem[]; sessions?: Record<string, Presence> } = {},
+  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string> } = {},
 ) {
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/home/me' })
@@ -43,6 +44,7 @@ async function opened(
   on('command.register', async () => ({ value: { command: 'review-inbox' } }))
   const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, fetchedAt: Date.now() })]])
   if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
+  for (const [path, text] of Object.entries(more.files ?? {})) store.set(path, text)
   on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
   on('fs.read', async ($, e) => ({ value: store.get(e.path)! }))
   on('fs.write', async ($, e) => {
@@ -164,4 +166,58 @@ test('a review request linked in this session\'s prompt moves to in progress her
   const sessions = JSON.parse(files.get(SESSIONS)!) as Record<string, Presence>
   expect(Object.values(sessions).flatMap(s => s.prs)).toEqual(['https://github.com/o/r/pull/5'])
   await ui.unmount()
+})
+
+test('a stuck PR or an assigned issue has a button naming its next step and the folder it would be worked in; pressing it adds the card', async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const repos = { 'o/r': { path: '/home/me/code/r', at: Date.now() } }
+  const ui = await opened($, on, [pr(1, 'conflict'), pr(2, 'waiting')], [issue(3, 'assigned'), issue(4, 'mention')], 'mine', {
+    files: { [REPOS]: JSON.stringify(repos) },
+  })
+
+  expect(await label('task-u1')).toBe('Resolve conflict')
+  expect(await shown(ui, /in ~\/code\/r/)).toBe(true)
+  expect(await ui.find({ key: 'task-u2' })).toBe(undefined)
+  await ui.press({ key: 'task-u1' })
+  expect(await label('task-u1')).toBe('Added')
+
+  await ui.press({ key: 'tab-issues' })
+  expect(await label('task-i3')).toBe('Work on this')
+  expect(await shown(ui, /no local clone/)).toBe(true)
+  expect(await ui.find({ key: 'task-i4' })).toBe(undefined)
+  await ui.unmount()
+})
+
+test('a session remembers the main checkout of each GitHub repository its folder holds', async ($, on) => {
+  const clock = mock.clock(on)
+  mock.env(on, { HOME: '/home/me' })
+  on('settings.read', async () => ({ value: {} }))
+  on('session.start', async () => ({ cwd: '/work' }))
+  on('session.id', async () => ({ value: 'self' }))
+  on('session.cwd', async () => ({ value: '/home/me/code/r/.claude/worktrees/x' }))
+  on('ui.panes', async () => ({ value: [] }))
+  on('command.register', async () => ({ value: { command: 'review-inbox' } }))
+  const store = new Map<string, string>()
+  on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
+  on('fs.read', async ($, e) => ({ value: store.get(e.path)! }))
+  on('fs.write', async ($, e) => {
+    store.set(e.path, e.text)
+    return { value: undefined }
+  })
+  const out = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+  on('process.run', async ($, e) => {
+    const args = e.argv.join(' ')
+    if (args.endsWith('remote -v')) return out('origin\tgit@github.com:me/r.git (fetch)\nupstream\thttps://github.com/o/r.git (fetch)\n')
+    if (args.includes('--git-common-dir')) return out('/home/me/code/r/.git\n')
+    if (args.endsWith('--show-current')) return out('feat/x\n')
+    throw new Error('mv: command not found')
+  })
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 2; i++) await clock.advance(1_000)
+
+  const repos = JSON.parse(store.get(REPOS)!) as Record<string, { path: string }>
+  expect(Object.fromEntries(Object.entries(repos).map(([repo, r]) => [repo, r.path]))).toEqual({
+    'me/r': '/home/me/code/r',
+    'o/r': '/home/me/code/r',
+  })
 })

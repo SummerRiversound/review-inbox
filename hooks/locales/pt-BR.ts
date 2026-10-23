@@ -35,6 +35,15 @@ export const ptBR: Messages = {
     hide: 'Ocultar',
     review: 'Revisar',
     added: 'Adicionado',
+    task: {
+      changes: 'Responder comentários',
+      'ci-failing': 'Corrigir CI',
+      conflict: 'Resolver conflito',
+      work: 'Trabalhar nisto',
+    },
+    here: 'esta pasta',
+    at: (path: string) => `em ${path}`,
+    noClone: 'sem clone local',
     ciRunning: ' · CI em execução',
     newReview: (who: string) => `Nova revisão · ${who}`,
     referenced: (by: string, target: string) => `${by} referenciou ${target}`,
@@ -96,7 +105,7 @@ export const ptBR: Messages = {
   },
   toast: {
     back: 'Um cartão adiado voltou',
-    added: (n: number) => `${count(n, 'PR adicionado', 'PRs adicionados')} · Esc coloca os pedidos de revisão no prompt`,
+    added: (n: number) => `${count(n, 'cartão adicionado', 'cartões adicionados')} · Esc coloca os pedidos deles no prompt`,
     newRequest: 'Nova solicitação de revisão',
     moreRequests: (n: number) => `Mais ${count(n, 'solicitação de revisão', 'solicitações de revisão')}`,
     morePrAlerts: (n: number) => `Mais ${count(n, 'alerta')} nos meus PRs`,
@@ -114,6 +123,20 @@ export const ptBR: Messages = {
     check: 'Verifique em especial: ',
     since: 'O que mudou desde a minha última revisão: ',
     style: 'Meu estilo habitual de revisão: ',
+    task: {
+      changes: (url: string) => `Resolva os comentários de revisão pendentes em ${url}; leia-os com \`gh pr view ${url} --comments\`.`,
+      'ci-failing': (url: string) =>
+        `Corrija o CI que está falhando em ${url}: encontre os checks com falha com \`gh pr checks ${url}\` e os logs com \`gh run view <run-id> --log-failed\`.`,
+      conflict: (url: string, base?: string) =>
+        `Resolva o conflito de merge em ${url}: faça merge de ${base ? `origin/${base}` : 'sua branch base'} na branch do PR.`,
+      work: (url: string) => `Trabalhe em ${url}: leia a issue, planeje a mudança e comece em uma branch nova.`,
+    },
+    here: 'esta pasta',
+    workIn: (where: string, isPr: boolean) =>
+      isPr
+        ? `Trabalhe em ${where}, em um worktree novo com o PR em checkout (\`gh pr checkout\` cuida de forks); deixe a branch atual da pasta como está.`
+        : `Trabalhe em ${where}, em um worktree novo em uma branch nova; deixe a branch atual da pasta como está.`,
+    noClone: (repo: string) => `Não há clone local conhecido de ${repo}: pergunte onde ele está, ou ofereça \`gh repo clone ${repo}\` e espere meu sim.`,
   },
   summaryFailed: (reason: string) => `Não foi possível gerar o resumo (${reason}).`,
   model: {
