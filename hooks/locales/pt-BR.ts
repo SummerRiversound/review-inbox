@@ -8,6 +8,7 @@ export const ptBR: Messages = {
   command: {
     description: 'Abrir a caixa de revisões: PRs aguardando minha revisão, meus PRs e minhas issues',
     opened: 'Caixa de revisões aberta.',
+    filled: 'Adicionado ao prompt; pressione Enter para enviar.',
   },
   band: {
     open: 'Abrir',
@@ -79,7 +80,7 @@ export const ptBR: Messages = {
     review: 'Nenhum PR está aguardando sua revisão.',
     mine: 'Você não tem PRs abertos.',
     issues: 'Não há issues atribuídas a você ou que mencionem você.',
-    searches: "Nenhum grupo de busca. Adicione um em Editar botões.",
+    searches: "Nenhum grupo de busca. Adicione um com /review-inbox add-search.",
     activity: "Nenhuma outra notificação. Pedidos de revisão, atribuições e menções estão nas outras abas.",
   },
   sections: {
@@ -133,10 +134,10 @@ export const ptBR: Messages = {
   },
   buttons: {
     more: "Mais",
-    edit: "Editar botões",
-    add: "Adicionar botão",
-    addGroup: "Adicionar grupo de busca",
     none: "Você ainda não tem botões próprios; os integrados estão sendo mostrados.",
+    counts: (buttons, groups) => `Seus: ${buttons} botões, ${groups} grupos de busca`,
+    how: "Com /review-inbox add-button ou /review-inbox add-search, o Claude escreve um com você.",
+    hint: "Detalhes: /review-inbox buttons",
     file: (path: string) => `Meus botões: ${path}`,
     tooMany: (n: number, scope: string) => `${n} botões nos cartões de ${scope}; acima de 20 a linha fica difícil de ler`,
     scopes: { review: "revisão", pr: "meu PR", issue: "issue" },

@@ -142,7 +142,6 @@ const activity = atom({ plugin: 'review-inbox', key: 'activity' } as const, { th
 const settling = atom({ plugin: 'review-inbox', key: 'settling' } as const, {} as Record<string, Settling>)
 const settleErrors = atom({ plugin: 'review-inbox', key: 'settleErrors' } as const, {} as Record<string, string>)
 const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
-const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
 const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
@@ -158,12 +157,10 @@ let isStill = false
 let lastBand: BandCounts | undefined
 // GH_REPO, which gh itself treats as the current repository.
 let ghRepo: string | undefined
-// Where actions.json lives, shown in the Edit buttons panel.
+// Where actions.json lives, shown by /review-inbox buttons.
 let actionsPath = ''
-// A press of a card's own button is added as the card's key and the button's id; Add button and Add search group have keys of their own.
+// A press of a card's own button is added as the card's key and the button's id.
 const buttonKey = (key: string, id: string) => `${key}::${id}`
-const ADD_BUTTON = '::add-button'
-const ADD_GROUP = '::add-group'
 // The Merge button fills the prompt like a card's own button, under an id actions.json cannot give one.
 const MERGE = '@merge'
 let languageOption: string | undefined
@@ -802,11 +799,31 @@ async function addCard($: EngineInterface, key: string) {
   $.ui.toast(m.toast.added(keys.length + 1))
 }
 
-// Read at each drawer open and each Edit buttons press, so an edit to the file shows without a restart.
+// Read at each drawer open and each /review-inbox buttons, so an edit to the file shows without a restart.
 async function loadActions($: EngineInterface) {
   actionsPath = `${await cacheDir($)}/${ACTIONS_FILE}`
   const text = (await $.fs.exists(actionsPath)) ? await $.fs.read(actionsPath).catch(() => '') : undefined
   await update($, actions, () => parseActions(text))
+}
+
+// Scopes with more buttons than a row can take in at a glance.
+const crowdedScopes = (buttons: { scope: ButtonScope }[]) =>
+  (['review', 'pr', 'issue'] as const)
+    .map(scope => [scope, buttons.filter(b => b.scope === scope).length] as const)
+    .filter(([, n]) => n > MAX_PER_SCOPE)
+
+// What /review-inbox buttons prints: the file, what of mine it holds, and each entry left out with its reason.
+async function buttonsReport($: EngineInterface): Promise<string> {
+  await loadActions($)
+  const own = await read($, actions)
+  const isEmpty = own.buttons.length + own.groups.length + own.errors.length === 0
+  return [
+    m.buttons.file(home && actionsPath.startsWith(`${home}/`) ? `~${actionsPath.slice(home.length)}` : actionsPath),
+    isEmpty ? m.buttons.none : m.buttons.counts(own.buttons.length, own.groups.length),
+    ...own.errors.map(error => errorText(error, m)),
+    ...crowdedScopes(mergeById(builtInButtons(m), own.buttons)).map(([scope, n]) => m.buttons.tooMany(n, m.buttons.scopes[scope])),
+    m.buttons.how,
+  ].join('\n')
 }
 
 // What a card's own buttons can fill in, by the key its hide and note use.
@@ -826,10 +843,6 @@ async function buttonPrompts($: EngineInterface, keys: string[]): Promise<string
   const cards = await buttonCards($)
   let text = ''
   for (const key of keys) {
-    if (key === ADD_BUTTON || key === ADD_GROUP) {
-      text += `${key === ADD_BUTTON ? m.prompt.addButton(actionsPath, VARIABLES.join(', ')) : m.prompt.addGroup(actionsPath)}\n`
-      continue
-    }
     const at = key.lastIndexOf('::')
     const vars = at > 0 ? cards.get(key.slice(0, at)) : undefined
     const id = key.slice(at + 2)
@@ -998,7 +1011,7 @@ export const register: Register = (on, options) => {
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
     $.ui.invalidate('ui.render')
-    await $.command.register({ name: 'review-inbox', description: m.command.description })
+    await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search]' })
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -1030,6 +1043,14 @@ export const register: Register = (on, options) => {
   })
 
   on('command.run', { command: 'review-inbox' }, async ($, e) => {
+    const sub = e.args.trim()
+    if (sub === 'buttons') return { text: await buttonsReport($) }
+    if (sub === 'add-button' || sub === 'add-search') {
+      await loadActions($)
+      const text = sub === 'add-button' ? m.prompt.addButton(actionsPath, VARIABLES.join(', ')) : m.prompt.addGroup(actionsPath)
+      const filled = await $.prompt.fill({ text, mode: 'append' })
+      return { text: filled.isFilled ? m.command.filled : m.toast.promptBusy }
+    }
     terminalColumns = e.presentation.columns
     await openDrawer($)
     wanted ??= 'sync'
@@ -1218,7 +1239,6 @@ export const register: Register = (on, options) => {
         />
       )
     }
-    const isEditing = await read($, buttonsOpen)
     const moreButton = (key: string) => (
       <Button
         key={`more-${key}`}
@@ -1227,10 +1247,12 @@ export const register: Register = (on, options) => {
         onPress={() => void update($, more, open => (open === key ? '' : key))}
       />
     )
-    // One card's row at a time, like the note editor.
-    const moreRow = (key: string, scope: ButtonScope) =>
+    // One card's row at a time, like the note editor; Note and Hide come first, as they are on every card.
+    const moreRow = (key: string, scope: ButtonScope, hide: RenderChildren) =>
       moreKey === key && (
         <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
+          {noteButton(key)}
+          {hide}
           {buttons
             .filter(b => b.scope === scope)
             .map(b => {
@@ -1246,9 +1268,8 @@ export const register: Register = (on, options) => {
             })}
         </Box>
       )
-    const crowded = (['review', 'pr', 'issue'] as const)
-      .map(scope => [scope, buttons.filter(b => b.scope === scope).length] as const)
-      .filter(([, n]) => n > MAX_PER_SCOPE)
+    // Settings live in /review-inbox buttons; the drawer speaks up only when actions.json needs fixing.
+    const crowded = crowdedScopes(buttons)
 
     // Only when the tabs mix repositories; on every card it would say nothing.
     const hereTag = (repo: string) => isMixed && isHere(repo, here) && <Text dimColor> · {m.card.thisRepo}</Text>
@@ -1395,13 +1416,6 @@ export const register: Register = (on, options) => {
               </Text>
               <Box flexDirection="row" gap={1}>
                 {moreButton(itemKey(item))}
-                {noteButton(itemKey(item))}
-                <Button
-                  key={`hide-${item.repo}-${item.number}`}
-                  label={m.card.hide}
-                  dimColor
-                  onPress={() => void setHidden($, h => ({ ...h, [itemKey(item)]: item.headSha }))}
-                />
                 <Button
                   key={`review-${itemKey(item)}`}
                   label={isAdded ? m.card.added : m.card.review}
@@ -1411,7 +1425,16 @@ export const register: Register = (on, options) => {
               </Box>
             </Box>
             {directRow(itemKey(item), { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }, reviewActions(item))}
-            {moreRow(itemKey(item), 'review')}
+            {moreRow(
+              itemKey(item),
+              'review',
+              <Button
+                key={`hide-${item.repo}-${item.number}`}
+                label={m.card.hide}
+                dimColor
+                onPress={() => void setHidden($, h => ({ ...h, [itemKey(item)]: item.headSha }))}
+              />,
+            )}
             {noteEditor(itemKey(item), () => item.headSha)}
           </Box>
         </Box>
@@ -1452,16 +1475,7 @@ export const register: Register = (on, options) => {
           </Box>
           {sessionLine(pr)}
           {noteLine(prHideKey(pr))}
-          {titleRow(pr.url, pr.title, [
-            moreButton(prHideKey(pr)),
-            noteButton(prHideKey(pr)),
-            <Button
-              key={`hide-${pr.url}`}
-              label={m.card.hide}
-              dimColor
-              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
-            />,
-          ])}
+          {titleRow(pr.url, pr.title, moreButton(prHideKey(pr)))}
           {detailsLine(pr)}
           {pr.newReviews.length > 0 && (
             <Text color="suggestion" wrap="truncate-end">
@@ -1475,7 +1489,16 @@ export const register: Register = (on, options) => {
             prActions(pr),
             canMerge(pr) && mergeButton(prHideKey(pr)),
           )}
-          {moreRow(prHideKey(pr), 'pr')}
+          {moreRow(
+            prHideKey(pr),
+            'pr',
+            <Button
+              key={`hide-${pr.url}`}
+              label={m.card.hide}
+              dimColor
+              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
+            />,
+          )}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
         </Box>
       </Box>
@@ -1496,16 +1519,7 @@ export const register: Register = (on, options) => {
             </Text>
           </Box>
           {noteLine(issueHideKey(issue))}
-          {titleRow(issue.url, issue.title, [
-            moreButton(issueHideKey(issue)),
-            noteButton(issueHideKey(issue)),
-            <Button
-              key={`hide-${issueKey(issue)}`}
-              label={m.card.hide}
-              dimColor
-              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
-            />,
-          ])}
+          {titleRow(issue.url, issue.title, moreButton(issueHideKey(issue)))}
           {detailsLine(issue)}
           {issue.kind === 'reference' && (
             <Text dimColor>
@@ -1514,7 +1528,16 @@ export const register: Register = (on, options) => {
           )}
           {taskRow(issue, issueHideKey(issue))}
           {directRow(issueHideKey(issue), { repo: issue.repo, number: issue.number, title: issue.title }, issueActions(issue))}
-          {moreRow(issueHideKey(issue), 'issue')}
+          {moreRow(
+            issueHideKey(issue),
+            'issue',
+            <Button
+              key={`hide-${issueKey(issue)}`}
+              label={m.card.hide}
+              dimColor
+              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
+            />,
+          )}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
         </Box>
       </Box>
@@ -1825,50 +1848,21 @@ export const register: Register = (on, options) => {
               </Box>
             )}
 
-            <Box flexDirection="column" marginTop={1}>
-              <Box>
-                <Button
-                  key="edit-buttons"
-                  label={`${isEditing ? '▾' : '▸'} ${m.buttons.edit}`}
-                  dimColor
-                  onPress={async () => {
-                    await loadActions($)
-                    await update($, buttonsOpen, open => !open)
-                  }}
-                />
-              </Box>
-              {isEditing && (
-                <Box flexDirection="column" marginTop={1}>
-                  <Text dimColor wrap="truncate-start">
-                    {m.buttons.file(home && actionsPath.startsWith(`${home}/`) ? `~${actionsPath.slice(home.length)}` : actionsPath)}
+            {own.errors.length + crowded.length > 0 && (
+              <Box flexDirection="column" marginTop={1}>
+                {own.errors.map(error => (
+                  <Text key={`button-error-${error.at}`} color="warning">
+                    {errorText(error, m)}
                   </Text>
-                  {own.buttons.length + own.groups.length + own.errors.length === 0 && <Text dimColor>{m.buttons.none}</Text>}
-                  {own.errors.map(error => (
-                    <Text key={`button-error-${error.at}`} color="warning">
-                      {errorText(error, m)}
-                    </Text>
-                  ))}
-                  {crowded.map(([scope, n]) => (
-                    <Text key={`crowded-${scope}`} color="warning">
-                      {m.buttons.tooMany(n, m.buttons.scopes[scope])}
-                    </Text>
-                  ))}
-                  <Box flexDirection="row" gap={1} marginTop={1}>
-                    {[
-                      { key: ADD_BUTTON, label: m.buttons.add },
-                      { key: ADD_GROUP, label: m.buttons.addGroup },
-                    ].map(a => (
-                      <Button
-                        key={a.key === ADD_BUTTON ? 'add-button' : 'add-group'}
-                        label={addedKeys.includes(a.key) ? m.card.added : a.label}
-                        {...(addedKeys.includes(a.key) ? { dimColor: true } : { variant: 'primary' as const })}
-                        onPress={() => void addCard($, a.key)}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Box>
+                ))}
+                {crowded.map(([scope, n]) => (
+                  <Text key={`crowded-${scope}`} color="warning">
+                    {m.buttons.tooMany(n, m.buttons.scopes[scope])}
+                  </Text>
+                ))}
+                <Text dimColor>{m.buttons.hint}</Text>
+              </Box>
+            )}
           </Box>
         )}
       </Box>

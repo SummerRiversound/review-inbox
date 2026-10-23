@@ -8,6 +8,7 @@ export const de: Messages = {
   command: {
     description: 'Review-Posteingang öffnen: PRs, die auf mein Review warten, meine PRs und meine Issues',
     opened: 'Review-Posteingang geöffnet.',
+    filled: 'In den Prompt eingefügt; mit Enter senden.',
   },
   band: {
     open: 'Öffnen',
@@ -79,7 +80,7 @@ export const de: Messages = {
     review: 'Derzeit warten keine PRs auf mein Review.',
     mine: 'Derzeit ist keiner meiner PRs offen.',
     issues: 'Es gibt keine Issues, die mir zugewiesen sind oder mich erwähnen.',
-    searches: "Keine Suchgruppen. Unter „Schaltflächen bearbeiten“ eine hinzufügen.",
+    searches: "Keine Suchgruppen. Mit /review-inbox add-search eine hinzufügen.",
     activity: "Keine weiteren Benachrichtigungen. Review-Anfragen, Zuweisungen und Erwähnungen stehen in den anderen Tabs.",
   },
   sections: {
@@ -133,10 +134,10 @@ export const de: Messages = {
   },
   buttons: {
     more: "Mehr",
-    edit: "Schaltflächen bearbeiten",
-    add: "Schaltfläche hinzufügen",
-    addGroup: "Suchgruppe hinzufügen",
     none: "Noch keine eigenen Schaltflächen; die eingebauten werden angezeigt.",
+    counts: (buttons, groups) => `Eigene: ${buttons} Schaltflächen, ${groups} Suchgruppen`,
+    how: "Mit /review-inbox add-button oder /review-inbox add-search schreibt Claude eine mit Ihnen.",
+    hint: "Details: /review-inbox buttons",
     file: path => `Meine Schaltflächen: ${path}`,
     tooMany: (n, scope) => `${n} Schaltflächen auf Karten vom Typ ${scope}; ab 20 ist die Zeile schwer zu überblicken`,
     scopes: { review: "Review", pr: "eigene PR", issue: "Issue" },

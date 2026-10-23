@@ -8,6 +8,7 @@ export const fr: Messages = {
   command: {
     description: 'Ouvrir la boîte de réception des revues : PR en attente de ma revue, mes PR et mes issues',
     opened: 'La boîte de réception des revues est ouverte.',
+    filled: 'Ajouté au prompt ; appuyez sur Entrée pour l’envoyer.',
   },
   band: {
     open: 'Ouvrir',
@@ -79,7 +80,7 @@ export const fr: Messages = {
     review: "Aucune PR n'attend votre revue.",
     mine: "Vous n'avez aucune PR ouverte.",
     issues: 'Aucune issue ne vous est assignée ni ne vous mentionne.',
-    searches: "Aucun groupe de recherche. Ajoutez-en un dans Modifier les boutons.",
+    searches: "Aucun groupe de recherche. Ajoutez-en un avec /review-inbox add-search.",
     activity: "Aucune autre notification. Les demandes de revue, attributions et mentions sont dans les autres onglets.",
   },
   sections: {
@@ -132,10 +133,10 @@ export const fr: Messages = {
   },
   buttons: {
     more: "Plus",
-    edit: "Modifier les boutons",
-    add: "Ajouter un bouton",
-    addGroup: "Ajouter un groupe de recherche",
     none: "Pas encore de boutons à vous ; les boutons intégrés sont affichés.",
+    counts: (buttons, groups) => `À vous : ${buttons} boutons, ${groups} groupes de recherche`,
+    how: "Avec /review-inbox add-button ou /review-inbox add-search, Claude en écrit un avec vous.",
+    hint: "Détails : /review-inbox buttons",
     file: path => `Mes boutons : ${path}`,
     tooMany: (n, scope) => `${n} boutons sur les cartes ${scope} ; au-delà de 20, la rangée devient difficile à parcourir`,
     scopes: { review: "revue", pr: "ma PR", issue: "issue" },

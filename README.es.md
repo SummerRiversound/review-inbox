@@ -18,7 +18,7 @@ La interfaz y los resúmenes están disponibles en nueve idiomas; consulta [Idio
 
 Cada pestaña agrupa sus tarjetas por categoría. Pulsa el encabezado de una categoría para plegarla y otra vez para abrirla. `N ocultos · mostrar todo`, arriba de la pestaña, vuelve a mostrar solo las tarjetas ocultas de esa pestaña.
 
-`Nota`, en cualquier tarjeta, escribe una línea encima del título: qué revisaste o qué acordaste hacer y cuándo. `Guardar` deja la tarjeta a la vista. `Posponer hasta mañana` y `Posponer hasta la próxima semana` la apartan hasta mañana o el próximo lunes a las 9, o antes si hay novedades: un commit nuevo en una solicitud de revisión, un cambio de estado o una revisión nueva en tu PR, actividad nueva en una incidencia. Un aviso te dice cuándo vuelve una tarjeta pospuesta, con su nota. `Borrar` quita la nota.
+`Nota`, en `▸ Más` de una tarjeta, escribe una línea encima del título: qué revisaste o qué acordaste hacer y cuándo. `Guardar` deja la tarjeta a la vista. `Posponer hasta mañana` y `Posponer hasta la próxima semana` la apartan hasta mañana o el próximo lunes a las 9, o antes si hay novedades: un commit nuevo en una solicitud de revisión, un cambio de estado o una revisión nueva en tu PR, actividad nueva en una incidencia. Un aviso te dice cuándo vuelve una tarjeta pospuesta, con su nota. `Borrar` quita la nota.
 
 El campo de búsqueda de arriba busca en todas las pestañas a la vez: repositorio, número, título, autor, los primeros 2.000 caracteres de la descripción, el resumen y tus notas. También encuentra las tarjetas ocultas y pospuestas, marcadas como `oculto`. Vacía el campo para volver a las pestañas. La app móvil de Claude todavía no dibuja campos de texto, así que allí muestra las notas pero no tiene búsqueda ni `Nota`.
 
@@ -37,7 +37,7 @@ Cuando nada te necesita (ninguna solicitud de revisión, ningún PR tuyo con alg
 Una tarjeta por cada PR que espera tu revisión: un resumen de una frase, el motivo del PR, su alcance, su tamaño y autor, y cuánto tiempo lleva pendiente tu revisión. Los puntos de riesgo, como un cambio de esquema o un orden de despliegue obligatorio, se marcan con ⚠️.
 
 - `Revisar` marca la tarjeta como `Añadido` y deja la bandeja abierta, para que puedas elegir varios PR. Al cerrar la bandeja (Esc o ×), se añade a tu prompt una solicitud de revisión por cada PR añadido, con sus advertencias y lo que cambió desde tu última revisión. No se envía nada hasta que pulses Enter. Si el texto que tienes en el prompt ya pide un PR, ese PR aparece como `Añadido` al abrir la bandeja.
-- `Ocultar` oculta la tarjeta hasta que el PR reciba un commit nuevo.
+- `Ocultar`, en `▸ Más` junto a `Nota`, oculta la tarjeta hasta que el PR reciba un commit nuevo.
 - `revisión solicitada de nuevo` marca un PR que ya revisaste y que vuelve a pedir tu revisión, con un breve resumen de lo que cambió desde tu última revisión.
 - Las tarjetas se agrupan en solicitudes directas, solicitudes al equipo y borradores.
 
@@ -71,7 +71,7 @@ Una incidencia asignada a ti tiene un botón `Trabajar en esto` que funciona igu
 
 Búsquedas que nombras tú, cada una una sección con su cantidad y las 20 coincidencias actualizadas más recientemente. Un título abre ese PR o esa incidencia en GitHub, y `N más en GitHub` abre allí la búsqueda completa. Tres vienen incluidas, como en la bandeja de PR de GitHub: `Me involucran` (PR abiertos en los que participas pero que no abriste), `Revisados por mí, aún abiertos` y `Mis incidencias abiertas`. Pulsa el encabezado de una sección para plegarla. Las búsquedas se ejecutan en cada actualización, de tres en tres; una que falla muestra el motivo y no afecta a las demás. Sin llamadas al modelo.
 
-Añade las tuyas en `groups`, en el mismo `actions.json` que los botones de las tarjetas; `Añadir grupo de búsqueda`, bajo `Editar botones`, le pide a Claude que escriba uno contigo.
+Añade las tuyas en `groups`, en el mismo `actions.json` que los botones de las tarjetas; `/review-inbox add-search` le pide a Claude que escriba uno contigo.
 
 ```json
 {
@@ -82,7 +82,7 @@ Añade las tuyas en `groups`, en el mismo `actions.json` que los botones de las 
 }
 ```
 
-`query` usa la sintaxis de búsqueda de GitHub. `scope` es `prs` o `issues`: añade `is:pr` o `is:issue` salvo que la consulta ya diga cuál, y se añade `sort:updated-desc` salvo que tenga su propio `sort:`. El ajuste `scope` y `Este repositorio` no restringen estas búsquedas, así que escribe `org:` o `repo:` en la consulta si lo necesitas. `"countInBand": true` suma la cantidad del grupo a la barra como `Búsquedas N`. Un grupo con un id incluido lo reemplaza, y `"hidden": true` lo quita. Una entrada con un campo que falta o un scope desconocido se omite y aparece en `Editar botones` con el motivo. Solo se buscan los primeros 15 grupos.
+`query` usa la sintaxis de búsqueda de GitHub. `scope` es `prs` o `issues`: añade `is:pr` o `is:issue` salvo que la consulta ya diga cuál, y se añade `sort:updated-desc` salvo que tenga su propio `sort:`. El ajuste `scope` y `Este repositorio` no restringen estas búsquedas, así que escribe `org:` o `repo:` en la consulta si lo necesitas. `"countInBand": true` suma la cantidad del grupo a la barra como `Búsquedas N`. Un grupo con un id incluido lo reemplaza, y `"hidden": true` lo quita. Una entrada con un campo que falta o un scope desconocido se omite; la bandeja avisa de ello al final, y `/review-inbox buttons` la muestra con el motivo. Solo se buscan los primeros 15 grupos.
 
 ### Actividad
 
@@ -102,9 +102,9 @@ Cuando tu PR queda aprobado y no hay CI en marcha, aparece `Listo para merge` un
 
 ### Botones de las tarjetas
 
-`▸ Más` en una tarjeta abre una fila de botones que pasan la tarjeta a Claude con una solicitud ya preparada: `Resumir riesgos`, `Explicar el diff` y `Redactar aprobación` en una solicitud de revisión, `Redactar respuesta al revisor` e `Investigar fallo de CI` en tu PR. Un botón añade la tarjeta igual que `Revisar`, y la solicitud entra en tu prompt al cerrar la bandeja. Nada se ejecuta ni se publica hasta que pulses Enter.
+`▸ Más` en una tarjeta abre `Nota` y `Ocultar`, y después botones que pasan la tarjeta a Claude con una solicitud ya preparada: `Resumir riesgos`, `Explicar el diff` y `Redactar aprobación` en una solicitud de revisión, `Redactar respuesta al revisor` e `Investigar fallo de CI` en tu PR. Un botón añade la tarjeta igual que `Revisar`, y la solicitud entra en tu prompt al cerrar la bandeja. Nada se ejecuta ni se publica hasta que pulses Enter.
 
-Añade los tuyos en `actions.json`, en la carpeta de caché. `▸ Editar botones`, al final de la bandeja, muestra su ruta, y `Añadir botón` pide a Claude que escriba uno contigo.
+Añade los tuyos en `actions.json`, en la carpeta de caché. `/review-inbox buttons` muestra su ruta, lo que contiene y las entradas omitidas, y `/review-inbox add-button` pide a Claude que escriba uno contigo.
 
 ```json
 {
@@ -115,7 +115,7 @@ Añade los tuyos en `actions.json`, en la carpeta de caché. `▸ Editar botones
 }
 ```
 
-`scope` es `review`, `pr` o `issue`. El prompt puede usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como en gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; si la tarjeta no tiene valor para una, queda vacía. Un botón con el id de uno integrado lo sustituye, y `"hidden": true` lo quita. Una entrada a la que le falta un campo, o con un scope o una variable desconocidos, se deja fuera y aparece en `Editar botones` con el motivo; el resto sigue funcionando. `PrTitle` y `Author` llegan de GitHub tal como están escritos, así que un prompt que los usa pasa a Claude texto escrito por otra persona.
+`scope` es `review`, `pr` o `issue`. El prompt puede usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como en gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; si la tarjeta no tiene valor para una, queda vacía. Un botón con el id de uno integrado lo sustituye, y `"hidden": true` lo quita. Una entrada a la que le falta un campo, o con un scope o una variable desconocidos, se deja fuera; la bandeja avisa de ello al final, y `/review-inbox buttons` la muestra con el motivo. El resto sigue funcionando. `PrTitle` y `Author` llegan de GitHub tal como están escritos, así que un prompt que los usa pasa a Claude texto escrito por otra persona.
 
 ### Acciones directas en GitHub
 

@@ -18,7 +18,7 @@ Oberfläche und Zusammenfassungen gibt es in neun Sprachen; siehe [Sprache](#spr
 
 Jeder Tab fasst seine Karten nach Kategorien zusammen. Ein Druck auf die Überschrift einer Kategorie klappt sie zu, ein weiterer klappt sie auf. `N ausgeblendet · alle anzeigen` oben im Tab zeigt nur die ausgeblendeten Karten dieses Tabs wieder an.
 
-`Notiz` auf einer Karte schreibt eine Zeile über ihren Titel: was Sie geprüft haben oder was Sie wann vorhaben. `Speichern` lässt die Karte sichtbar. `Bis morgen zurückstellen` und `Bis nächste Woche zurückstellen` blenden sie bis morgen oder nächsten Montag um 9 Uhr aus, oder früher, wenn es Neues gibt: einen neuen Commit in einer Review-Anfrage, einen neuen Zustand oder ein neues Review auf Ihrem PR, neue Aktivität in einem Issue. Eine Benachrichtigung meldet die zurückgekehrte Karte mit ihrer Notiz. `Löschen` entfernt die Notiz.
+`Notiz` unter `▸ Mehr` einer Karte schreibt eine Zeile über ihren Titel: was Sie geprüft haben oder was Sie wann vorhaben. `Speichern` lässt die Karte sichtbar. `Bis morgen zurückstellen` und `Bis nächste Woche zurückstellen` blenden sie bis morgen oder nächsten Montag um 9 Uhr aus, oder früher, wenn es Neues gibt: einen neuen Commit in einer Review-Anfrage, einen neuen Zustand oder ein neues Review auf Ihrem PR, neue Aktivität in einem Issue. Eine Benachrichtigung meldet die zurückgekehrte Karte mit ihrer Notiz. `Löschen` entfernt die Notiz.
 
 Das Suchfeld oben durchsucht alle Tabs auf einmal: Repository, Nummer, Titel, Autor, die ersten 2.000 Zeichen der Beschreibung, die Zusammenfassung und Ihre Notizen. Ausgeblendete und zurückgestellte Karten werden ebenfalls gefunden und als `ausgeblendet` markiert. Leeren Sie das Feld, um zu den Tabs zurückzukehren. Die mobile Claude-App zeichnet noch keine Textfelder; dort werden Notizen angezeigt, aber Suche und `Notiz` fehlen.
 
@@ -37,7 +37,7 @@ Wenn nichts Ihr Zutun erfordert (keine Review-Anfrage, kein PR mit etwas zu tun,
 Eine Karte pro PR, der auf Ihr Review wartet: eine Zusammenfassung in einem Satz, der Grund für den PR, seine Auswirkungen, Größe und Autor sowie die Zeit, seit der Ihr Review aussteht. Riskante Punkte wie eine Schemaänderung oder eine vorgeschriebene Deploy-Reihenfolge werden mit ⚠️ markiert.
 
 - `Reviewen` markiert die Karte als `Hinzugefügt` und lässt das Panel geöffnet, sodass Sie mehrere PRs auswählen können. Wenn Sie das Panel schließen (Esc oder ×), wird für jeden hinzugefügten PR eine Review-Anfrage in Ihren Prompt eingefügt, samt Warnhinweisen und den Änderungen seit Ihrem letzten Review. Gesendet wird erst, wenn Sie Enter drücken. Ein PR, für den Ihr bereits eingegebener Text schon eine Anfrage enthält, erscheint beim Öffnen des Panels als `Hinzugefügt`.
-- `Ausblenden` blendet die Karte aus, bis der PR einen neuen Commit erhält.
+- `Ausblenden` unter `▸ Mehr`, neben `Notiz`, blendet die Karte aus, bis der PR einen neuen Commit erhält.
 - `erneut angefragt` kennzeichnet einen PR, den Sie bereits reviewt haben und der Sie erneut anfragt, mit einer kurzen Zusammenfassung der Änderungen seit Ihrem letzten Review.
 - Die Karten sind in direkte Anfragen, Team-Anfragen und Entwürfe gruppiert.
 
@@ -71,7 +71,7 @@ Ein Ihnen zugewiesenes Issue hat eine Schaltfläche `Daran arbeiten`, die genaus
 
 Suchen, die Sie selbst benennen, jede ein Abschnitt mit ihrer Anzahl und den 20 zuletzt geänderten Treffern. Ein Titel öffnet diesen PR oder dieses Issue auf GitHub, und `N weitere auf GitHub` öffnet dort die ganze Suche. Drei sind eingebaut, wie im PR-Posteingang von GitHub: `Betrifft mich` (offene PRs, an denen Sie beteiligt sind, die Sie aber nicht eröffnet haben), `Von mir reviewt, noch offen` und `Meine offenen Issues`. Ein Klick auf die Überschrift eines Abschnitts klappt ihn ein. Die Suchen laufen bei jeder Aktualisierung, drei gleichzeitig; eine, die fehlschlägt, zeigt den Grund und lässt die anderen unberührt. Keine Modellaufrufe.
 
-Eigene Suchen tragen Sie unter `groups` in dieselbe `actions.json` ein wie die Kartenschaltflächen; `Suchgruppe hinzufügen` unter `Schaltflächen bearbeiten` bittet Claude, eine mit Ihnen zu schreiben.
+Eigene Suchen tragen Sie unter `groups` in dieselbe `actions.json` ein wie die Kartenschaltflächen; `/review-inbox add-search` bittet Claude, eine mit Ihnen zu schreiben.
 
 ```json
 {
@@ -82,7 +82,7 @@ Eigene Suchen tragen Sie unter `groups` in dieselbe `actions.json` ein wie die K
 }
 ```
 
-`query` ist GitHub-Suchsyntax. `scope` ist `prs` oder `issues`: Es fügt `is:pr` bzw. `is:issue` hinzu, sofern die Suche die Art nicht schon nennt, und `sort:updated-desc` wird ergänzt, sofern sie kein eigenes `sort:` hat. Die Einstellung `scope` und `Dieses Repository` schränken diese Suchen nicht ein; schreiben Sie dafür `org:` oder `repo:` in die Suche. `"countInBand": true` zählt die Anzahl der Gruppe als `Suchen N` in der Leiste mit. Eine Gruppe mit einer eingebauten id ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld oder unbekanntem scope wird ausgelassen und unter `Schaltflächen bearbeiten` mit dem Grund aufgeführt. Nur die ersten 15 Gruppen werden durchsucht.
+`query` ist GitHub-Suchsyntax. `scope` ist `prs` oder `issues`: Es fügt `is:pr` bzw. `is:issue` hinzu, sofern die Suche die Art nicht schon nennt, und `sort:updated-desc` wird ergänzt, sofern sie kein eigenes `sort:` hat. Die Einstellung `scope` und `Dieses Repository` schränken diese Suchen nicht ein; schreiben Sie dafür `org:` oder `repo:` in die Suche. `"countInBand": true` zählt die Anzahl der Gruppe als `Suchen N` in der Leiste mit. Eine Gruppe mit einer eingebauten id ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld oder unbekanntem scope wird ausgelassen; das Panel warnt unten davor, und `/review-inbox buttons` führt ihn mit dem Grund auf. Nur die ersten 15 Gruppen werden durchsucht.
 
 ### Aktivität
 
@@ -102,9 +102,9 @@ Wird Ihr PR genehmigt und läuft keine CI mehr, erscheint einmal `Bereit zum Mer
 
 ### Schaltflächen auf Karten
 
-`▸ Mehr` auf einer Karte öffnet eine Reihe von Schaltflächen, die die Karte jeweils mit einer vorbereiteten Anfrage an Claude übergeben: `Risiken zusammenfassen`, `Diff erklären` und `Freigabe-Kommentar entwerfen` bei einer Review-Anfrage, `Antwort an Reviewer entwerfen` und `CI-Fehler untersuchen` bei Ihrem PR. Eine Schaltfläche fügt die Karte hinzu wie `Reviewen`, und die Anfrage landet in Ihrem Prompt, wenn Sie das Panel schließen. Bis Sie Enter drücken, wird nichts ausgeführt und nichts gepostet.
+`▸ Mehr` auf einer Karte öffnet `Notiz` und `Ausblenden`, danach Schaltflächen, die die Karte jeweils mit einer vorbereiteten Anfrage an Claude übergeben: `Risiken zusammenfassen`, `Diff erklären` und `Freigabe-Kommentar entwerfen` bei einer Review-Anfrage, `Antwort an Reviewer entwerfen` und `CI-Fehler untersuchen` bei Ihrem PR. Eine Schaltfläche fügt die Karte hinzu wie `Reviewen`, und die Anfrage landet in Ihrem Prompt, wenn Sie das Panel schließen. Bis Sie Enter drücken, wird nichts ausgeführt und nichts gepostet.
 
-Eigene Schaltflächen legen Sie in `actions.json` im Cache-Ordner an. `▸ Schaltflächen bearbeiten` unten im Panel zeigt den Pfad, und `Schaltfläche hinzufügen` bittet Claude, mit Ihnen eine zu schreiben.
+Eigene Schaltflächen legen Sie in `actions.json` im Cache-Ordner an. `/review-inbox buttons` zeigt den Pfad, den Inhalt und ausgelassene Einträge, und `/review-inbox add-button` bittet Claude, mit Ihnen eine zu schreiben.
 
 ```json
 {
@@ -115,7 +115,7 @@ Eigene Schaltflächen legen Sie in `actions.json` im Cache-Ordner an. `▸ Schal
 }
 ```
 
-`scope` ist `review`, `pr` oder `issue`. Der Prompt kann `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl` verwenden, geschrieben wie in gh-dash als `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; eine Variable, für die die Karte keinen Wert hat, bleibt leer. Eine Schaltfläche mit der id einer eingebauten ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld, unbekanntem scope oder unbekannter Variable wird ausgelassen und unter `Schaltflächen bearbeiten` mit dem Grund aufgeführt; der Rest funktioniert weiter. `PrTitle` und `Author` kommen so von GitHub, wie sie dort stehen; ein Prompt, der sie verwendet, gibt also Text anderer Leute an Claude weiter.
+`scope` ist `review`, `pr` oder `issue`. Der Prompt kann `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl` verwenden, geschrieben wie in gh-dash als `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; eine Variable, für die die Karte keinen Wert hat, bleibt leer. Eine Schaltfläche mit der id einer eingebauten ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld, unbekanntem scope oder unbekannter Variable wird ausgelassen; das Panel warnt unten davor, und `/review-inbox buttons` führt ihn mit dem Grund auf. Der Rest funktioniert weiter. `PrTitle` und `Author` kommen so von GitHub, wie sie dort stehen; ein Prompt, der sie verwendet, gibt also Text anderer Leute an Claude weiter.
 
 ### Direkte GitHub-Aktionen
 
