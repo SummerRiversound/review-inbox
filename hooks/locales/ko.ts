@@ -19,6 +19,7 @@ export const ko: Messages = {
     mine: n => `내 PR ${n}`,
     issues: n => `내 이슈 ${n}`,
     searches: n => `검색 ${n}`,
+    activity: n => `활동 ${n}`,
   },
   card: {
     rerequest: '재요청',
@@ -75,6 +76,7 @@ export const ko: Messages = {
     mine: '열려 있는 내 PR이 없습니다.',
     issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
     searches: "검색 그룹이 없습니다. 버튼 편집에서 추가하세요.",
+    activity: "다른 알림이 없습니다. 리뷰 요청, 할당, 언급은 다른 탭에 있습니다.",
   },
   sections: {
     here: n => `이 저장소 ${n}`,
@@ -155,6 +157,16 @@ export const ko: Messages = {
     failed: message => `검색 실패: ${message}`,
     more: n => `GitHub에서 ${n}개 더 보기`,
     tooMany: n => `처음 15개를 넘는 검색 그룹 ${n}개는 빠졌습니다`,
+  },
+  activity: {
+    reasons: { comment: "댓글", state_change: "상태 변경", author: "내가 연 항목", team_mention: "팀 언급", security_alert: "보안 경고" },
+    done: "완료",
+    unsubscribe: "구독 해제",
+    wasDone: "완료함",
+    wasUnsubscribed: "구독 해제함",
+    undo: "되돌리기",
+    failed: message => `알림을 바꾸지 못했습니다: ${message}`,
+    noAccess: "알림을 읽을 권한이 없습니다. GitHub는 gh 로그인이나 classic 토큰에만 알림을 줍니다. gh auth login 또는 gh auth refresh -s notifications를 실행하세요.",
   },
   prompt: {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,

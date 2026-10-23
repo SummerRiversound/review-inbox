@@ -22,6 +22,7 @@ export const fr: Messages = {
     mine: n => `Mes PR ${n}`,
     issues: n => `Mes issues ${n}`,
     searches: n => `Recherches ${n}`,
+    activity: n => `Activité ${n}`,
   },
   card: {
     rerequest: 'revue redemandée',
@@ -78,6 +79,7 @@ export const fr: Messages = {
     mine: "Vous n'avez aucune PR ouverte.",
     issues: 'Aucune issue ne vous est assignée ni ne vous mentionne.',
     searches: "Aucun groupe de recherche. Ajoutez-en un dans Modifier les boutons.",
+    activity: "Aucune autre notification. Les demandes de revue, attributions et mentions sont dans les autres onglets.",
   },
   sections: {
     here: n => `Ce dépôt ${n}`,
@@ -158,6 +160,16 @@ export const fr: Messages = {
     failed: message => `La recherche a échoué : ${message}`,
     more: n => `${n} de plus sur GitHub`,
     tooMany: n => `${n} groupes de recherche au-delà des 15 premiers sont laissés de côté`,
+  },
+  activity: {
+    reasons: { comment: "Commentaire", state_change: "Changement d'état", author: "Ouvert par vous", team_mention: "Équipe mentionnée", security_alert: "Alerte de sécurité" },
+    done: "Terminé",
+    unsubscribe: "Se désabonner",
+    wasDone: "Terminé",
+    wasUnsubscribed: "Désabonné",
+    undo: "Annuler",
+    failed: message => `Impossible de modifier la notification : ${message}`,
+    noAccess: "Pas d'accès aux notifications. GitHub ne les donne qu'à la connexion de gh ou à un jeton classique : lancez gh auth login ou gh auth refresh -s notifications.",
   },
   prompt: {
     addButton: (path, names) => `Ajoute un bouton à ma boîte de réception de revues en modifiant ${path} ; crée-le sous la forme {"buttons": []} s'il n'existe pas. Chaque entrée est {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, et le prompt peut utiliser ${names} sous la forme {{.Name}}. Demande-moi d'abord ce que le bouton doit faire.`,

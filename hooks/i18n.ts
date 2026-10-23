@@ -30,6 +30,7 @@ const en = {
     mine: (n: string) => `My PRs ${n}`,
     issues: (n: string) => `My issues ${n}`,
     searches: (n: string) => `Searches ${n}`,
+    activity: (n: string) => `Activity ${n}`,
   },
   card: {
     rerequest: 're-requested',
@@ -86,6 +87,7 @@ const en = {
     mine: 'You have no open PRs.',
     issues: 'No issues are assigned to you or mention you.',
     searches: "No search groups. Add one under Edit buttons.",
+    activity: "No other notifications. Review requests, assignments and mentions are on the other tabs.",
   },
   sections: {
     here: (n: number) => `This repo ${n}`,
@@ -166,6 +168,16 @@ const en = {
     failed: (message: string) => `Search failed: ${message}`,
     more: (n: number) => `${n} more on GitHub`,
     tooMany: (n: number) => `${n} search groups past the first 15 are left out`,
+  },
+  activity: {
+    reasons: { comment: "Comment", state_change: "State changed", author: "You opened it", team_mention: "Team mentioned", security_alert: "Security alert" },
+    done: "Done",
+    unsubscribe: "Unsubscribe",
+    wasDone: "Done",
+    wasUnsubscribed: "Unsubscribed",
+    undo: "Undo",
+    failed: (message: string) => `Could not update the notification: ${message}`,
+    noAccess: "No access to notifications. GitHub gives them only to gh's own sign-in or a classic token: run gh auth login, or gh auth refresh -s notifications.",
   },
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,

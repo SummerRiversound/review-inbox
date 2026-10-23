@@ -7,7 +7,7 @@
 Un mod pour [Claude Code](https://claude.com/claude-code) qui garde votre travail GitHub sous les yeux pendant que vous codez : les pull requests qui attendent votre revue, chacune résumée en langage clair avant même que vous l'ouvriez, vos propres PR ouvertes et les revues qu'elles reçoivent, et les issues qui vous sollicitent.
 
 - **Bandeau au-dessus du prompt** — une seule ligne qui ne compte que ce qui vous attend : les PR en attente de votre revue, vos PR à traiter, et les issues qui vous sont assignées ou qui vous mentionnent. Sa couleur indique depuis combien de temps attend la plus ancienne demande de revue (jaune à partir de 3 jours, rouge à partir de 14). `Ouvrir` ouvre la boîte de réception. Quand un nombre baisse, il passe au vert un instant.
-- **Boîte de réception des revues** — `/review-inbox`, avec trois onglets : Revues à faire, Mes PR et Mes issues.
+- **Boîte de réception des revues** — `/review-inbox`, avec cinq onglets : Revues à faire, Mes PR, Mes issues, Recherches et Activité.
 - **Notifications** — un court message quand quelque chose de nouveau arrive pendant que vous travaillez.
 
 ![Le bandeau au-dessus du prompt, puis les trois onglets de la boîte de réception : Revues à faire, Mes PR et Mes issues](docs/images/en/overview.gif)
@@ -81,6 +81,14 @@ Ajoutez les vôtres sous `groups`, dans le même `actions.json` que les boutons 
 ```
 
 `query` suit la syntaxe de recherche de GitHub. `scope` vaut `prs` ou `issues` : il ajoute `is:pr` ou `is:issue` sauf si la requête le précise déjà, et `sort:updated-desc` est ajouté sauf si elle a son propre `sort:`. Le réglage `scope` et `Ce dépôt` ne restreignent pas ces recherches ; écrivez `org:` ou `repo:` dans la requête pour cela. `"countInBand": true` ajoute le nombre du groupe à la barre sous la forme `Recherches N`. Un groupe avec un id fourni le remplace, et `"hidden": true` le retire. Une entrée avec un champ manquant ou un scope inconnu est écartée et listée sous `Modifier les boutons` avec la raison. Seuls les 15 premiers groupes sont recherchés.
+
+### Activité
+
+Vos notifications GitHub qu'aucun autre onglet ne montre déjà, les plus récentes d'abord : commentaires, changements d'état et nouvelle activité sur les fils que vous avez ouverts ou auxquels vous participez, mentions d'équipe et alertes de sécurité. Les demandes de revue, attributions et mentions n'y figurent pas, pas plus que les fils dont la PR ou l'issue est déjà une carte. Un fil non lu est marqué `●`, et l'onglet aussi tant qu'il en reste un. Jusqu'à 100 notifications des 30 derniers jours sont lues.
+
+`Terminé` et `Se désabonner` retirent la ligne tout de suite et laissent `Terminé · Annuler` ou `Désabonné · Annuler` à sa place pendant 10 secondes ; fermer la boîte avant les envoie aussitôt. Ensuite `Terminé` marque le fil comme terminé sur GitHub, comme la boîte de réception de GitHub, et `Se désabonner` coupe en plus ses notifications jusqu'à ce que quelqu'un vous mentionne ou que vous commentiez. Un fil terminé revient quand il a une nouvelle activité. En cas d'échec, la ligne revient avec la raison. Aucun appel au modèle.
+
+GitHub ne donne les notifications qu'à la connexion de gh et aux jetons classiques. Sans accès, l'onglet le dit et indique comment l'obtenir (`gh auth login` ou `gh auth refresh -s notifications`).
 
 ### Notifications
 
@@ -195,7 +203,7 @@ Le mod n'accède à GitHub que par votre propre `gh`, envoie le texte des PR à 
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Exécute `gh`** : `gh api graphql` pour les listes et, une fois par semaine, pour vos commentaires de revue récents ; `gh api repos/<owner>/<repo>/compare/<from>...<to>` pour une PR dont la revue est redemandée, et `gh auth token -u <githubUser>` quand `githubUser` est défini. Le mod ne fait aucun autre appel réseau de lui-même.
+- **Exécute `gh`** : `gh api graphql` pour les listes et, une fois par semaine, pour vos commentaires de revue récents ; `gh api repos/<owner>/<repo>/compare/<from>...<to>` pour une PR dont la revue est redemandée, et `gh auth token -u <githubUser>` quand `githubUser` est défini. Pour l'onglet Activité, il lance `gh api notifications` et, quand vous appuyez sur `Terminé` ou `Se désabonner`, `gh api -X DELETE notifications/threads/<id>` (précédé de `/subscription` pour un désabonnement). Le mod ne fait aucun autre appel réseau de lui-même.
 - **Exécute `git`** dans le dossier de la session toutes les 30 secondes : `git branch --show-current` et `git remote -v`, pour trouver une session sur la branche de votre PR, et `git rev-parse --path-format=absolute --git-common-dir`, pour retenir le dossier principal de ce dépôt.
 - **Interroge Claude** (le modèle `sonnet`) pour chaque résumé, en envoyant le nom du dépôt de la PR, son titre, sa description (les 12 000 premiers caractères), les chemins des fichiers modifiés (jusqu'à 80) et sa taille ; pour une PR dont la revue est redemandée, également la première ligne de chaque message de commit et jusqu'à 60 chemins de fichiers depuis votre dernière revue. Cette consommation est décomptée de votre utilisation de Claude Code. Chaque PR est résumée une fois par commit de tête et par langue ; un résumé qui échoue est tenté au plus trois fois par commit. Une fois par semaine, le mod envoie aussi vos propres commentaires de revue sur jusqu'à 30 PR dont vous avez récemment fait la revue, chacun tronqué à 500 caractères, 60 commentaires et 12 000 caractères au total au maximum, pour décrire votre style de revue ; s'il y en a moins de cinq, rien n'est envoyé.
 - **Écrit des fichiers** uniquement dans son dossier de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` remplace `~/.claude` s'il est défini). `inbox-<hash>.json` contient les listes et les résumés ; `hidden-<hash>.json`, les PR masquées ; `notes-<hash>.json`, vos notes et reports, un fichier par compte et périmètre quelle que soit la langue ; `sessions.json`, le dossier, la branche, les dépôts distants GitHub et les liens de PR des prompts de chaque session active, un seul pour tous les comptes ; `repos.json`, le dossier principal de chaque dépôt GitHub où une session a été ouverte, pour les boutons d'étape suivante ; `style-<hash>.json`, la description de votre style de revue. Chaque fichier est d'abord écrit à côté, puis mis en place avec `mv`, pour qu'aucune session ne lise un fichier à moitié écrit ; là où `mv` n'existe pas, comme sous Windows, il est écrit directement. Il y lit `actions.json` si vous en avez créé un, et ne l'écrit jamais.
@@ -217,6 +225,7 @@ Une seule recherche GraphQL renvoie toutes les PR en attente de votre revue avec
 
 - Au plus 100 PR en attente de votre revue, dans l'ordre de pertinence (best match) de GitHub. Les autres onglets lisent jusqu'à 100 de vos PR ouvertes, 100 issues assignées et 100 issues qui vous mentionnent, ainsi que les références provenant de 500 éléments récemment actifs au maximum, chaque fois en commençant par l'activité la plus récente. Quand une liste en contient davantage, son nombre s'affiche `100+`. Chaque liste est lue par 25, et une page sur laquelle GitHub dépasse son délai est redemandée avec une taille moitié moindre ; un compte avec beaucoup de PR reste ainsi dans la limite de temps de GitHub.
 - Un groupe de recherche montre ses 20 résultats les plus récemment mis à jour ; son nombre est le total que GitHub donne pour la recherche.
+- L'onglet Activité lit jusqu'à 100 notifications des 30 derniers jours et n'interroge pas plus souvent que l'intervalle fixé par GitHub.
 - Une référence à un élément auquel vous n'avez pas touché depuis 60 jours passe inaperçue.
 - `Nouvelle revue` disparaît à chaque nouveau commit sur la PR, y compris un commit créé par le bouton « Update branch » de GitHub ou par un bot.
 - Après un force-push qui a réécrit le commit dont vous aviez fait la revue, une PR dont la revue est redemandée n'affiche pas de ligne « Depuis ma dernière revue ».
