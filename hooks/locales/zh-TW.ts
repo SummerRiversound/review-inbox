@@ -3,7 +3,7 @@ import type { Messages } from '../i18n'
 export const zhTW: Messages = {
   title: '審查收件匣',
   command: {
-    description: '開啟審查收件匣：等待我審查的 PR、我的 PR 和我的議題',
+    description: '開啟審查收件匣：等待我審查的 PR、我的 PR，以及指派給我或提及我的議題',
     opened: '已開啟審查收件匣。',
     filled: '已放入提示框，按 Enter 送出。',
   },
@@ -11,16 +11,16 @@ export const zhTW: Messages = {
     open: '開啟',
     reviews: n => `待審查 ${n}`,
     prTodo: n => `我的 PR 待處理 ${n}`,
-    issues: n => `我的議題 ${n}`,
-    searches: n => `搜尋 ${n}`,
+    issues: n => `指派與提及 ${n}`,
+    searches: n => `已儲存的搜尋 ${n}`,
     oldest: days => ` · 最久已等待 ${days} 天`,
   },
   tabs: {
     review: n => `待審查 ${n}`,
     mine: n => `我的 PR ${n}`,
-    issues: n => `我的議題 ${n}`,
+    issues: n => `指派與提及 ${n}`,
     searches: '已儲存的搜尋',
-    activity: n => `動態 ${n}`,
+    activity: n => `GitHub 通知 ${n}`,
   },
   card: {
     rerequest: '已重新請求',
@@ -34,7 +34,7 @@ export const zhTW: Messages = {
     impact: '影響範圍',
     size: (files, added, removed) => `${files} 個檔案 (+${added} −${removed})`,
     hide: '隱藏',
-    review: '審查',
+    review: '請 Claude 審查',
     added: '已加入',
     task: {
       changes: '處理留言',
@@ -78,7 +78,7 @@ export const zhTW: Messages = {
     review: '目前沒有等待您審查的 PR。',
     mine: '您目前沒有開啟的 PR。',
     issues: '沒有指派給您或提及您的議題。',
-    searches: "沒有搜尋群組。請用 /review-inbox add-search 新增。",
+    searches: "沒有已儲存的搜尋。請用 /review-inbox add-search 新增。",
     activity: "沒有其他通知。審查請求、指派和提及在其他分頁中。",
   },
   sections: {
@@ -131,9 +131,9 @@ export const zhTW: Messages = {
     by: who => `來自 ${who} 的新審查`,
   },
   buttons: {
-    more: "更多",
+    more: "動作",
     none: "還沒有自己的按鈕，目前只顯示內建按鈕。",
-    counts: (buttons, groups) => `我的按鈕 ${buttons} 個，搜尋群組 ${groups} 個`,
+    counts: (buttons, groups) => `我的按鈕 ${buttons} 個，已儲存的搜尋 ${groups} 個`,
     how: "輸入 /review-inbox add-button 或 /review-inbox add-search，與 Claude 一起撰寫。",
     hint: "詳情：/review-inbox buttons",
     file: path => `我的按鈕：${path}`,
@@ -144,8 +144,8 @@ export const zhTW: Messages = {
       fields: "需要 id、name 和 prompt",
       scope: scope => `scope "${scope}" 不是 review、pr 或 issue`,
       variables: names => `未知變數 ${names}`,
-      groupFields: "搜尋群組需要 id、name 和 query",
-      groupScope: scope => `搜尋群組的 scope "${scope}" 不是 prs 或 issues`,
+      groupFields: "已儲存的搜尋需要 id、name 和 query",
+      groupScope: scope => `已儲存的搜尋的 scope "${scope}" 不是 prs 或 issues`,
     },
     builtIn: {
       "summarize-risks": { name: "摘要風險", prompt: "摘要 {{.PrUrl}} 的風險：用 `gh pr diff {{.PrUrl}}` 讀取 diff，列出可能會對誰造成什麼破壞，以及應該先測試什麼。不要做任何修改。" },
@@ -160,7 +160,7 @@ export const zhTW: Messages = {
     none: "沒有找到。",
     failed: message => `搜尋失敗：${message}`,
     more: n => `在 GitHub 上還有 ${n} 個`,
-    tooMany: n => `超出前 15 個的 ${n} 個搜尋群組未顯示`,
+    tooMany: n => `超出前 15 個的 ${n} 個已儲存的搜尋未顯示`,
   },
   activity: {
     reasons: { comment: "留言", state_change: "狀態變更", author: "我建立的", team_mention: "團隊被提及", security_alert: "安全性警示", ci_activity: "CI 執行" },
@@ -187,7 +187,7 @@ export const zhTW: Messages = {
   },
   prompt: {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,
-    addGroup: path => `幫我的審查收件匣新增一個搜尋群組：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,
+    addGroup: path => `幫我的審查收件匣新增一個已儲存的搜尋：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,
     review: url => `幫我審查一下 ${url}。`,
     check: '請特別檢查：',
     since: '我上次審查後的變更：',
