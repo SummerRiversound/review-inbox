@@ -6,7 +6,7 @@
 
 A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
 
-- **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer.
+- **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer. A count that goes down shows in green for a moment.
 - **Drawer** — `/review-inbox`, with three tabs: To review, My PRs and My issues.
 - **Toasts** — a short notice when something new arrives while you work.
 
@@ -23,6 +23,12 @@ Each tab groups its cards into categories. Press a category's header to fold it,
 The search field at the top looks through every tab at once: repository, number, title, author, the first 2,000 characters of the description, the summary and your notes. Hidden and snoozed cards are found too, marked `hidden`. Empty the field to go back to the tabs. The Claude mobile app draws no text fields yet, so there it shows notes but has no search and no `Note`.
 
 Cards a session is working on gather under `In progress in a session` at the top of To review and My PRs, with the session's folder name, or `this session`. My PR counts when a session's folder is checked out on its branch in its repository; any card counts once a prompt in that session links to it, as `Review` does. A session that is closed, or has not checked in for 10 minutes, lets its cards go back to their groups.
+
+Cards from this session's repository come first in every group, tagged `this repo`. When the tabs also hold other repositories, `This repo N` and `All N` above the tabs narrow them to this repository or show everything again; the band always counts everything. This session's repository is the one `GH_REPO` names, as `gh` reads it, else the folder's GitHub remotes.
+
+Under its title a card shows up to two labels and how many more, its comment count and, for a PR, `→ base` when it targets a branch other than the repository's default.
+
+When nothing needs you (no review request, none of your PRs to act on, no issue assigned to you or mentioning you), the drawer says `✓ Nothing needs you` above the tabs, and the band stays hidden.
 
 ### To review
 
@@ -63,6 +69,8 @@ An issue assigned to you has a `Work on this` button that works the same way: Cl
 
 A new review request, a new review on one of your PRs, one of your PRs turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A session's first look announces nothing. When several arrive at once, they show one after another, 4.5 seconds apart.
 
+Your PR turning approved with no CI running shows `Ready to merge` once.
+
 ![Three toasts in turn below the prompt: a new review request, changes requested on your PR, and a new mention](docs/images/en/toasts.gif)
 
 ## Requirements
@@ -101,6 +109,9 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `scope` | empty | GitHub search qualifiers added to every search (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Empty means all of GitHub. |
 | `githubUser` | empty | The `gh` account to use when several are logged in (`gh auth token -u <user>`). Empty uses the active account. |
 | `language` | `auto` | `auto`, or one of the codes in [Language](#language). |
+| `refreshMinutes` | `10` | Minutes between fetches from GitHub: 5, 10, 15, 30 or 60. All sessions share one fetch. |
+| `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
+| `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
 
 `scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
 
@@ -113,6 +124,13 @@ user:my-username
 ```
 
 Repeated `org:`, `repo:` and `user:` qualifiers match any of them. A team review request counts as a request for you, as GitHub's `review-requested:@me` defines it.
+
+`repoPaths` takes comma-separated `owner/repo=path` entries. `owner/*=path/*` covers every repository of an owner, with `*` in the path standing for the repository's name; an exact name wins over a wildcard, and `~` is your home folder. A folder named here wins over the session's own folder and the ones the mod remembers.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Language
 
@@ -147,8 +165,8 @@ The mod reaches GitHub only through your own `gh`, sends PR text to Claude to wr
 - **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch, and `git rev-parse --path-format=absolute --git-common-dir`, to remember the main folder of that repository.
 - **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
 - **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, branch, GitHub remotes and the PR links its prompts held, for every account; `repos.json` holds the main folder of each GitHub repository a session has run in, for the next-step buttons; `style-<hash>.json` holds the description of your review style. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place.
-- **Reads environment variables**: `CLAUDE_CONFIG_DIR`, `HOME` and `USERPROFILE` to find that folder; `LC_ALL`, `LC_MESSAGES` and `LANG` only when `language` is `auto`. It sets none.
-- **Reads Claude Code settings** only when `language` is `auto`, and uses only the `language` key.
+- **Reads environment variables**: `CLAUDE_CONFIG_DIR`, `HOME` and `USERPROFILE` to find that folder; `GH_REPO` to know this session's repository, as `gh` does; `LC_ALL`, `LC_MESSAGES` and `LANG` only when `language` is `auto`. It sets none.
+- **Reads Claude Code settings**: the `language` key only when `language` is `auto`, and the `prefersReducedMotion` key only when `motion` is `auto`.
 - **Reads and fills your prompt** only around the drawer: it reads the draft when the drawer opens, to mark the PRs it already asks for, and when the drawer closes it adds the requests for the PRs you added, on new lines after the draft.
 
 ## How it works
@@ -158,6 +176,8 @@ All your open sessions share one fetch: one session asks GitHub at most every 10
 Every open Claude Code session runs the mod, but they share one cache file per account, scope and language, and so do hidden PRs. Each session reads it every 30 seconds. Only the session that finds it older than 10 minutes and wins a short claim calls GitHub, so ten open sessions make one request. The fetching session renews its claim while it works; a claim not renewed for 3 minutes is taken over. A failed fetch keeps the last good lists and is retried after a minute. `↻` in the drawer fetches right away.
 
 One GraphQL search returns every PR waiting for your review with what the cards need, and one more request with three searches fills My PRs and My issues. References come from the cross-reference events on the PRs and issues you authored. GitHub does not update an item's `updatedAt` when something references it, so items touched in the last 60 days are checked for references made in the last 30, 50 items per request. If GitHub refuses the reference search (it has a per-query resource limit), the last references are kept and the other tabs still update.
+
+`refreshMinutes` changes those 10 minutes.
 
 ## Limits
 

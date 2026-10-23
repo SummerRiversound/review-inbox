@@ -42,6 +42,8 @@ export const zhCN: Messages = {
     at: path => `在 ${path}`,
     noClone: '没有本地克隆',
     ciRunning: ' · CI 运行中',
+    thisRepo: '此仓库',
+    comments: n => `${n} 条评论`,
     newReview: who => `新审查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
   },
@@ -65,11 +67,14 @@ export const zhCN: Messages = {
     firstFetch: '正在从 GitHub 获取数据。首次获取大约需要 1 分钟。',
   },
   empty: {
+    zero: '✓ 没有需要你处理的事项',
     review: '目前没有等待你审查的 PR。',
     mine: '你目前没有打开的 PR。',
     issues: '没有分配给你或提及你的议题。',
   },
   sections: {
+    here: n => `此仓库 ${n}`,
+    all: n => `全部 ${n}`,
     session: n => `会话中正在处理 ${n}`,
     hidden: n => `已隐藏 ${n} · 全部显示`,
     direct: n => `直接请求 ${n}`,
@@ -110,6 +115,7 @@ export const zhCN: Messages = {
     retry: '请稍后再试。',
   },
   alert: {
+    ready: '可以合并',
     turned: state => `我的 PR：${state}`,
     reviewed: '我的 PR 有新审查',
     by: who => `来自 ${who} 的新审查`,

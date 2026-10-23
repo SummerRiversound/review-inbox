@@ -6,7 +6,7 @@
 
 Un mod pour [Claude Code](https://claude.com/claude-code) qui garde votre travail GitHub sous les yeux pendant que vous codez : les pull requests qui attendent votre revue, chacune résumée en langage clair avant même que vous l'ouvriez, vos propres PR ouvertes et les revues qu'elles reçoivent, et les issues qui vous sollicitent.
 
-- **Bandeau au-dessus du prompt** — une seule ligne qui ne compte que ce qui vous attend : les PR en attente de votre revue, vos PR à traiter, et les issues qui vous sont assignées ou qui vous mentionnent. Sa couleur indique depuis combien de temps attend la plus ancienne demande de revue (jaune à partir de 3 jours, rouge à partir de 14). `Ouvrir` ouvre la boîte de réception.
+- **Bandeau au-dessus du prompt** — une seule ligne qui ne compte que ce qui vous attend : les PR en attente de votre revue, vos PR à traiter, et les issues qui vous sont assignées ou qui vous mentionnent. Sa couleur indique depuis combien de temps attend la plus ancienne demande de revue (jaune à partir de 3 jours, rouge à partir de 14). `Ouvrir` ouvre la boîte de réception. Quand un nombre baisse, il passe au vert un instant.
 - **Boîte de réception des revues** — `/review-inbox`, avec trois onglets : Revues à faire, Mes PR et Mes issues.
 - **Notifications** — un court message quand quelque chose de nouveau arrive pendant que vous travaillez.
 
@@ -23,6 +23,12 @@ Chaque onglet regroupe ses cartes par catégorie. Appuyez sur l'en-tête d'une c
 Le champ de recherche, en haut, cherche dans tous les onglets à la fois : dépôt, numéro, titre, auteur, les 2 000 premiers caractères de la description, le résumé et vos notes. Les cartes masquées ou reportées sont trouvées aussi, marquées `masquée`. Videz le champ pour revenir aux onglets. L'application mobile Claude n'affiche pas encore de champ de saisie : elle y montre les notes, sans recherche ni `Note`.
 
 Les cartes sur lesquelles une session travaille se regroupent sous `En cours dans une session`, en haut de Revues à faire et Mes PR, avec le nom du dossier de la session ou `cette session`. Votre PR y figure quand le dossier d'une session a sa branche extraite dans son dépôt ; toute carte y figure dès qu'un prompt de cette session contient son lien, comme le fait `Faire la revue`. Quand une session est fermée ou ne donne plus signe de vie pendant 10 minutes, ses cartes retournent dans leurs groupes.
+
+Les cartes du dépôt de cette session passent en tête de chaque groupe, marquées `ce dépôt`. Quand les onglets contiennent aussi d'autres dépôts, `Ce dépôt N` et `Tout N`, au-dessus des onglets, les limitent à ce dépôt ou montrent de nouveau tout ; la barre compte toujours tout. Le dépôt de cette session est, comme pour `gh`, celui que nomme `GH_REPO`, sinon celui des remotes GitHub du dossier.
+
+Sous son titre, une carte affiche jusqu'à deux labels et combien d'autres il y a, son nombre de commentaires et, pour une PR, `→ branche` quand elle vise une autre branche que celle par défaut du dépôt.
+
+Quand rien n'attend votre action (aucune demande de revue, aucune de vos PR à traiter, aucune issue qui vous est assignée ou vous mentionne), la boîte de réception affiche `✓ Rien n'attend votre action` au-dessus des onglets, et la barre reste masquée.
 
 ### Revues à faire
 
@@ -63,6 +69,8 @@ Une issue qui vous est assignée a un bouton `Travailler dessus` qui fonctionne 
 
 Une nouvelle demande de revue, une nouvelle revue sur l'une de vos PR, l'une de vos PR qui passe à l'état modifications demandées, CI en échec ou conflit de fusion, et une nouvelle assignation, mention ou référence. La première consultation d'une session n'annonce rien. Quand plusieurs notifications arrivent en même temps, elles s'affichent l'une après l'autre, à quatre secondes et demie d'intervalle.
 
+Quand votre PR est approuvée sans CI en cours, `Prête à merger` s'affiche une fois.
+
 ![Trois notifications successives sous le prompt : une nouvelle demande de revue, des modifications demandées sur votre PR et une nouvelle mention](docs/images/en/toasts.gif)
 
 ## Prérequis
@@ -101,6 +109,9 @@ Les options se définissent sur l'écran d'installation et se modifient ensuite 
 | `scope` | vide | Qualificateurs de recherche GitHub ajoutés à chaque recherche (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vide : tout GitHub. |
 | `githubUser` | vide | Le compte `gh` à utiliser quand plusieurs sont connectés (`gh auth token -u <user>`). Vide : le compte actif est utilisé. |
 | `language` | `auto` | `auto`, ou l'un des codes de la section [Langue](#langue). |
+| `refreshMinutes` | `10` | Minutes entre deux récupérations depuis GitHub : 5, 10, 15, 30 ou 60. Toutes les sessions partagent une récupération. |
+| `repoPaths` | vide | Où Claude travaille sur chaque dépôt, pour les boutons d'étape suivante. Voir ci-dessous. |
+| `motion` | `auto` | `off` supprime le clignotement des nombres de la barre. `auto` le supprime aussi quand le réglage de réduction des animations de Claude Code (`prefersReducedMotion`) est activé. |
 
 `scope` accepte tout ce qu'accepte la [recherche d'issues et de PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub :
 
@@ -113,6 +124,13 @@ user:my-username
 ```
 
 Quand les qualificateurs `org:`, `repo:` et `user:` sont répétés, il suffit que l'un d'eux corresponde. Une demande de revue adressée à une équipe compte comme une demande qui vous est adressée, selon la définition de `review-requested:@me` de GitHub.
+
+`repoPaths` prend des entrées `owner/repo=chemin` séparées par des virgules. `owner/*=chemin/*` couvre tous les dépôts d'un owner, le `*` du chemin valant le nom du dépôt ; un nom exact l'emporte sur un joker, et `~` est votre dossier personnel. Un dossier indiqué ici l'emporte sur le dossier de la session et sur ceux que le mod a retenus.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Langue
 
@@ -147,8 +165,8 @@ Le mod n'accède à GitHub que par votre propre `gh`, envoie le texte des PR à 
 - **Exécute `git`** dans le dossier de la session toutes les 30 secondes : `git branch --show-current` et `git remote -v`, pour trouver une session sur la branche de votre PR, et `git rev-parse --path-format=absolute --git-common-dir`, pour retenir le dossier principal de ce dépôt.
 - **Interroge Claude** (le modèle `sonnet`) pour chaque résumé, en envoyant le nom du dépôt de la PR, son titre, sa description (les 12 000 premiers caractères), les chemins des fichiers modifiés (jusqu'à 80) et sa taille ; pour une PR dont la revue est redemandée, également la première ligne de chaque message de commit et jusqu'à 60 chemins de fichiers depuis votre dernière revue. Cette consommation est décomptée de votre utilisation de Claude Code. Chaque PR est résumée une fois par commit de tête et par langue ; un résumé qui échoue est tenté au plus trois fois par commit. Une fois par semaine, le mod envoie aussi vos propres commentaires de revue sur jusqu'à 30 PR dont vous avez récemment fait la revue, chacun tronqué à 500 caractères, 60 commentaires et 12 000 caractères au total au maximum, pour décrire votre style de revue ; s'il y en a moins de cinq, rien n'est envoyé.
 - **Écrit des fichiers** uniquement dans son dossier de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` remplace `~/.claude` s'il est défini). `inbox-<hash>.json` contient les listes et les résumés ; `hidden-<hash>.json`, les PR masquées ; `notes-<hash>.json`, vos notes et reports, un fichier par compte et périmètre quelle que soit la langue ; `sessions.json`, le dossier, la branche, les dépôts distants GitHub et les liens de PR des prompts de chaque session active, un seul pour tous les comptes ; `repos.json`, le dossier principal de chaque dépôt GitHub où une session a été ouverte, pour les boutons d'étape suivante ; `style-<hash>.json`, la description de votre style de revue. Chaque fichier est d'abord écrit à côté, puis mis en place avec `mv`, pour qu'aucune session ne lise un fichier à moitié écrit ; là où `mv` n'existe pas, comme sous Windows, il est écrit directement.
-- **Lit des variables d'environnement** : `CLAUDE_CONFIG_DIR`, `HOME` et `USERPROFILE` pour trouver ce dossier ; `LC_ALL`, `LC_MESSAGES` et `LANG` seulement quand `language` vaut `auto`. Il n'en définit aucune.
-- **Lit les réglages de Claude Code** seulement quand `language` vaut `auto`, et n'utilise que la clé `language`.
+- **Lit des variables d'environnement** : `CLAUDE_CONFIG_DIR`, `HOME` et `USERPROFILE` pour trouver ce dossier ; `GH_REPO` pour connaître, comme `gh`, le dépôt de cette session ; `LC_ALL`, `LC_MESSAGES` et `LANG` seulement quand `language` vaut `auto`. Il n'en définit aucune.
+- **Lit les réglages de Claude Code** : la clé `language` seulement quand `language` vaut `auto`, et la clé `prefersReducedMotion` seulement quand `motion` vaut `auto`.
 - **Lit et remplit votre prompt** uniquement autour de la boîte de réception : il lit le texte en cours à l'ouverture de la boîte de réception, pour marquer les PR que ce texte demande déjà, et à sa fermeture il ajoute les demandes pour les PR que vous avez ajoutées, sur de nouvelles lignes après ce texte.
 
 ## Fonctionnement
@@ -158,6 +176,8 @@ Toutes vos sessions ouvertes partagent une même récupération : une seule sess
 Chaque session Claude Code ouverte exécute le mod, mais toutes partagent un fichier de cache par compte, par scope et par langue, tout comme les PR masquées. Chaque session le lit toutes les 30 secondes. Seule la session qui le trouve vieux de plus de 10 minutes et qui remporte une courte réservation appelle GitHub : dix sessions ouvertes ne font donc qu'une seule requête. La session qui récupère les données renouvelle sa réservation pendant qu'elle travaille ; une réservation non renouvelée pendant 3 minutes est reprise par une autre session. Une récupération qui échoue conserve les dernières listes valides et est retentée au bout d'une minute. `↻` dans la boîte de réception lance une récupération immédiate.
 
 Une seule recherche GraphQL renvoie toutes les PR en attente de votre revue avec ce dont les cartes ont besoin, et une requête supplémentaire contenant trois recherches remplit Mes PR et Mes issues. Les références proviennent des événements de référence croisée sur les PR et les issues dont vous êtes l'auteur. GitHub ne met pas à jour le `updatedAt` d'un élément quand quelque chose y fait référence : les éléments ayant eu une activité au cours des 60 derniers jours sont donc examinés pour y trouver les références faites au cours des 30 derniers jours, à raison de 50 éléments par requête. Si GitHub refuse la recherche de références (il impose une limite de ressources par requête), les dernières références sont conservées et les autres onglets continuent de se mettre à jour.
+
+`refreshMinutes` change ces 10 minutes.
 
 ## Limites
 

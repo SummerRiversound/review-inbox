@@ -1,13 +1,14 @@
 import type { Capped, IssueItem, MyPr, MyPrState, TaskKind } from '../types'
 import type { Messages } from './i18n'
-import { hasRequest } from './inbox'
+import { DETAILS_FIELDS, detailsOf, hasRequest } from './inbox'
+import type { GqlDetails } from './inbox'
 import type { Place } from './sessions'
 
-type Repo = { repository: { nameWithOwner: string } }
+type Repo = { repository: { nameWithOwner: string; defaultBranchRef?: { name: string } | null } }
 type Item = Repo & { number: number; title: string; url: string }
 type Body = { body?: string | null }
 
-export type GqlMyPr = Item & Body & {
+export type GqlMyPr = Item & Body & GqlDetails & {
   headRefName?: string
   baseRefName?: string
   isDraft: boolean
@@ -18,7 +19,7 @@ export type GqlMyPr = Item & Body & {
   reviews: { nodes: { state: string; submittedAt: string | null; author: { login: string } | null }[] }
 }
 
-export type GqlTouched = Item & Body & { updatedAt: string }
+export type GqlTouched = Item & Body & GqlDetails & { updatedAt: string }
 
 export type GqlReferenced = Repo & {
   number: number
@@ -31,14 +32,15 @@ export type GqlReferenced = Repo & {
 export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
   viewer { login }
   mine: search(query: $mine, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes { ... on PullRequest {
-    number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner } reviewDecision mergeable
+    number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
+    ${DETAILS_FIELDS}
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
   assigned: search(query: $assigned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
-    ... on Issue { number title url body updatedAt repository { nameWithOwner } } } }
+    ... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} } } }
   mentioned: search(query: $mentioned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
-    ... on Issue { number title url body updatedAt repository { nameWithOwner } }
-    ... on PullRequest { number title url body updatedAt repository { nameWithOwner } } } }
+    ... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }
+    ... on PullRequest { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} } } }
 }`
 
 // My PRs and issues touched lately, with who pointed at them from elsewhere; paged.
@@ -119,6 +121,7 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       ...(pr.body ? { body: pr.body } : {}),
       ...(pr.headRefName ? { branch: pr.headRefName } : {}),
       ...(pr.baseRefName ? { base: pr.baseRefName } : {}),
+      ...detailsOf(pr),
     }))
     .sort(
       (a, b) =>
@@ -156,7 +159,7 @@ export function toIssues(assigned: GqlTouched[], mentioned: GqlTouched[], refere
     // Assigned wins over a mention of the same thread.
     if (seen.has(i.url)) return
     seen.add(i.url)
-    out.push({ kind, repo: i.repository.nameWithOwner, number: i.number, title: i.title, url: i.url, at: i.updatedAt, ...(i.body ? { body: i.body } : {}) })
+    out.push({ kind, repo: i.repository.nameWithOwner, number: i.number, title: i.title, url: i.url, at: i.updatedAt, ...(i.body ? { body: i.body } : {}), ...detailsOf(i) })
   }
   assigned.forEach(i => add('assigned', i))
   mentioned.forEach(i => add('mention', i))
@@ -209,10 +212,13 @@ export function taskPrompts(draft: string, tasks: { task: Task; place: Place }[]
 
 export const reviewers = (pr: MyPr) => [...new Set(pr.newReviews.map(r => r.by))].join(', ')
 
-// One alert per PR: it turned to a state that needs me, new reviews arrived, or both.
-export type PrAlert = { pr: MyPr; turned: boolean; by?: string }
+// One alert per PR: it turned to a state that needs me or became ready to merge, new reviews arrived, or both.
+export type PrAlert = { pr: MyPr; turned: boolean; ready?: boolean; by?: string }
 
 const stateKey = (pr: MyPr) => `${pr.url}@${pr.state}`
+// Approved with no CI running: the only success worth a toast, as CI passing alone is no news.
+const isReady = (pr: MyPr) => pr.state === 'approved' && !pr.ciPending
+const readyKey = (pr: MyPr) => `${pr.url}@ready`
 const reviewKey = (pr: MyPr, r: MyPr['newReviews'][number]) => `${pr.url}@review:${r.by}@${r.at}`
 
 export function prAlerts(seen: string[] | undefined, prs: MyPr[]): PrAlert[] {
@@ -220,19 +226,22 @@ export function prAlerts(seen: string[] | undefined, prs: MyPr[]): PrAlert[] {
   const known = new Set(seen)
   return prs.flatMap(pr => {
     const turned = stuck(pr) && !known.has(stateKey(pr))
+    const ready = isReady(pr) && !known.has(readyKey(pr))
     const fresh = pr.newReviews.filter(r => !known.has(reviewKey(pr, r)))
-    if (!turned && fresh.length === 0) return []
-    return [{ pr, turned, ...(fresh.length > 0 ? { by: [...new Set(fresh.map(r => r.by))].join(', ') } : {}) }]
+    if (!turned && !ready && fresh.length === 0) return []
+    return [{ pr, turned, ...(ready ? { ready } : {}), ...(fresh.length > 0 ? { by: [...new Set(fresh.map(r => r.by))].join(', ') } : {}) }]
   })
 }
 
-export function prAlertText({ pr, turned, by }: PrAlert, m: Messages): string {
-  return [turned ? m.alert.turned(m.state[pr.state]) : m.alert.reviewed, turned && by ? m.alert.by(by) : by, `${pr.repo} #${pr.number}`]
+export function prAlertText({ pr, turned, ready, by }: PrAlert, m: Messages): string {
+  const head = turned ? m.alert.turned(m.state[pr.state]) : ready ? m.alert.ready : m.alert.reviewed
+  return [head, (turned || ready) && by ? m.alert.by(by) : by, `${pr.repo} #${pr.number}`]
     .filter(Boolean)
     .join(' · ')
 }
 
-export const prSeenKeys = (prs: MyPr[]) => prs.flatMap(pr => [stateKey(pr), ...pr.newReviews.map(r => reviewKey(pr, r))])
+export const prSeenKeys = (prs: MyPr[]) =>
+  prs.flatMap(pr => [stateKey(pr), ...(isReady(pr) ? [readyKey(pr)] : []), ...pr.newReviews.map(r => reviewKey(pr, r))])
 
 export const issueKey = (i: IssueItem) => `${i.kind}:${i.url}:${i.target ?? ''}`
 
@@ -275,4 +284,10 @@ export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[]): B
 export function bandLabels(counts: BandCounts, m: Messages, capped: Capped = {}): string[] {
   const tabOf = { reviews: 'review', prTodo: 'mine', issues: 'issues' } as const
   return (['reviews', 'prTodo', 'issues'] as const).filter(k => counts[k] > 0).map(k => m.band[k](atLeast(counts[k], capped[tabOf[k]])))
+}
+
+// A count that went down but not to zero, which leaves the band: what the band flashes for a moment.
+export function droppedCounts(before: BandCounts | undefined, after: BandCounts): (keyof BandCounts)[] {
+  if (before === undefined) return []
+  return (['reviews', 'prTodo', 'issues'] as const).filter(k => after[k] > 0 && after[k] < before[k])
 }

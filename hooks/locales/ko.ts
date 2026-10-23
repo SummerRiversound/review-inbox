@@ -42,6 +42,8 @@ export const ko: Messages = {
     at: path => `${path}에서`,
     noClone: '로컬 클론 없음',
     ciRunning: ' · CI 진행 중',
+    thisRepo: '이 저장소',
+    comments: n => `코멘트 ${n}개`,
     newReview: who => `새 리뷰 · ${who}`,
     referenced: (by, target) => `${by}님이 내 ${target}을(를) 언급`,
   },
@@ -65,11 +67,14 @@ export const ko: Messages = {
     firstFetch: 'GitHub에서 목록을 가져오고 있습니다. 처음에는 1분 정도 걸립니다.',
   },
   empty: {
+    zero: '✓ 지금 할 일이 없습니다',
     review: '지금 리뷰를 기다리는 PR이 없습니다.',
     mine: '열려 있는 내 PR이 없습니다.',
     issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
   },
   sections: {
+    here: n => `이 저장소 ${n}`,
+    all: n => `전체 ${n}`,
     session: n => `세션에서 진행 중 ${n}`,
     hidden: n => `숨김 ${n} · 모두 보이기`,
     direct: n => `직접 요청 ${n}`,
@@ -110,6 +115,7 @@ export const ko: Messages = {
     retry: '잠시 후 다시 눌러 주세요.',
   },
   alert: {
+    ready: '머지 준비 완료',
     turned: state => `내 PR ${state}`,
     reviewed: '내 PR 새 리뷰',
     by: who => `새 리뷰 ${who}`,

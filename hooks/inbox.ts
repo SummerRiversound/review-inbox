@@ -1,4 +1,4 @@
-import type { Impact, InboxFile, InboxItem } from '../types'
+import type { CardDetails, Impact, InboxFile, InboxItem } from '../types'
 import { MESSAGES } from './i18n'
 import type { Language, Messages } from './i18n'
 
@@ -25,8 +25,12 @@ export type PrDetail = {
 
 type Reviewer = { login?: string; name?: string; slug?: string } | null
 
+// What a card shows beside its state, asked for in every search.
+// shortcut: the first 10 labels only; a card shows two and a count, so more only matters for the count
+export const DETAILS_FIELDS = 'labels(first: 10) { nodes { name } } comments { totalCount }'
+
 // One GraphQL search returns every PR with what the cards need, so one PR can't fail the rest.
-export type GqlPr = SearchHit & {
+export type GqlPr = SearchHit & GqlDetails & {
   body: string
   additions: number
   deletions: number
@@ -44,9 +48,9 @@ export const INBOX_QUERY = `query($q: String!) {
     pageInfo { hasNextPage }
     nodes {
       ... on PullRequest {
-        number title url isDraft createdAt body additions deletions changedFiles headRefOid
+        number title url isDraft createdAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
         author { login }
-        repository { nameWithOwner }
+        repository { nameWithOwner defaultBranchRef { name } }
         files(first: 80) { nodes { path } }
         reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name slug } } } }
         reviews(last: 50) { nodes { state author { login } commit { oid } } }
@@ -128,12 +132,40 @@ export function sortItems(items: InboxItem[]): InboxItem[] {
   )
 }
 
-export function shouldFetch(file: InboxFile, now: number, force: boolean): boolean {
+export function shouldFetch(file: InboxFile, now: number, force: boolean, refreshMs = REFRESH_MS): boolean {
   if (file.fetchingSince !== undefined && now - file.fetchingSince < CLAIM_MS) return false
   if (force || file.fetchedAt === undefined) return true
   if (file.retryAt !== undefined) return now >= file.retryAt
   // A file written by an older version of the mod has no tabs; refresh it rather than show them empty.
-  return file.mine === undefined || now - file.fetchedAt >= REFRESH_MS
+  return file.mine === undefined || now - file.fetchedAt >= refreshMs
+}
+
+export type GqlDetails = {
+  labels?: { nodes: { name: string }[] } | null
+  comments?: { totalCount: number } | null
+  baseRefName?: string
+  repository: { defaultBranchRef?: { name: string } | null }
+}
+
+export function detailsOf(node: GqlDetails): CardDetails {
+  const labels = node.labels?.nodes.map(l => l.name) ?? []
+  const main = node.repository.defaultBranchRef?.name
+  return {
+    ...(labels.length > 0 ? { labels } : {}),
+    ...(node.comments?.totalCount ? { comments: node.comments.totalCount } : {}),
+    ...(node.baseRefName && main && node.baseRefName !== main ? { offBase: node.baseRefName } : {}),
+  }
+}
+
+export function detailsText(card: CardDetails, m: Messages): string {
+  const labels = card.labels ?? []
+  return [
+    card.offBase && `→ ${card.offBase}`,
+    labels.length > 0 && [labels.slice(0, 2).join(', '), labels.length > 2 && `+${labels.length - 2}`].filter(Boolean).join(' '),
+    card.comments && m.card.comments(card.comments),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function isTorn(writtenAt: number, now: number): boolean {

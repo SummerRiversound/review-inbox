@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Presence } from '../types'
-import { SESSION_STALE_MS, liveSessions, mainCheckout, placeOf, remember, repoOf, workingOn } from '../hooks/sessions'
+import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
 
 const at = Date.UTC(2026, 9, 20, 12)
 const presence = (over: Partial<Presence>): Presence => ({ at, folder: 'review-inbox', remotes: [], prs: [], ...over })
@@ -55,4 +55,31 @@ test('work on a repository goes here when this session is in it, else to the fol
   expect(placeOf('o/r', presence({ remotes: ['o/r'] }), repos)).toEqual({ kind: 'here' })
   expect(placeOf('o/r', presence({ remotes: ['o/x'] }), repos)).toEqual({ kind: 'folder', path: '/code/r' })
   expect(placeOf('o/z', undefined, repos)).toEqual({ kind: 'unknown' })
+})
+
+test('this session\'s repositories are GH_REPO when set, else its folder\'s GitHub remotes', async () => {
+  const self = presence({ remotes: ['me/r', 'o/r'] })
+  expect(thisRepos(self, undefined)).toEqual(['me/r', 'o/r'])
+  expect(thisRepos(self, 'acme/tool')).toEqual(['acme/tool'])
+  expect(thisRepos(self, 'github.example.com/acme/tool')).toEqual(['acme/tool'])
+  expect(thisRepos(undefined, '')).toEqual([])
+})
+
+test('cards from this session\'s repositories come first, in their own order, whatever the case of the name', async () => {
+  const cards = [{ repo: 'a/x', n: 1 }, { repo: 'O/R', n: 2 }, { repo: 'a/y', n: 3 }, { repo: 'o/r', n: 4 }]
+  expect(hereFirst(cards, ['o/r']).map(c => c.n)).toEqual([2, 4, 1, 3])
+  expect(isHere('O/R', ['o/r'])).toBe(true)
+})
+
+test('the folders option maps an exact repository before an owner wildcard, with ~ as home and * as the name', async () => {
+  const paths = parseRepoPaths(' o/r = ~/work/r , o/*=~/code/* , bad, =x, a/b= ')
+  expect(paths).toEqual({ 'o/r': '~/work/r', 'o/*': '~/code/*' })
+  expect(mappedPath('o/r', paths, '/home/me')).toBe('/home/me/work/r')
+  expect(mappedPath('O/tool', paths, '/home/me')).toBe('/home/me/code/tool')
+  expect(mappedPath('x/y', paths, '/home/me')).toBe(undefined)
+})
+
+test('a mapped folder wins over this session\'s folder and the remembered one', async () => {
+  const self = presence({ remotes: ['o/r'] })
+  expect(placeOf('o/r', self, { 'o/r': { path: '/old', at } }, '/mapped')).toEqual({ kind: 'folder', path: '/mapped' })
 })

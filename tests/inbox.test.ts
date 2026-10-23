@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  INBOX_QUERY, REFRESH_MS, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  INBOX_QUERY, REFRESH_MS, detailsOf, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -201,4 +201,20 @@ test('the status line counts whole minutes since the last fetch', async () => {
   expect(minutesSince(now - 5 * 60_000, now)).toBe(5)
   expect([en.status.updated(0), en.status.updated(5)]).toEqual(['Updated just now', 'Updated 5 min ago'])
   expect([ko.status.updated(0), ko.status.updated(5)]).toEqual(['방금 갱신', '5분 전 갱신'])
+})
+
+test('a card shows two labels then a count of the rest, its comments, and a base that is not the default branch', async () => {
+  const repository = { nameWithOwner: 'o/r', defaultBranchRef: { name: 'main' } }
+  const details = detailsOf({ repository, labels: { nodes: [{ name: 'bug' }, { name: 'ui' }, { name: 'p1' }] }, comments: { totalCount: 3 }, baseRefName: 'release/2' })
+  expect(details).toEqual({ labels: ['bug', 'ui', 'p1'], comments: 3, offBase: 'release/2' })
+  expect(detailsText(details, en)).toBe('→ release/2 · bug, ui +1 · 3 comments')
+  expect(detailsOf({ repository, labels: { nodes: [] }, comments: { totalCount: 0 }, baseRefName: 'main' })).toEqual({})
+  expect(detailsText({ labels: ['bug'], comments: 1 }, en)).toBe('bug · 1 comment')
+})
+
+test('the refresh interval comes from the option', async () => {
+  const now = 1_000_000_000
+  const file = { items: [], mine: [], fetchedAt: now - 5 * 60_000 }
+  expect(shouldFetch(file, now, false)).toBe(false)
+  expect(shouldFetch(file, now, false, 5 * 60_000)).toBe(true)
 })

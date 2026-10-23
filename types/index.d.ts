@@ -9,7 +9,14 @@ export type Note = {
   mark?: string
 }
 
-export type InboxItem = {
+// Shown beside a card's state: its labels, its comment count, and a PR's base when it is not the default branch.
+export type CardDetails = {
+  labels?: string[]
+  comments?: number
+  offBase?: string
+}
+
+export type InboxItem = CardDetails & {
   repo: string
   number: number
   title: string
@@ -40,7 +47,7 @@ export type InboxItem = {
 // My open PR, judged by what I have to do next.
 export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'draft'
 
-export type MyPr = {
+export type MyPr = CardDetails & {
   repo: string
   number: number
   title: string
@@ -61,7 +68,7 @@ export type TaskKind = 'changes' | 'ci-failing' | 'conflict' | 'work'
 // Why an issue or PR is in my issues tab.
 export type IssueKind = 'assigned' | 'mention' | 'reference'
 
-export type IssueItem = {
+export type IssueItem = CardDetails & {
   kind: IssueKind
   repo: string
   number: number
@@ -133,6 +140,10 @@ declare module 'claude-code' {
       // Every live session's entry, this one's included, keyed by session id.
       sessions: Record<string, Presence>
       repos: RepoPaths
+      // The active tab shows only this session's repositories.
+      onlyHere: boolean
+      // A band count that just went down, shown in the success color for a moment.
+      dropped: string[]
       added: string[]
       requested: string[]
     }

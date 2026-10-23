@@ -45,6 +45,8 @@ export const fr: Messages = {
     at: path => `dans ${path}`,
     noClone: 'pas de clone local',
     ciRunning: ' · CI en cours',
+    thisRepo: 'ce dépôt',
+    comments: n => count(n, 'commentaire'),
     newReview: who => `Nouvelle revue · ${who}`,
     referenced: (by, target) => `${by} a fait référence à mon travail : ${target}`,
   },
@@ -68,11 +70,14 @@ export const fr: Messages = {
     firstFetch: 'Récupération depuis GitHub. La première fois, cela prend environ une minute.',
   },
   empty: {
+    zero: "✓ Rien n'attend votre action",
     review: "Aucune PR n'attend votre revue.",
     mine: "Vous n'avez aucune PR ouverte.",
     issues: 'Aucune issue ne vous est assignée ni ne vous mentionne.',
   },
   sections: {
+    here: n => `Ce dépôt ${n}`,
+    all: n => `Tout ${n}`,
     session: n => `En cours dans une session ${n}`,
     hidden: n => `${count(n, 'masquée')} · tout afficher`,
     direct: n => `Demandes directes ${n}`,
@@ -113,6 +118,7 @@ export const fr: Messages = {
     retry: 'Réessayez dans un instant.',
   },
   alert: {
+    ready: 'Prête à merger',
     turned: state => `Ma PR : ${state}`,
     reviewed: 'Nouvelle revue sur ma PR',
     by: who => `nouvelle revue par ${who}`,

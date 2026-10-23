@@ -44,6 +44,8 @@ export const es: Messages = {
     at: (path: string) => `en ${path}`,
     noClone: 'sin clon local',
     ciRunning: ' · CI en ejecución',
+    thisRepo: 'este repositorio',
+    comments: (n: number) => count(n, 'comentario'),
     newReview: (who: string) => `Nueva revisión · ${who}`,
     referenced: (by: string, target: string) => `${by} hizo referencia a mi ${target}`,
   },
@@ -67,11 +69,14 @@ export const es: Messages = {
     firstFetch: 'Obteniendo datos de GitHub. La primera vez tarda aproximadamente un minuto.',
   },
   empty: {
+    zero: '✓ Nada te necesita ahora',
     review: 'Ningún PR espera tu revisión.',
     mine: 'No tienes PR abiertos.',
     issues: 'No hay incidencias asignadas a ti ni que te mencionen.',
   },
   sections: {
+    here: (n: number) => `Este repositorio ${n}`,
+    all: (n: number) => `Todos ${n}`,
     session: n => `En curso en una sesión ${n}`,
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todo`,
     direct: (n: number) => `Solicitudes directas ${n}`,
@@ -113,6 +118,7 @@ export const es: Messages = {
     retry: 'Inténtalo de nuevo en un momento.',
   },
   alert: {
+    ready: 'Listo para merge',
     turned: (state: string) => `Mi PR: ${state}`,
     reviewed: 'Nueva revisión en mi PR',
     by: (who: string) => `nueva revisión de ${who}`,

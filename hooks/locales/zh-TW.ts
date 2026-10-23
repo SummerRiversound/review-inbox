@@ -42,6 +42,8 @@ export const zhTW: Messages = {
     at: path => `在 ${path}`,
     noClone: '沒有本機複本',
     ciRunning: ' · CI 執行中',
+    thisRepo: '這個儲存庫',
+    comments: n => `${n} 則留言`,
     newReview: who => `新審查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
   },
@@ -65,11 +67,14 @@ export const zhTW: Messages = {
     firstFetch: '正在從 GitHub 擷取資料。第一次大約需要 1 分鐘。',
   },
   empty: {
+    zero: '✓ 沒有需要你處理的事項',
     review: '目前沒有等待您審查的 PR。',
     mine: '您目前沒有開啟的 PR。',
     issues: '沒有指派給您或提及您的議題。',
   },
   sections: {
+    here: n => `這個儲存庫 ${n}`,
+    all: n => `全部 ${n}`,
     session: n => `工作階段中正在處理 ${n}`,
     hidden: n => `已隱藏 ${n} · 全部顯示`,
     direct: n => `直接請求 ${n}`,
@@ -110,6 +115,7 @@ export const zhTW: Messages = {
     retry: '請稍後再試。',
   },
   alert: {
+    ready: '可以合併',
     turned: state => `我的 PR：${state}`,
     reviewed: '我的 PR 有新審查',
     by: who => `來自 ${who} 的新審查`,

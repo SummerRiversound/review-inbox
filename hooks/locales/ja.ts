@@ -42,6 +42,8 @@ export const ja: Messages = {
     at: (path: string) => `${path} で`,
     noClone: 'ローカルのクローンなし',
     ciRunning: ' · CI 実行中',
+    thisRepo: 'このリポジトリ',
+    comments: (n: number) => `コメント ${n} 件`,
     newReview: (who: string) => `新しいレビュー · ${who}`,
     referenced: (by: string, target: string) => `${by} さんが自分の ${target} を参照`,
   },
@@ -65,11 +67,14 @@ export const ja: Messages = {
     firstFetch: 'GitHub から取得しています。初回は1分ほどかかります。',
   },
   empty: {
+    zero: '✓ 対応が必要なものはありません',
     review: '自分のレビューを待っている PR はありません。',
     mine: 'オープン中の自分の PR はありません。',
     issues: '自分に割り当てられた Issue や、自分がメンションされた Issue はありません。',
   },
   sections: {
+    here: (n: number) => `このリポジトリ ${n}`,
+    all: (n: number) => `すべて ${n}`,
     session: n => `セッションで作業中 ${n}`,
     hidden: (n: number) => `非表示 ${n} · すべて表示`,
     direct: (n: number) => `直接リクエスト ${n}`,
@@ -110,6 +115,7 @@ export const ja: Messages = {
     retry: 'しばらくしてから、もう一度お試しください。',
   },
   alert: {
+    ready: 'マージ可能',
     turned: (state: string) => `自分の PR: ${state}`,
     reviewed: '自分の PR に新しいレビュー',
     by: (who: string) => `新しいレビュー ${who}`,
