@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.11.1 — 2026-10-23
+
+### Fixed
+
+- In a narrow drawer, a card's top and bottom rows no longer break mid-word. When both sides do not fit, the right-hand part (age and request type, or `▸ More` and `Review`) moves to its own line in one piece.
+- In a narrow drawer, tabs that do not fit move to the next line instead of being cut off.
+
 ## 0.11.0 — 2026-10-23
 
 ### Added
