@@ -57,6 +57,10 @@ export type MyPr = CardDetails & {
   createdAt: string
   updatedAt?: string
   state: MyPrState
+  // The head commit, which Update branch and Rerun failed CI act on.
+  headSha?: string
+  // GitHub's merge state is BEHIND: the base branch has commits the PR lacks.
+  isBehind?: boolean
   ciPending: boolean
   // Reviews by others, bots included, left on the current head commit; a new push clears them.
   newReviews: { by: string; at: string }[]
@@ -124,6 +128,15 @@ export type Activity = {
 }
 // Done or Unsubscribe pressed and not yet sent; `at` tells a later press from an undone one.
 export type Settling = { kind: 'done' | 'unsubscribe'; at: number }
+
+// A write to GitHub straight from a card, when Direct GitHub actions is on.
+export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign'
+// What the write names, as the card showed it: `sha` is the head I looked at.
+export type DirectTarget = { repo: string; number: number; title: string; sha?: string }
+// A write others see, asked on the card before it is sent; `at` is the press that asked.
+export type Confirming = { key: string; action: DirectAction; target: DirectTarget; at: number; login?: string }
+// The last write from a card: `undo` while an Assign me can still be taken back.
+export type DirectResult = { action: DirectAction; phase: 'sending' | 'done' | 'failed'; at: number; message?: string; undo?: boolean }
 
 // An entry of actions.json left out, by its id or position, or the whole file.
 export type ButtonError = { at: string; reason: 'file' | 'fields' | 'scope' | 'variables' | 'groupFields' | 'groupScope'; detail?: string }
@@ -206,6 +219,9 @@ declare module 'claude-code' {
       buttonsOpen: boolean
       // When the drawer was last closed, read as it opens; 0 before the first close marks nothing new.
       seenAt: number
+      confirming: Confirming | null
+      // By card key.
+      directs: Record<string, DirectResult>
       added: string[]
       requested: string[]
     }

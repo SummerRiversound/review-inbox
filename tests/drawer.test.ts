@@ -41,7 +41,7 @@ async function opened(
     groups?: Record<string, GroupResult>
     activity?: Activity
     // Answers a command, joined by spaces; anything it leaves fails as if missing.
-    run?: (args: string) => { exitCode: number; stderr?: string } | undefined
+    run?: (args: string) => { exitCode: number; stdout?: string; stderr?: string } | undefined
   } = {},
 ) {
   clock = mock.clock(on)
@@ -64,7 +64,7 @@ async function opened(
   on('process.run', async ($, e) => {
     const answer = more.run?.(e.argv.join(' '))
     if (!answer) throw new Error('mv: command not found')
-    return { value: { exitCode: answer.exitCode, stdout: '', stderr: answer.stderr ?? '', isStdoutTruncated: false, isStderrTruncated: false } }
+    return { value: { exitCode: answer.exitCode, stdout: answer.stdout ?? '', stderr: answer.stderr ?? '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
   for (let i = 0; i < 6; i++) await clock.advance(1_000)
@@ -420,5 +420,83 @@ test('nothing is marked before the drawer has been closed once', async ($, on) =
   const ui = await opened($, on, touchedPrs, [], 'mine')
 
   expect(await shown(ui, /●/)).toBe(false)
+  await ui.unmount()
+})
+
+// GitHub as the direct actions see it: I am `me`, the PR's head is `head`, and every write is recorded and taken.
+const github = (sent: string[], head = 'a') => (args: string) => {
+  if (args === 'gh api user --jq .login') return { exitCode: 0, stdout: 'me\n' }
+  if (/^gh api repos\/o\/r\/pulls\/\d+ --jq \.head\.sha$/.test(args)) return { exitCode: 0, stdout: `${head}\n` }
+  if (!args.startsWith('gh api -X ')) return undefined
+  sent.push(args.slice('gh api '.length))
+  return { exitCode: 0 }
+}
+const DIRECT = { options: { directActions: 'on' } }
+
+test('with Direct GitHub actions off no card writes to GitHub, and an approved PR still offers Merge to fill in', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'approved'), pr(2, 'draft')], [], 'mine', { items: [item(5)] })
+
+  expect(await ui.find({ key: 'direct-ready-pr:u2' })).toBeUndefined()
+  await ui.press({ key: 'merge-pr:u1' })
+  expect((await ui.find({ key: 'merge-pr:u1' }))?.props.label).toBe('Added')
+  await ui.press({ key: 'tab-review' })
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('Approve asks on the card, ignores a confirm in its first 300 ms, and sends an approval of the commit I looked at', DIRECT, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [item(5)], run: github(sent) })
+
+  await ui.press({ key: 'direct-approve-o/r#5' })
+  expect(await shown(ui, /Approve o\/r#5 "r5" as me — \(no comment\)/)).toBe(true)
+  await ui.press({ key: 'direct-cancel-o/r#5' })
+  expect(await ui.find({ key: 'direct-confirm-o/r#5' })).toBeUndefined()
+
+  await ui.press({ key: 'direct-approve-o/r#5' })
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual([])
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X POST repos/o/r/pulls/5/reviews -f event=APPROVE -f commit_id=a'])
+  expect(await shown(ui, /✓ Approved/)).toBe(true)
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a confirm row left alone for ten seconds goes back to the buttons', DIRECT, async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'draft')], [], 'mine', { run: github([]) })
+
+  await ui.press({ key: 'direct-ready-pr:u1' })
+  expect(await shown(ui, /code owners are asked to review/)).toBe(true)
+  await clock.advance(10_000)
+  expect(await ui.find({ key: 'direct-confirm-pr:u1' })).toBeUndefined()
+  expect(await ui.find({ key: 'direct-ready-pr:u1' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a head that moved since I looked stops the approval, and the card says so', DIRECT, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [item(5)], run: github(sent, 'b') })
+
+  await ui.press({ key: 'direct-approve-o/r#5' })
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual([])
+  expect(await shown(ui, /New commits since you looked/)).toBe(true)
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('Assign me is sent at once and its Undo takes it back', DIRECT, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [issue(1, 'mention')], 'issues', { run: github(sent) })
+
+  await ui.press({ key: 'direct-assign-issue:mention:i1:' })
+  expect(sent).toEqual(['-X POST repos/o/i/issues/1/assignees -f assignees[]=me'])
+  expect(await shown(ui, /✓ Assigned to you/)).toBe(true)
+  await ui.press({ key: 'direct-undo-issue:mention:i1:' })
+  expect(sent.at(-1)).toBe('-X DELETE repos/o/i/issues/1/assignees -f assignees[]=me')
+  expect(await ui.find({ key: 'direct-assign-issue:mention:i1:' })).toBeDefined()
   await ui.unmount()
 })

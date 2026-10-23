@@ -117,6 +117,17 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 `scope` 是 `review`、`pr` 或 `issue`。prompt 中可以像 gh-dash 一样以 `{{.Name}}`, `{{Name}}`, `{{ .Name }}` 的形式使用 `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`；卡片没有值的变量会留空。与内置按钮 id 相同的按钮会替换它，`"hidden": true` 会移除它。缺少字段、scope 或变量名未知的条目会被跳过，并在 `编辑按钮` 下列出原因；其余按钮照常工作。`PrTitle` 和 `Author` 原样来自 GitHub，所以使用它们的 prompt 会把别人写的文字交给 Claude。
 
+### 直接写入 GitHub
+
+把 `directActions` 设为 `on` 后，卡片上会多出直接写入 GitHub 的按钮，以你的 `gh` 账号发出。
+
+- 审查请求上有 `批准`，你的草稿 PR 上有 `标记为可审查`，基础分支已经前进的你的 PR 上有 `更新分支`。这些操作别人看得到，也无法撤回，所以第一次按下时，按钮那一行会变成一行说明：要发送什么、以哪个账号发送，例如 `批准 o/r#5 "Fix login"，身份 kim —（无评论）`。按 `确认批准`，或在抽屉接收按键时按 `y`，才会发送；按 `取消` 或等 10 秒，按钮就会回来。焦点会移到 `取消`，第一次按下后 300ms 内的确认会被忽略，所以按住 Enter 也不会发送。
+- 批准不带评论，并指定你看过的那个提交。如果之后有了新提交，就不发送，并在卡片上说明。`更新分支` 会合并基础分支，从不 rebase。
+- 检查失败的你的 PR 上，`重新运行失败的 CI` 会重新运行最新提交上 GitHub Actions 运行中失败的任务。提到你的 issue 上，`分配给我` 会立即发送，并在 10 秒内显示 `撤销`。
+- 失败的写入会和 GitHub 的消息一起留在卡片上，按钮也会回来。
+
+不会直接合并。已批准且没有正在运行的检查的你的 PR，即使 `directActions` 关闭，也会有 `合并` 按钮：按下后，提示栏里会加入一条请求，让 Claude 先确认仓库允许的合并方式再运行 `gh pr merge`；你按 Enter 发送后，Claude Code 会请求运行权限。
+
 ## 环境要求
 
 - Claude Code 2.1.287 或更高版本，这是最早支持 mod（函数钩子插件）的版本。已在 2.1.292 上测试。mod 目前处于早期体验阶段，其 API 可能在不同版本之间发生变化。
@@ -156,6 +167,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `refreshMinutes` | `10` | 从 GitHub 重新获取的间隔（分钟）：5、10、15、30 或 60。所有会话共用一次获取。 |
 | `repoPaths` | 空 | 下一步按钮为每个仓库让 Claude 工作的文件夹。见下文。 |
 | `motion` | `auto` | 设为 `off` 时，提示栏上方那一行的数字不再闪烁。设为 `auto` 时，如果 Claude Code 的减少动态效果设置（`prefersReducedMotion`）已开启，也不闪烁。 |
+| `directActions` | `off` | 设为 `on` 时，卡片上会有直接写入 GitHub 的按钮。详见上面的“直接写入 GitHub”。 |
 
 `scope` 可以填写 GitHub [议题和 PR 搜索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)支持的任何内容：
 
@@ -205,7 +217,7 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。动态标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。除此之外，mod 自身不发起任何网络调用。
+- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。动态标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。`directActions` 为 `on` 时，按下按钮会先运行 `gh api user` 取得账号名、`gh api repos/<owner>/<repo>/pulls/<n>` 读取最新提交，再运行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。除此之外，mod 自身不发起任何网络调用。
 - **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
 - **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。
@@ -232,6 +244,7 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 - PR 有任何新提交时，`新审查` 都会消失，包括通过 GitHub 的“Update branch”按钮或由机器人产生的提交。
 - 如果强制推送改写了你审查过的提交，已重新请求的 PR 不会显示“我上次审查后的变更”这一行。
 - 你的审查风格是从 GitHub 搜索 `reviewed-by:@me -author:@me` 返回的 PR 中学习的，范围限于 `scope`，因此你在自己创建的 PR 上留下的评论不计入。PR 对话中不属于任何审查的评论不在学习范围内。
+- `重新运行失败的 CI` 只重新运行 GitHub Actions；其他 CI 服务的检查请在该服务上重新运行。不提供一次批准多个 PR，也不提供带评论的批准。
 
 ## 故障排查
 

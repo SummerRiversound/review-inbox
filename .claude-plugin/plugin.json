@@ -51,6 +51,16 @@
       "description": "auto flashes a band count that goes down unless Claude Code's reduced motion setting is on; off never does",
       "options": ["auto", "off"],
       "default": "auto"
+    },
+    "directActions": {
+      "type": "string",
+      "title": "Direct GitHub actions",
+      "description": "on adds buttons that write to GitHub from a card: Approve, Ready for review and Update branch after a confirm on the card, Rerun failed CI and Assign me at once; off leaves every write to Claude",
+      "options": [
+        "off",
+        "on"
+      ],
+      "default": "off"
     }
   }
 }

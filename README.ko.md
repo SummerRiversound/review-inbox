@@ -117,6 +117,17 @@ GitHub는 gh 로그인과 classic 토큰에만 알림을 줍니다. 권한이 �
 
 `scope`는 `review`, `pr`, `issue` 중 하나입니다. prompt에는 `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`를 gh-dash처럼 `{{.Name}}`, `{{Name}}`, `{{ .Name }}` 형태로 쓸 수 있고, 카드에 값이 없는 변수는 빈칸이 됩니다. 기본 버튼과 같은 id를 쓰면 그 버튼을 대신하고, `"hidden": true`면 없앱니다. 필드가 빠졌거나 scope나 변수 이름이 틀린 항목은 빠지고 `버튼 편집`에 이유와 함께 표시되며, 나머지 버튼은 그대로 동작합니다. `PrTitle`과 `Author`는 GitHub에 적힌 그대로이므로, 이것을 쓰는 prompt는 다른 사람이 쓴 글을 Claude에게 넘기게 됩니다.
 
+### GitHub 직접 실행
+
+`directActions`를 `on`으로 두면 카드에 GitHub에 직접 쓰는 버튼이 더 붙습니다. 쓰기는 내 `gh` 계정으로 나갑니다.
+
+- 리뷰 요청에는 `승인`, 내 초안 PR에는 `리뷰 준비 완료`, 기준 브랜치가 앞서 나간 내 PR에는 `브랜치 업데이트`가 붙습니다. 다른 사람에게 보이고 되돌릴 수 없는 동작이라, 처음 누르면 버튼 줄이 무엇을 어느 계정으로 보낼지 적은 줄로 바뀝니다. 예: `승인: o/r#5 "Fix login", kim 계정 — (코멘트 없음)`. `승인 확정`을 누르거나, 목록 창이 키 입력을 받는 동안 `y`를 누르면 보냅니다. `취소`를 누르거나 10초가 지나면 버튼이 돌아옵니다. 포커스는 `취소`로 옮겨지고, 처음 누른 뒤 300ms 안의 확정은 무시하므로 Enter를 누르고 있어도 보내지지 않습니다.
+- 승인은 코멘트 없이, 내가 본 커밋을 지정해서 보냅니다. 그 뒤 새 커밋이 생겼으면 보내지 않고 카드에 그렇게 표시합니다. `브랜치 업데이트`는 기준 브랜치를 머지하며, rebase는 하지 않습니다.
+- 검사가 실패한 내 PR의 `실패한 CI 다시 실행`은 최신 커밋의 GitHub Actions 실행 중 실패한 작업을 다시 실행합니다. 나를 언급한 이슈의 `나에게 할당`은 바로 보내고, 10초 동안 `되돌리기`를 보여 줍니다.
+- 실패한 쓰기는 GitHub 메시지와 함께 카드에 남고, 버튼이 다시 나타납니다.
+
+머지는 직접 하지 않습니다. 승인되고 실행 중인 검사가 없는 내 PR에는 `directActions`가 꺼져 있어도 `머지` 버튼이 붙습니다. 누르면 저장소의 머지 방식을 확인하고 `gh pr merge`를 실행하라는 요청이 입력창에 들어가고, Enter로 보내면 Claude Code가 실행 권한을 묻습니다.
+
 ## 요구 사항
 
 - Claude Code 2.1.287 이상(mod를 지원하는 첫 빌드). 2.1.292에서 검증하였습니다. mod는 early access 단계라 릴리스 사이에 API가 바뀔 수 있습니다.
@@ -156,6 +167,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `refreshMinutes` | `10` | GitHub에서 다시 가져오는 간격(분)입니다. 5, 10, 15, 30, 60 중 하나이며, 모든 세션이 한 번의 조회를 함께 씁니다. |
 | `repoPaths` | 비어 있음 | 다음 할 일 버튼이 저장소마다 Claude가 작업할 폴더입니다. 아래를 보세요. |
 | `motion` | `auto` | `off`면 입력창 위 한 줄의 숫자가 깜빡이지 않습니다. `auto`일 때도 Claude Code의 움직임 줄이기 설정(`prefersReducedMotion`)이 켜져 있으면 깜빡이지 않습니다. |
+| `directActions` | `off` | `on`이면 카드에서 GitHub에 직접 쓰는 버튼을 붙입니다. 자세한 내용은 위 "GitHub 직접 실행"에 있습니다. |
 
 `scope`에는 GitHub [이슈·PR 검색](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)이 받는 조건을 그대로 씁니다.
 
@@ -205,7 +217,7 @@ my-org/legacy=~/old/legacy-app
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. 활동 탭에는 `gh api notifications`를, `완료`나 `구독 해제`를 누르면 `gh api -X DELETE notifications/threads/<id>`(구독 해제는 그 전에 `/subscription`도)를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
+- **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. 활동 탭에는 `gh api notifications`를, `완료`나 `구독 해제`를 누르면 `gh api -X DELETE notifications/threads/<id>`(구독 해제는 그 전에 `/subscription`도)를 실행합니다. `directActions`가 `on`일 때 버튼을 누르면 계정 이름을 위해 `gh api user`, 최신 커밋 확인을 위해 `gh api repos/<owner>/<repo>/pulls/<n>`를 실행하고, 이어서 `gh api -X POST …/pulls/<n>/reviews`(`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure`와 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, 또는 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 중 하나를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
 - **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해 내 PR 브랜치에 있는 세션을 찾고, `git rev-parse --path-format=absolute --git-common-dir`로 그 저장소의 원래 폴더를 기억합니다.
 - **Claude 호출**(`sonnet` 모델): PR의 저장소 이름, 제목, 설명(앞 12,000자), 변경 파일 경로(최대 80개), 변경 규모를 보내 요약을 받습니다. 재요청 PR은 지난 리뷰 이후 커밋 메시지의 첫 줄과 파일 경로(최대 60개)도 보냅니다. Claude Code 사용량에 포함됩니다. 요약은 PR의 head 커밋과 언어마다 한 번 작성하고, 실패하면 커밋마다 최대 세 번까지 시도합니다. 또한 일주일에 한 번, 최근 내가 리뷰한 PR 최대 30개에서 내가 남긴 리뷰 코멘트를 보내 리뷰 방식을 정리합니다. 코멘트마다 500자까지 자르고 최대 60개, 합계 12,000자까지 보내며, 다섯 개보다 적으면 보내지 않습니다.
 - **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `repos.json`에 세션이 열렸던 GitHub 저장소마다 원래 폴더를(다음 할 일 버튼이 보여 줄 폴더), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다. 내가 만든 `actions.json`이 있으면 그 폴더에서 읽기만 하고 쓰지는 않습니다.
@@ -232,6 +244,7 @@ GraphQL 검색 한 번으로 내 리뷰를 기다리는 PR과 카드에 필요�
 - `새 리뷰`는 PR에 새 커밋이 올라오면 사라집니다. GitHub의 "Update branch" 버튼이나 봇이 만든 커밋도 포함합니다.
 - 내가 리뷰한 커밋이 force-push로 다시 쓰인 경우, 재요청 PR에 '지난 내 리뷰 이후' 줄을 표시하지 않습니다.
 - 리뷰 방식은 `scope` 안에서 GitHub 검색 `reviewed-by:@me -author:@me`가 돌려주는 PR에서만 정리하므로, 내가 만든 PR에 남긴 코멘트는 포함하지 않습니다. 리뷰 밖에서 PR 대화에 남긴 코멘트는 포함하지 않습니다.
+- `실패한 CI 다시 실행`은 GitHub Actions만 다시 실행합니다. 다른 CI 서비스의 검사는 그 서비스에서 다시 실행하세요. 여러 PR을 한 번에 승인하기와 코멘트를 달아 승인하기는 없습니다.
 
 ## 문제 해결
 

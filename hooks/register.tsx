@@ -6,6 +6,10 @@ import type {
   Activity,
   ButtonScope,
   Capped,
+  Confirming,
+  DirectAction,
+  DirectResult,
+  DirectTarget,
   GroupHit,
   GroupResult,
   InboxFile,
@@ -23,6 +27,7 @@ import type {
 } from '../types'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
+import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
 import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
@@ -139,13 +144,15 @@ const settleErrors = atom({ plugin: 'review-inbox', key: 'settleErrors' } as con
 const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
 const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
+const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
+const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
 
-type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string }
+type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string; directActions?: string }
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -157,6 +164,8 @@ let actionsPath = ''
 const buttonKey = (key: string, id: string) => `${key}::${id}`
 const ADD_BUTTON = '::add-button'
 const ADD_GROUP = '::add-group'
+// The Merge button fills the prompt like a card's own button, under an id actions.json cannot give one.
+const MERGE = '@merge'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -496,6 +505,90 @@ async function settle($: EngineInterface, id: string, at?: number) {
   }
 }
 
+// Who a write goes out as, named on its confirm row: the configured account, else gh's active one.
+let login: Promise<string> | undefined
+function loginName($: EngineInterface) {
+  login ??= ghEnv($).then(env => gh($, ['api', 'user', '--jq', '.login'], env)).then(text => text.trim())
+  // A failed look is tried again at the next press.
+  login.catch(() => (login = undefined))
+  return login
+}
+
+const setDirect = ($: EngineInterface, key: string, result: DirectResult | undefined) =>
+  update($, directs, d => (result ? { ...d, [key]: result } : without(d, key)))
+
+// A write others see asks first, on the card; the focus goes to Cancel, so a stray Enter does nothing.
+async function pressDirect($: EngineInterface, key: string, action: DirectAction, target: DirectTarget) {
+  if (!needsConfirm(action)) return sendDirect($, key, action, target)
+  const at = await $.clock.now()
+  await setDirect($, key, undefined)
+  await update($, confirming, () => ({ key, action, target, at }))
+  void $.ui.focus({ requestId: PANE, key: `direct-cancel-${key}` }).catch(() => undefined)
+  $.clock.after(CONFIRM_MS, () => void update($, confirming, c => (c?.at === at ? null : c)))
+  const name = await loginName($).catch(() => '')
+  await update($, confirming, c => (c?.at === at ? { ...c, login: name } : c))
+}
+
+async function confirmDirect($: EngineInterface) {
+  const asking = await read($, confirming)
+  if (!asking || (await $.clock.now()) - asking.at < CONFIRM_GUARD_MS) return
+  await update($, confirming, () => null)
+  await sendDirect($, asking.key, asking.action, asking.target)
+}
+
+// The mod's own refusal, shown as it is rather than as GitHub's.
+class Refused extends Error {}
+const writing = new Set<string>()
+
+// The card shows the write going, then how it went; a failure stays on the card until the next press.
+async function sendDirect($: EngineInterface, key: string, action: DirectAction, target: DirectTarget) {
+  if (writing.has(key)) return
+  writing.add(key)
+  await setDirect($, key, { action, phase: 'sending', at: Date.now() })
+  try {
+    const env = await ghEnv($)
+    // GitHub takes an approval of an older commit, so a head that moved since I looked stops it here.
+    if ((action === 'approve' || action === 'update-branch') && (await gh($, headArgs(target), env)).trim() !== target.sha) {
+      throw new Refused(m.direct.newCommits)
+    }
+    if (action === 'rerun') {
+      const runs = (await gh($, failedRunsArgs(target), env)).split('\n').filter(Boolean)
+      if (runs.length === 0) throw new Refused(m.direct.noRun)
+      for (const run of runs) await gh($, rerunArgs(target, run), env)
+    } else {
+      await gh($, writeArgs(action, target, action === 'assign' ? await loginName($) : ''), env)
+    }
+    const at = Date.now()
+    await setDirect($, key, { action, phase: 'done', at, ...(action === 'assign' ? { undo: true } : {}) })
+    $.ui.toast(`${m.direct.done[action]} · ${target.repo} #${target.number}`)
+    if (action !== 'assign') wanted = 'fetch'
+    // Fetched only once the Undo is gone: the card would move to Assigned and take its Undo with it.
+    else
+      $.clock.after(UNDO_MS, async () => {
+        await update($, directs, d => {
+          const result = d[key]
+          return result?.at === at ? { ...d, [key]: { ...result, undo: false } } : d
+        })
+        wanted = 'fetch'
+      })
+  } catch (error) {
+    const message = error instanceof Refused ? error.message : m.direct.failed(error instanceof Error ? error.message : String(error))
+    await setDirect($, key, { action, phase: 'failed', at: Date.now(), message })
+  } finally {
+    writing.delete(key)
+  }
+}
+
+// Assign me is the one write with an opposite, so its Undo really takes it back.
+async function undoAssign($: EngineInterface, key: string, target: DirectTarget) {
+  try {
+    await gh($, writeArgs('assign', target, await loginName($), true), await ghEnv($))
+    await setDirect($, key, undefined)
+  } catch (error) {
+    await setDirect($, key, { action: 'assign', phase: 'failed', at: Date.now(), message: m.direct.failed(error instanceof Error ? error.message : String(error)) })
+  }
+}
+
 function toast($: EngineInterface, text: string) {
   const now = Date.now()
   const at = Math.max(now, toastFreeAt)
@@ -739,7 +832,8 @@ async function buttonPrompts($: EngineInterface, keys: string[]): Promise<string
     }
     const at = key.lastIndexOf('::')
     const vars = at > 0 ? cards.get(key.slice(0, at)) : undefined
-    const button = buttons.find(b => b.id === key.slice(at + 2))
+    const id = key.slice(at + 2)
+    const button = id === MERGE ? { prompt: m.direct.mergePrompt } : buttons.find(b => b.id === id)
     if (!vars || !button) continue
     const place = await placeFor($, vars.RepoName ?? '')
     const repoPath = place.kind === 'folder' ? place.path : place.kind === 'here' ? await $.session.cwd() : ''
@@ -885,6 +979,7 @@ export const register: Register = (on, options) => {
     refreshMs: (Number.isFinite(minutes) && minutes >= 5 ? minutes : 10) * 60_000,
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
+    directActions: opts.directActions === 'on',
   }
   m = MESSAGES.en
 
@@ -945,6 +1040,7 @@ export const register: Register = (on, options) => {
   on('ui.close', { id: PANE }, async ($, e, next) => {
     if (e.origin.kind === 'unload') return next(e)
     await Promise.all(Object.keys(await read($, settling)).map(id => settle($, id)))
+    await update($, confirming, () => null)
     const isFilled = await fillAdded($).catch(() => {
       $.ui.toast(m.toast.retry)
       return true
@@ -1075,6 +1171,53 @@ export const register: Register = (on, options) => {
     // Updated since the drawer was last closed, as GitHub's inbox marks what changed since my last visit.
     const newDot = (updatedAt: string | undefined) =>
       seen > 0 && updatedAt !== undefined && Date.parse(updatedAt) > seen && <Text color="suggestion">● </Text>
+    const asking = await read($, confirming)
+    const directResults = await read($, directs)
+    // A card's writes to GitHub, its confirm row in their place while one is asked; `extra` is the Merge button, which the setting does not hide.
+    const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren) => {
+      if (asking?.key === key && needsConfirm(asking.action)) {
+        const action = asking.action
+        return (
+          <Box flexDirection="column">
+            <Text color="warning">{m.direct.ask[action](`${target.repo}#${target.number} "${target.title}"`, asking.login || '…')}</Text>
+            <Box flexDirection="row" justifyContent="flex-end" gap={1}>
+              <Button key={`direct-cancel-${key}`} label={m.direct.cancel} onPress={() => void update($, confirming, () => null)} />
+              <Button key={`direct-confirm-${key}`} label={m.direct.confirm[action]} variant="primary" hotkey="y" onPress={() => void confirmDirect($)} />
+            </Box>
+          </Box>
+        )
+      }
+      const result = directResults[key]
+      const shownActions = config.directActions ? offered.filter(a => !(result?.action === a && result.phase !== 'failed')) : []
+      if (!result && shownActions.length === 0 && !extra) return undefined
+      return (
+        <Box flexDirection="row" justifyContent="space-between" gap={1}>
+          <Box flexShrink={1}>
+            {result?.phase === 'sending' && <Text dimColor>{m.direct.sending}</Text>}
+            {result?.phase === 'done' && <Text color="success">✓ {m.direct.done[result.action]}</Text>}
+            {result?.phase === 'failed' && <Text color="warning">{result.message}</Text>}
+          </Box>
+          <Box flexDirection="row" gap={1} flexShrink={0}>
+            {extra}
+            {result?.undo && <Button key={`direct-undo-${key}`} label={m.activity.undo} onPress={() => void undoAssign($, key, target)} />}
+            {shownActions.map(a => (
+              <Button key={`direct-${a}-${key}`} label={m.direct.label[a]} onPress={() => void pressDirect($, key, a, target)} />
+            ))}
+          </Box>
+        </Box>
+      )
+    }
+    const mergeButton = (key: string) => {
+      const isAdded = addedKeys.includes(buttonKey(key, MERGE))
+      return (
+        <Button
+          key={`merge-${key}`}
+          label={isAdded ? m.card.added : m.direct.merge}
+          {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
+          onPress={() => void addCard($, buttonKey(key, MERGE))}
+        />
+      )
+    }
     const isEditing = await read($, buttonsOpen)
     const moreButton = (key: string) => (
       <Button
@@ -1267,6 +1410,7 @@ export const register: Register = (on, options) => {
                 />
               </Box>
             </Box>
+            {directRow(itemKey(item), { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }, reviewActions(item))}
             {moreRow(itemKey(item), 'review')}
             {noteEditor(itemKey(item), () => item.headSha)}
           </Box>
@@ -1325,6 +1469,12 @@ export const register: Register = (on, options) => {
             </Text>
           )}
           {taskRow(pr, prHideKey(pr))}
+          {directRow(
+            prHideKey(pr),
+            { repo: pr.repo, number: pr.number, title: pr.title, sha: pr.headSha },
+            prActions(pr),
+            canMerge(pr) && mergeButton(prHideKey(pr)),
+          )}
           {moreRow(prHideKey(pr), 'pr')}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
         </Box>
@@ -1363,6 +1513,7 @@ export const register: Register = (on, options) => {
             </Text>
           )}
           {taskRow(issue, issueHideKey(issue))}
+          {directRow(issueHideKey(issue), { repo: issue.repo, number: issue.number, title: issue.title }, issueActions(issue))}
           {moreRow(issueHideKey(issue), 'issue')}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
         </Box>

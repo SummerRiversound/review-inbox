@@ -117,6 +117,17 @@ Adicione os seus em `actions.json`, na pasta de cache. `▸ Editar botões`, no 
 
 `scope` é `review`, `pr` ou `issue`. O prompt pode usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como no gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; uma variável sem valor no cartão fica vazia. Um botão com o id de um integrado o substitui, e `"hidden": true` o remove. Uma entrada sem algum campo, ou com scope ou variável desconhecidos, fica de fora e aparece em `Editar botões` com o motivo; o resto continua funcionando. `PrTitle` e `Author` vêm do GitHub como foram escritos, então um prompt que os usa passa ao Claude um texto escrito por outra pessoa.
 
+### Ações diretas no GitHub
+
+Com `directActions` em `on`, os cartões também ganham botões que escrevem no GitHub por conta própria, com a sua conta do `gh`.
+
+- `Aprovar` em um pedido de revisão, `Pronto para revisão` no seu PR em rascunho e `Atualizar branch` no seu PR quando a branch base avançou. Os outros veem essas ações e elas não podem ser desfeitas, então o primeiro toque transforma a linha em uma frase dizendo o que será enviado e como quem, por exemplo `Aprovar o/r#5 "Fix login" como kim — (sem comentário)`. `Confirmar aprovação` envia, assim como `y` enquanto a caixa está com o teclado; `Cancelar`, ou dez segundos, traz os botões de volta. O foco vai para `Cancelar`, e uma confirmação nos 300 ms seguintes ao primeiro toque é ignorada, então segurar Enter não envia nada.
+- A aprovação vai sem comentário e indica o commit que você viu. Se chegaram commits novos depois disso, ela não é enviada e o cartão avisa. `Atualizar branch` faz merge da branch base e nunca faz rebase.
+- `Rodar CI com falha de novo` no seu PR com verificações falhando roda de novo os jobs que falharam nas execuções do GitHub Actions do último commit. `Atribuir a mim` em uma issue que menciona você é enviado na hora, com `Desfazer` por dez segundos.
+- Uma escrita que falha fica no cartão com a mensagem do GitHub, e o botão volta.
+
+Nada faz merge diretamente. O seu PR aprovado sem verificações em andamento ganha um botão `Fazer merge`, mesmo com `directActions` em `off`: ele adiciona ao seu prompt um pedido para conferir os métodos de merge do repositório e rodar `gh pr merge`, que você envia com Enter e para o qual o Claude Code pede permissão.
+
 ## Requisitos
 
 - Claude Code 2.1.287 ou posterior, as primeiras builds com mods (plugins com hooks de função). Testado na 2.1.292. Os mods estão em acesso antecipado, e a API deles pode mudar de uma versão para outra.
@@ -156,6 +167,7 @@ As opções são definidas na tela de instalação e podem ser alteradas depois 
 | `refreshMinutes` | `10` | Minutos entre uma busca no GitHub e a seguinte: 5, 10, 15, 30 ou 60. Todas as sessões compartilham uma busca. |
 | `repoPaths` | vazio | Onde o Claude trabalha em cada repositório, para os botões de próximo passo. Veja abaixo. |
 | `motion` | `auto` | `off` tira o destaque dos números da faixa. `auto` também tira quando a configuração de movimento reduzido do Claude Code (`prefersReducedMotion`) está ligada. |
+| `directActions` | `off` | `on` adiciona botões que escrevem no GitHub a partir de um cartão. Veja "Ações diretas no GitHub" acima. |
 
 `scope` aceita tudo o que a [busca de issues e PRs](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) do GitHub aceita:
 
@@ -205,7 +217,7 @@ O mod acessa o GitHub só pelo seu próprio `gh`, envia o texto dos PRs ao Claud
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Executa o `gh`**: `gh api graphql` para as listas e, uma vez por semana, para os seus comentários de revisão recentes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para um PR com revisão solicitada novamente; e `gh auth token -u <githubUser>` quando `githubUser` está definido. Para a aba Atividade, roda `gh api notifications` e, ao tocar em `Concluir` ou `Cancelar inscrição`, `gh api -X DELETE notifications/threads/<id>` (antes também `/subscription` ao cancelar a inscrição). O mod não faz nenhuma outra chamada de rede por conta própria.
+- **Executa o `gh`**: `gh api graphql` para as listas e, uma vez por semana, para os seus comentários de revisão recentes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para um PR com revisão solicitada novamente; e `gh auth token -u <githubUser>` quando `githubUser` está definido. Para a aba Atividade, roda `gh api notifications` e, ao tocar em `Concluir` ou `Cancelar inscrição`, `gh api -X DELETE notifications/threads/<id>` (antes também `/subscription` ao cancelar a inscrição). Com `directActions` em `on`, um botão pressionado roda `gh api user` para o nome da conta e `gh api repos/<owner>/<repo>/pulls/<n>` para ler o último commit, e depois um de `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` com `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, ou `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. O mod não faz nenhuma outra chamada de rede por conta própria.
 - **Executa o `git`** na pasta da sessão a cada 30 segundos: `git branch --show-current` e `git remote -v`, para achar uma sessão no branch do seu PR, e `git rev-parse --path-format=absolute --git-common-dir`, para lembrar a pasta principal desse repositório.
 - **Consulta o Claude** (o modelo `sonnet`) para cada resumo, enviando o nome do repositório do PR, o título, a descrição (os primeiros 12.000 caracteres), os caminhos dos arquivos alterados (até 80) e o tamanho; para um PR com revisão solicitada novamente, também a primeira linha de cada mensagem de commit e até 60 caminhos de arquivo desde a sua última revisão. Isso conta no seu uso do Claude Code. Cada PR é resumido uma vez por commit de head e por idioma; um resumo que falha é tentado no máximo três vezes por commit. Uma vez por semana, ele também envia os seus próprios comentários de revisão em até 30 PRs que você revisou recentemente, cada um cortado em 500 caracteres, no máximo 60 comentários e 12.000 caracteres no total, para descrever o seu estilo de revisão; com menos de cinco, nada é enviado.
 - **Grava arquivos** apenas na própria pasta de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` substitui `~/.claude` quando está definido). `inbox-<hash>.json` guarda as listas e os resumos; `hidden-<hash>.json` guarda os PRs ocultos; `notes-<hash>.json` guarda suas notas e adiamentos, um arquivo por conta e escopo, qualquer que seja o idioma; `sessions.json` guarda a pasta, o branch, os remotos do GitHub e os links de PR dos prompts de cada sessão ativa, um para todas as contas; `repos.json` guarda a pasta principal de cada repositório do GitHub em que uma sessão foi aberta, para os botões de próximo passo; `style-<hash>.json` guarda a descrição do seu estilo de revisão. Cada arquivo é gravado primeiro em um temporário ao lado e movido para o lugar com `mv`, assim nenhuma sessão lê um arquivo pela metade; onde não há `mv`, como no Windows, ele é gravado diretamente. Lê `actions.json` ali, se você criou um, e nunca o escreve.
@@ -232,6 +244,7 @@ Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cart
 - `Nova revisão` some com qualquer novo commit no PR, inclusive um feito pelo botão "Update branch" do GitHub ou por um bot.
 - Depois de um force-push que reescreveu o commit que você revisou, um PR com revisão solicitada novamente não mostra a linha "Desde a minha última revisão".
 - O seu estilo de revisão é aprendido a partir dos PRs que a busca do GitHub retorna para `reviewed-by:@me -author:@me`, dentro do `scope`; por isso, comentários em PRs que você mesmo abriu ficam de fora. Comentários na conversa de um PR, fora de uma revisão, não entram nisso.
+- `Rodar CI com falha de novo` só roda de novo o GitHub Actions; verificações de outros serviços de CI são rodadas de novo no próprio site. Não há aprovação de vários PRs de uma vez nem aprovação com comentário.
 
 ## Solução de problemas
 
