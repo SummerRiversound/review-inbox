@@ -7,7 +7,7 @@
 Un mod de [Claude Code](https://claude.com/claude-code) que mantiene a la vista tu trabajo en GitHub mientras programas: los pull requests que esperan tu revisión, cada uno resumido en lenguaje sencillo antes de que lo abras; tus propios PR abiertos y las revisiones que reciben, y las incidencias en las que te involucran.
 
 - **Franja sobre el prompt** — una línea que cuenta solo lo que requiere tu atención: PR que esperan tu revisión, tus PR por atender e incidencias asignadas a ti o que te mencionan. Su color indica cuánto lleva esperando la solicitud de revisión más antigua (amarillo a partir de 3 días, rojo a partir de 14). `Abrir` abre la bandeja. Cuando un número baja, se pone verde un instante.
-- **Bandeja** — `/review-inbox`, con cinco pestañas: Por revisar, Mis PR y Asignadas y mencionadas son lo que hay que atender; Búsquedas guardadas y Notificaciones sirven para explorar. Cada pestaña empieza con su tecla: pulsa del 1 al 5 mientras la bandeja tiene el foco. El número tras el nombre de una pestaña cuenta sus tarjetas; Búsquedas guardadas no lleva ninguno, y Notificaciones cuenta solo las no leídas.
+- **Bandeja** — `/review-inbox`, con cinco pestañas: Por revisar, Mis PR y Asignadas y mencionadas son lo que hay que atender; Búsquedas guardadas y Notificaciones sirven para explorar. Pulsa del 1 al 5 mientras la bandeja tiene el foco para ir a esa pestaña, contando desde la izquierda. El número de una pestaña cuenta sus tarjetas; Búsquedas guardadas no lleva ninguno, y Notificaciones cuenta solo las no leídas.
 - **Avisos** — una notificación breve cuando llega algo nuevo mientras trabajas.
 
 ![La franja sobre el prompt y, después, las tres pestañas de la bandeja: Por revisar, Mis PR y Mis incidencias](docs/images/en/overview.gif)

@@ -285,11 +285,11 @@ test('the scope buttons stay away when every card is from this session\'s reposi
   await ui.unmount()
 })
 
-test('the tabs are pressed with 1 to 5, numbered so, with a divider between the lists to act on and the ones to browse', async ($, on) => {
+test('the tabs are pressed with 1 to 5 from the left, their names unnumbered, with a divider between the lists to act on and the ones to browse', async ($, on) => {
   const ui = await opened($, on, [], [], 'mine')
   const tab = async (key: string) => (await ui.find({ key }))?.props
-  expect(await tab('tab-review')).toMatchObject({ hotkey: '1', label: '1 To review 0' })
-  expect(await tab('tab-issues')).toMatchObject({ hotkey: '3', label: '3 Assigned & mentioned 0' })
+  expect(await tab('tab-review')).toMatchObject({ hotkey: '1', label: 'To review 0' })
+  expect(await tab('tab-issues')).toMatchObject({ hotkey: '3', label: 'Assigned & mentioned 0' })
   expect(await tab('tab-activity')).toMatchObject({ hotkey: '5' })
   expect(await shown(ui, /^│$/)).toBe(true)
   await ui.unmount()
@@ -408,7 +408,7 @@ test('the Saved searches tab shows each search with its newest results, a failed
   }
   const ui = await opened($, on, [], [], 'searches', { files: { [ACTIONS]: JSON.stringify(own) }, groups })
 
-  expect(await label('tab-searches')).toBe('4 Saved searches')
+  expect(await label('tab-searches')).toBe('Saved searches')
   expect(await shown(ui, /acme\/app #7/)).toBe(true)
   expect(await shown(ui, /kim · today/)).toBe(true)
   expect(await shown(ui, /24 more on GitHub/)).toBe(true)
@@ -450,7 +450,7 @@ test('the Notifications tab lists the notifications no other tab covers by reaso
     },
   })
 
-  expect(await label('tab-activity')).toBe('5 Notifications 1')
+  expect(await label('tab-activity')).toBe('Notifications 1')
   expect(await shown(ui, /● o\/n/)).toBe(true)
   expect(await label('fold-activity:comment')).toBe('▾ Comment 1')
   expect(await label('fold-activity:state_change')).toBe('▾ State changed 1')
@@ -469,7 +469,7 @@ test('the Notifications tab lists the notifications no other tab covers by reaso
   await clock.advance(10_000)
   expect(sent).toEqual(['notifications/threads/1'])
   expect(await ui.find({ key: 'done-1' })).toBeUndefined()
-  expect(await label('tab-activity')).toBe('5 Notifications 0')
+  expect(await label('tab-activity')).toBe('Notifications 0')
 
   await ui.press({ key: 'unsubscribe-2' })
   await clock.advance(10_000)
