@@ -198,7 +198,7 @@ One GraphQL search returns every PR waiting for your review with what the cards 
 
 ## Limits
 
-- At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`.
+- At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
 - A reference to an item you have not touched in 60 days is missed.
 - `New review` clears on any new commit to the PR, including one made by GitHub's "Update branch" button or by a bot.
 - After a force-push that rewrote the commit you reviewed, a re-requested PR shows no "since my last review" line.

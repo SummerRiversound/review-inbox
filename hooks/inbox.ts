@@ -1,5 +1,6 @@
 import type { CardDetails, Impact, InboxFile, InboxItem } from '../types'
 import { MESSAGES } from './i18n'
+import { PAGE, PAGE_ARGS } from './pages'
 import type { Language, Messages } from './i18n'
 
 export type SearchHit = {
@@ -42,10 +43,10 @@ export type GqlPr = SearchHit & GqlDetails & {
   timelineItems: { nodes: { createdAt?: string; requestedReviewer?: Reviewer }[] }
 }
 
-export const INBOX_QUERY = `query($q: String!) {
+export const INBOX_QUERY = `query($q: String!, ${PAGE_ARGS}) {
   viewer { login }
-  search(query: $q, type: ISSUE, first: 100) {
-    pageInfo { hasNextPage }
+  search(query: $q, type: ISSUE, ${PAGE}) {
+    pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
         number title url isDraft createdAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
@@ -131,9 +132,6 @@ export function sortItems(items: InboxItem[]): InboxItem[] {
     (a, b) => isDirect(a) - isDirect(b) || Date.parse(a.requestedAt) - Date.parse(b.requestedAt),
   )
 }
-
-// GitHub gives up on a slow query after about 10 s and answers with an HTML error page that gh cannot parse.
-export const isGatewayTimeout = (message: string) => /HTTP 50[234]|invalid character '<'/.test(message)
 
 export function shouldFetch(file: InboxFile, now: number, force: boolean, refreshMs = REFRESH_MS): boolean {
   if (file.fetchingSince !== undefined && now - file.fetchingSince < CLAIM_MS) return false
