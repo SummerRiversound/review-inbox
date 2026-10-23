@@ -66,3 +66,12 @@ export const isThreadHidden = (hidden: Record<string, string>, thread: Thread) =
 // What the tab shows: no thread that is a card on another tab, or of a reason left out.
 export const shownThreads = (threads: Thread[], cardUrls: Set<string>) =>
   threads.filter(t => !LEFT_OUT.includes(t.reason) && !cardUrls.has(t.url))
+
+// The tab's sections, in an order that does not shift as notifications arrive: talk first, then what happened on its own.
+const REASON_ORDER = ['comment', 'team_mention', 'state_change', 'ci_activity', 'security_alert', 'author']
+
+export function byReason(threads: Thread[]): [string, Thread[]][] {
+  const reasons = [...new Set(threads.map(t => t.reason))]
+  const rank = (reason: string) => (REASON_ORDER.includes(reason) ? REASON_ORDER.indexOf(reason) : REASON_ORDER.length)
+  return reasons.sort((a, b) => rank(a) - rank(b)).map(reason => [reason, threads.filter(t => t.reason === reason)])
+}

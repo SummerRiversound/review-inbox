@@ -285,6 +285,16 @@ test('the scope buttons stay away when every card is from this session\'s reposi
   await ui.unmount()
 })
 
+test('the tabs are pressed with 1 to 5, numbered so, with a divider between the lists to act on and the ones to browse', async ($, on) => {
+  const ui = await opened($, on, [], [], 'mine')
+  const tab = async (key: string) => (await ui.find({ key }))?.props
+  expect(await tab('tab-review')).toMatchObject({ hotkey: '1', label: '1 To review 0' })
+  expect(await tab('tab-issues')).toMatchObject({ hotkey: '3', label: '3 Assigned & mentioned 0' })
+  expect(await tab('tab-activity')).toMatchObject({ hotkey: '5' })
+  expect(await shown(ui, /^│$/)).toBe(true)
+  await ui.unmount()
+})
+
 test('nothing needing me shows the inbox-zero line', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'waiting')], [], 'mine')
   expect(await shown(ui, /Nothing needs you/)).toBe(true)
@@ -362,7 +372,7 @@ test('/review-inbox buttons names the file and each entry left out with its reas
   expect(await shown(ui, /See \/review-inbox buttons/)).toBe(true)
   const { text } = await $.command.run({ command: 'review-inbox', args: 'buttons' })
   expect(text).toContain('My buttons: ~/.claude/plugins/data/review-inbox/actions.json')
-  expect(text).toContain('Of my own: 0 buttons, 0 search groups')
+  expect(text).toContain('Of my own: 0 buttons, 0 saved searches')
   expect(text).toContain('typo: unknown variable PrLink')
   await ui.unmount()
 })
@@ -379,11 +389,11 @@ test('a clean actions.json leaves the drawer quiet, and add-button and add-searc
   expect((await $.command.run({ command: 'review-inbox', args: 'add-button' })).text).toBe('Added to your prompt; press Enter to send it.')
   await $.command.run({ command: 'review-inbox', args: ' add-search ' })
   expect(fills[0]).toStartWith('Add a button to my review inbox by editing /home/me/.claude/plugins/data/review-inbox/actions.json')
-  expect(fills[1]).toStartWith('Add a search group to my review inbox')
+  expect(fills[1]).toStartWith('Add a saved search to my review inbox')
   await ui.unmount()
 })
 
-test('the Searches tab shows each group with its newest results, a failed one with its error, and a new one as loading', async ($, on) => {
+test('the Saved searches tab shows each search with its newest results, a failed one with its error, and a new one as loading', async ($, on) => {
   const label = async (key: string) => (await ui.find({ key }))?.props.label
   const own = {
     groups: [
@@ -398,7 +408,7 @@ test('the Searches tab shows each group with its newest results, a failed one wi
   }
   const ui = await opened($, on, [], [], 'searches', { files: { [ACTIONS]: JSON.stringify(own) }, groups })
 
-  expect(await label('tab-searches')).toBe('Searches 25')
+  expect(await label('tab-searches')).toBe('4 Saved searches')
   expect(await shown(ui, /acme\/app #7/)).toBe(true)
   expect(await shown(ui, /kim · today/)).toBe(true)
   expect(await shown(ui, /24 more on GitHub/)).toBe(true)
@@ -409,7 +419,7 @@ test('the Searches tab shows each group with its newest results, a failed one wi
   await ui.unmount()
 })
 
-test('a search group counted in the band adds Searches N to it; the others do not', async ($, on) => {
+test('a saved search counted in the band adds Saved searches N to it; the others do not', async ($, on) => {
   const own = { groups: [{ id: 'team', name: 'Team PRs', query: 'org:acme', scope: 'prs', countInBand: true }] }
   const groups = {
     team: { query: 'org:acme is:pr sort:updated-desc', count: 3, hits: [] },
@@ -420,14 +430,14 @@ test('a search group counted in the band adds Searches N to it; the others do no
   const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
 
   expect(await shown(band, /My PRs to act on 1/)).toBe(true)
-  expect(await shown(band, /Searches 3/)).toBe(true)
+  expect(await shown(band, /Saved searches 3/)).toBe(true)
   await band.unmount()
 })
 
 const thread = (id: string, over: Partial<Thread> = {}): Thread =>
   ({ id, repo: 'o/n', title: `n${id}`, url: `https://github.com/o/n/issues/${id}`, reason: 'comment', updatedAt: '2026-10-22T00:00:00Z', unread: false, ...over })
 
-test('the Activity tab lists the notifications no other tab covers, and Done waits out its Undo before it is sent', async ($, on) => {
+test('the Notifications tab lists the notifications no other tab covers by reason, counts the unread, and Done waits out its Undo before it is sent', async ($, on) => {
   const sent: string[] = []
   const label = async (key: string) => (await ui.find({ key }))?.props.label
   const activity = { threads: [thread('1', { unread: true }), thread('2', { reason: 'state_change' }), thread('3', { url: 'u1' }), thread('4', { reason: 'mention' })] }
@@ -440,9 +450,10 @@ test('the Activity tab lists the notifications no other tab covers, and Done wai
     },
   })
 
-  expect(await label('tab-activity')).toBe('Activity 2 ●')
+  expect(await label('tab-activity')).toBe('5 Notifications 1')
   expect(await shown(ui, /● o\/n/)).toBe(true)
-  expect(await shown(ui, /State changed · /)).toBe(true)
+  expect(await label('fold-activity:comment')).toBe('▾ Comment 1')
+  expect(await label('fold-activity:state_change')).toBe('▾ State changed 1')
   // #3 is a card on My PRs, and a mention is on My issues.
   expect(await ui.find({ key: 'done-3' })).toBeUndefined()
   expect(await ui.find({ key: 'done-4' })).toBeUndefined()
@@ -458,7 +469,7 @@ test('the Activity tab lists the notifications no other tab covers, and Done wai
   await clock.advance(10_000)
   expect(sent).toEqual(['notifications/threads/1'])
   expect(await ui.find({ key: 'done-1' })).toBeUndefined()
-  expect(await label('tab-activity')).toBe('Activity 1')
+  expect(await label('tab-activity')).toBe('5 Notifications 0')
 
   await ui.press({ key: 'unsubscribe-2' })
   await clock.advance(10_000)
@@ -468,7 +479,7 @@ test('the Activity tab lists the notifications no other tab covers, and Done wai
   await ui.unmount()
 })
 
-test('without access to notifications the Activity tab says how to get it', async ($, on) => {
+test('without access to notifications the Notifications tab says how to get it', async ($, on) => {
   const ui = await opened($, on, [], [], 'activity', { activity: { threads: [], noAccess: true } })
 
   expect(await shown(ui, /No access to notifications/)).toBe(true)

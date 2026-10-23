@@ -3,7 +3,7 @@ import type { Messages } from '../i18n'
 export const zhCN: Messages = {
   title: '审查收件箱',
   command: {
-    description: '打开审查收件箱：等待我审查的 PR、我的 PR 和我的议题',
+    description: '打开审查收件箱：等待我审查的 PR、我的 PR，以及分配给我或提及我的议题',
     opened: '已打开审查收件箱。',
     filled: '已放入提示框，按 Enter 发送。',
   },
@@ -11,16 +11,16 @@ export const zhCN: Messages = {
     open: '打开',
     reviews: n => `待审查 ${n}`,
     prTodo: n => `我的 PR 待处理 ${n}`,
-    issues: n => `我的议题 ${n}`,
-    searches: n => `搜索 ${n}`,
+    issues: n => `分配与提及 ${n}`,
+    searches: n => `已保存的搜索 ${n}`,
     oldest: days => ` · 最久已等待 ${days} 天`,
   },
   tabs: {
     review: n => `待审查 ${n}`,
     mine: n => `我的 PR ${n}`,
-    issues: n => `我的议题 ${n}`,
-    searches: n => `搜索 ${n}`,
-    activity: n => `动态 ${n}`,
+    issues: n => `分配与提及 ${n}`,
+    searches: '已保存的搜索',
+    activity: n => `GitHub 通知 ${n}`,
   },
   card: {
     rerequest: '已重新请求',
@@ -34,7 +34,7 @@ export const zhCN: Messages = {
     impact: '影响范围',
     size: (files, added, removed) => `${files} 个文件 (+${added} −${removed})`,
     hide: '隐藏',
-    review: '审查',
+    review: '让 Claude 审查',
     added: '已添加',
     task: {
       changes: '处理评论',
@@ -78,7 +78,7 @@ export const zhCN: Messages = {
     review: '目前没有等待你审查的 PR。',
     mine: '你目前没有打开的 PR。',
     issues: '没有分配给你或提及你的议题。',
-    searches: "没有搜索组。请用 /review-inbox add-search 添加。",
+    searches: "没有已保存的搜索。请用 /review-inbox add-search 添加。",
     activity: "没有其他通知。审查请求、分配和提及在其他标签页中。",
   },
   sections: {
@@ -131,9 +131,9 @@ export const zhCN: Messages = {
     by: who => `来自 ${who} 的新审查`,
   },
   buttons: {
-    more: "更多",
+    more: "操作",
     none: "还没有自己的按钮，目前只显示内置按钮。",
-    counts: (buttons, groups) => `我的按钮 ${buttons} 个，搜索分组 ${groups} 个`,
+    counts: (buttons, groups) => `我的按钮 ${buttons} 个，已保存的搜索 ${groups} 个`,
     how: "输入 /review-inbox add-button 或 /review-inbox add-search，与 Claude 一起编写。",
     hint: "详情：/review-inbox buttons",
     file: path => `我的按钮：${path}`,
@@ -144,8 +144,8 @@ export const zhCN: Messages = {
       fields: "需要 id、name 和 prompt",
       scope: scope => `scope "${scope}" 不是 review、pr 或 issue`,
       variables: names => `未知变量 ${names}`,
-      groupFields: "搜索组需要 id、name 和 query",
-      groupScope: scope => `搜索组的 scope "${scope}" 不是 prs 或 issues`,
+      groupFields: "已保存的搜索需要 id、name 和 query",
+      groupScope: scope => `已保存的搜索中的 scope "${scope}" 不是 prs 或 issues`,
     },
     builtIn: {
       "summarize-risks": { name: "总结风险", prompt: "总结 {{.PrUrl}} 的风险：用 `gh pr diff {{.PrUrl}}` 读取 diff，列出可能会对谁造成什么破坏，以及应该先测试什么。不要做任何修改。" },
@@ -160,7 +160,7 @@ export const zhCN: Messages = {
     none: "没有找到。",
     failed: message => `搜索失败：${message}`,
     more: n => `在 GitHub 上还有 ${n} 个`,
-    tooMany: n => `超出前 15 个的 ${n} 个搜索组未显示`,
+    tooMany: n => `超出前 15 个的 ${n} 个已保存的搜索未显示`,
   },
   activity: {
     reasons: { comment: "评论", state_change: "状态变更", author: "我创建的", team_mention: "团队被提及", security_alert: "安全警报", ci_activity: "CI 运行" },
@@ -187,7 +187,7 @@ export const zhCN: Messages = {
   },
   prompt: {
     addButton: (path, names) => `给我的审查收件箱添加一个按钮：编辑 ${path}，如果不存在就创建为 {"buttons": []}。每一项是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 里可以用 {{.Name}} 的形式使用 ${names}。先问我这个按钮要做什么。`,
-    addGroup: path => `给我的审查收件箱添加一个搜索组：编辑 ${path}，如果不存在就创建为 {"groups": []}，已有的 "buttons" 保持不变。每一项是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示栏里显示数量就加上 "countInBand": true；query 使用 GitHub 搜索语法。先问我想找什么。`,
+    addGroup: path => `给我的审查收件箱添加一个已保存的搜索：编辑 ${path}，如果不存在就创建为 {"groups": []}，已有的 "buttons" 保持不变。每一项是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示栏里显示数量就加上 "countInBand": true；query 使用 GitHub 搜索语法。先问我想找什么。`,
     review: url => `帮我审查一下 ${url}。`,
     check: '重点检查：',
     since: '我上次审查后的变更：',

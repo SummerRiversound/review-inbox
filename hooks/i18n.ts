@@ -14,7 +14,7 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
 const en = {
   title: 'Review inbox',
   command: {
-    description: 'Open the review inbox: PRs awaiting my review, my PRs and my issues',
+    description: 'Open the review inbox: PRs awaiting my review, my PRs, and issues assigned to me or mentioning me',
     opened: 'Opened the review inbox.',
     filled: 'Added to your prompt; press Enter to send it.',
   },
@@ -22,16 +22,16 @@ const en = {
     open: 'Open',
     reviews: (n: string) => `To review ${n}`,
     prTodo: (n: string) => `My PRs to act on ${n}`,
-    issues: (n: string) => `My issues ${n}`,
-    searches: (n: string) => `Searches ${n}`,
+    issues: (n: string) => `Assigned & mentioned ${n}`,
+    searches: (n: string) => `Saved searches ${n}`,
     oldest: (days: number) => ` · oldest waiting ${count(days, 'day')}`,
   },
   tabs: {
     review: (n: string) => `To review ${n}`,
     mine: (n: string) => `My PRs ${n}`,
-    issues: (n: string) => `My issues ${n}`,
-    searches: (n: string) => `Searches ${n}`,
-    activity: (n: string) => `Activity ${n}`,
+    issues: (n: string) => `Assigned & mentioned ${n}`,
+    searches: 'Saved searches',
+    activity: (n: string) => `Notifications ${n}`,
   },
   card: {
     rerequest: 're-requested',
@@ -45,7 +45,7 @@ const en = {
     impact: 'Impact',
     size: (files: number, added: string, removed: string) => `${count(files, 'file')} (+${added} −${removed})`,
     hide: 'Hide',
-    review: 'Review',
+    review: 'Review with Claude',
     added: 'Added',
     task: {
       changes: 'Address comments',
@@ -89,7 +89,7 @@ const en = {
     review: 'No PRs are waiting for your review.',
     mine: 'You have no open PRs.',
     issues: 'No issues are assigned to you or mention you.',
-    searches: "No search groups. Add one with /review-inbox add-search.",
+    searches: "No saved searches. Add one with /review-inbox add-search.",
     activity: "No other notifications. Review requests, assignments and mentions are on the other tabs.",
   },
   sections: {
@@ -142,9 +142,9 @@ const en = {
     by: (who: string) => `new review ${who}`,
   },
   buttons: {
-    more: "More",
+    more: "Actions",
     none: "No buttons of my own yet; the built-in ones are shown.",
-    counts: (buttons: number, groups: number) => `Of my own: ${buttons} buttons, ${groups} search groups`,
+    counts: (buttons: number, groups: number) => `Of my own: ${buttons} buttons, ${groups} saved searches`,
     how: "/review-inbox add-button or /review-inbox add-search asks Claude to write one with you.",
     hint: "See /review-inbox buttons",
     file: (path: string) => `My buttons: ${path}`,
@@ -155,8 +155,8 @@ const en = {
       fields: "needs an id, a name and a prompt",
       scope: (scope: string) => `scope "${scope}" is not review, pr or issue`,
       variables: (names: string) => `unknown variable ${names}`,
-      groupFields: "a search group needs an id, a name and a query",
-      groupScope: (scope: string) => `search group scope "${scope}" is not prs or issues`,
+      groupFields: "a saved search needs an id, a name and a query",
+      groupScope: (scope: string) => `saved search scope "${scope}" is not prs or issues`,
     },
     builtIn: {
       "summarize-risks": { name: "Summarize risks", prompt: "Summarize the risks in {{.PrUrl}}: read the diff with `gh pr diff {{.PrUrl}}` and list what could break, for whom, and what to test first. Change nothing." },
@@ -171,7 +171,7 @@ const en = {
     none: "Nothing found.",
     failed: (message: string) => `Search failed: ${message}`,
     more: (n: number) => `${n} more on GitHub`,
-    tooMany: (n: number) => `${n} search groups past the first 15 are left out`,
+    tooMany: (n: number) => `${n} saved searches past the first 15 are left out`,
   },
   activity: {
     reasons: { comment: "Comment", state_change: "State changed", author: "You opened it", team_mention: "Team mentioned", security_alert: "Security alert", ci_activity: "CI run" },
@@ -198,7 +198,7 @@ const en = {
   },
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
-    addGroup: (path: string) => `Add a search group to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,
+    addGroup: (path: string) => `Add a saved search to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,
     review: (url: string) => `Review ${url}.`,
     check: 'Check in particular: ',
     since: 'Changed since my last review: ',

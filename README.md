@@ -7,7 +7,7 @@
 A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
 
 - **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer. A count that goes down shows in green for a moment.
-- **Drawer** — `/review-inbox`, with five tabs: To review, My PRs, My issues, Searches and Activity.
+- **Drawer** — `/review-inbox`, with five tabs: To review, My PRs and Assigned & mentioned hold what to act on, then Saved searches and Notifications are there to browse. Each tab starts with its key: press 1 to 5 while the drawer has focus. The number after a tab's name counts its cards; Saved searches has none, and Notifications counts the unread.
 - **Toasts** — a short notice when something new arrives while you work.
 
 ![The band above the prompt, then the drawer's three tabs: To review, My PRs and My issues](docs/images/en/overview.gif)
@@ -18,11 +18,11 @@ The interface and the summaries come in nine languages; see [Language](#language
 
 Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the top of a tab brings back that tab's hidden cards.
 
-`Note`, under a card's `▸ More`, writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
+`Note`, under a card's `▸ Actions`, writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
 
 The search field at the top looks through every tab at once: repository, number, title, author, the first 2,000 characters of the description, the summary and your notes. Hidden and snoozed cards are found too, marked `hidden`. Empty the field to go back to the tabs. The Claude mobile app draws no text fields yet, so there it shows notes but has no search and no `Note`.
 
-Cards a session is working on gather under `In progress in a session` at the top of To review and My PRs, with the session's folder name, or `this session`. My PR counts when a session's folder is checked out on its branch in its repository; any card counts once a prompt in that session links to it, as `Review` does. A session that is closed, or has not checked in for 10 minutes, lets its cards go back to their groups.
+Cards a session is working on gather under `In progress in a session` at the top of To review and My PRs, with the session's folder name, or `this session`. My PR counts when a session's folder is checked out on its branch in its repository; any card counts once a prompt in that session links to it, as `Review with Claude` does. A session that is closed, or has not checked in for 10 minutes, lets its cards go back to their groups.
 
 A session still running an older release of the mod, as one opened before an update and never reloaded, is named under the drawer's title, such as `2 sessions on an older version (dhub2): run /reload-plugins there`. Such a session keeps its own lists in a file of its own, so it never shows its lists or errors in an up-to-date session.
 
@@ -38,8 +38,8 @@ When nothing needs you (no review request, none of your PRs to act on, no issue 
 
 One card per PR waiting for your review: a one-sentence summary, why the PR exists, what it touches, its size and author, and how long your review has been pending. Risky items, such as a schema change or a required deploy order, are marked ⚠️.
 
-- `Review` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
-- `Hide`, under `▸ More` beside `Note`, hides the card until the PR gets a new commit.
+- `Review with Claude` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
+- `Hide`, under `▸ Actions` beside `Note`, hides the card until the PR gets a new commit.
 - `re-requested` marks a PR you already reviewed that asks for you again, with a short summary of what changed since your last review.
 - Cards are grouped into direct requests, team requests and drafts.
 
@@ -57,9 +57,9 @@ Your open PRs with their state instead of a summary, in the order you have to ac
 
 A review submitted after your latest commit shows as `New review` with who left it, until you commit again. That covers approvals, change requests and comment-only reviews, thread replies included, from people or bots; a dismissed review does not count. Such a PR counts as something to do and moves ahead of quiet ones in the same state. No model calls.
 
-A PR stuck on you (changes requested, CI failing or a merge conflict) has a button for its next step: `Address comments`, `Fix CI` or `Resolve conflict`. Beside it is the folder Claude would work in: `this folder` when this session holds a clone of the repository, the folder of the last session that ran in it, or `no local clone`. The button adds the card the way `Review` does. When you close the drawer, the request names the step and the `gh` commands that read the comments or the failing logs, and asks Claude to work in a new worktree, leaving that folder's branch alone. With no known folder, Claude asks where your clone is, or offers `gh repo clone` and waits for your yes. No extra GitHub calls and no model calls.
+A PR stuck on you (changes requested, CI failing or a merge conflict) has a button for its next step: `Address comments`, `Fix CI` or `Resolve conflict`. Beside it is the folder Claude would work in: `this folder` when this session holds a clone of the repository, the folder of the last session that ran in it, or `no local clone`. The button adds the card the way `Review with Claude` does. When you close the drawer, the request names the step and the `gh` commands that read the comments or the failing logs, and asks Claude to work in a new worktree, leaving that folder's branch alone. With no known folder, Claude asks where your clone is, or offers `gh repo clone` and waits for your yes. No extra GitHub calls and no model calls.
 
-### My issues
+### Assigned & mentioned
 
 Open issues assigned to you, and open issues and PRs that mention you; an item that is both shows once, as assigned. Below them, other issues and PRs from the last 30 days that referenced one of yours, with who did it. References you made yourself are left out, and only the newest 20 are shown. No model calls.
 
@@ -69,9 +69,9 @@ Items are grouped into assigned, mentions and references. `Hide` hides an item u
 
 An issue assigned to you has a `Work on this` button that works the same way: Claude reads the issue, plans the change and starts on a new branch in a new worktree.
 
-### Searches
+### Saved searches
 
-Searches you name yourself, each a section with its count and the 20 most recently updated matches. A title opens that PR or issue on GitHub, and `N more on GitHub` opens the whole search there. Three come built in, as in GitHub's own pull request inbox: `Involves me` (open PRs you take part in but did not open), `Reviewed by me, still open` and `My open issues`. Press a section's header to fold it. The searches run with every refresh, three at a time; one that fails shows why and leaves the others alone. No model calls.
+GitHub searches you name and save, each a section with its count and the 20 most recently updated matches. A title opens that PR or issue on GitHub, and `N more on GitHub` opens the whole search there. Three come built in, as in GitHub's own pull request inbox: `Involves me` (open PRs you take part in but did not open), `Reviewed by me, still open` and `My open issues`. Press a section's header to fold it. The searches run with every refresh, three at a time; one that fails shows why and leaves the others alone. No model calls.
 
 Add your own under `groups` in the same `actions.json` as the card buttons; `/review-inbox add-search` asks Claude to write one with you.
 
@@ -84,11 +84,11 @@ Add your own under `groups` in the same `actions.json` as the card buttons; `/re
 }
 ```
 
-`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the group's count to the band as `Searches N`. A group with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. Only the first 15 groups are searched.
+`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the search's count to the band as `Saved searches N`. A saved search with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. Only the first 15 saved searches run.
 
-### Activity
+### Notifications
 
-Your GitHub notifications that no other tab already shows, newest first: comments, state changes and new activity on threads you opened or take part in, team mentions and security alerts. Finished GitHub Actions runs you started show too, as `CI run`, linked to the repository's Actions page; GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings. Review requests, assignments and mentions are left out, as are threads whose PR or issue is already a card. An unread thread is marked `●`, and so is the tab while any is. Up to 100 notifications from the last 30 days are read.
+Your GitHub notifications that no other tab already shows, in a section per reason (`Comment`, `State changed`, `CI run` and so on), newest first in each; press a section's header to fold it. They are comments, state changes and new activity on threads you opened or take part in, team mentions and security alerts. Finished GitHub Actions runs you started show too, as `CI run`, linked to the repository's Actions page; GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings. Review requests, assignments and mentions are left out, as are threads whose PR or issue is already a card. An unread thread is marked `●`, and the tab's number counts them. Up to 100 notifications from the last 30 days are read.
 
 `Done` and `Unsubscribe` take the row away at once and leave `Done · Undo` or `Unsubscribed · Undo` in its place for 10 seconds; closing the drawer before then sends them right away. Then `Done` marks the thread done on GitHub, as GitHub's own inbox does, and `Unsubscribe` also stops its notifications until someone mentions you or you comment. A thread marked done comes back when it has new activity. If either fails, the row comes back with the reason. No model calls.
 
@@ -104,7 +104,7 @@ Your PR turning approved with no CI running shows `Ready to merge` once.
 
 ### Card buttons
 
-`▸ More` on a card opens `Note` and `Hide`, then buttons that each hand the card to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on a review request, `Draft reply to reviewer` and `Investigate CI failure` on your PR. A button adds the card the way `Review` does, and the request goes into your prompt when you close the drawer. Nothing runs and nothing is posted until you press Enter.
+`▸ Actions` on a card opens `Note` and `Hide`, then buttons that each hand the card to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on a review request, `Draft reply to reviewer` and `Investigate CI failure` on your PR. A button adds the card the way `Review with Claude` does, and the request goes into your prompt when you close the drawer. Nothing runs and nothing is posted until you press Enter.
 
 Add your own in `actions.json` in the cache folder. `/review-inbox buttons` shows its path, what it holds and any entry left out, and `/review-inbox add-button` asks Claude to write one with you.
 
@@ -219,7 +219,7 @@ The mod reaches GitHub only through your own `gh`, sends PR text to Claude to wr
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Activity tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. With `directActions` on, a button you press runs `gh api user` for your account name and `gh api repos/<owner>/<repo>/pulls/<n>` to read the head commit, then one of `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` with `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, or `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. The mod makes no other network calls of its own.
+- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Notifications tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. With `directActions` on, a button you press runs `gh api user` for your account name and `gh api repos/<owner>/<repo>/pulls/<n>` to read the head commit, then one of `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` with `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, or `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. The mod makes no other network calls of its own.
 - **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch, and `git rev-parse --path-format=absolute --git-common-dir`, to remember the main folder of that repository.
 - **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
 - **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>-f<n>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, release of the mod, branch, GitHub remotes and the PR links its prompts held, for every account; `repos.json` holds the main folder of each GitHub repository a session has run in, for the next-step buttons; `style-<hash>.json` holds the description of your review style. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place. It reads `actions.json` there if you made one, and never writes it.
@@ -233,15 +233,15 @@ All your open sessions share one fetch: one session asks GitHub at most every 10
 
 Every open Claude Code session runs the mod, but they share one cache file per account, scope and language, and so do hidden PRs. Each session reads it every 30 seconds. Only the session that finds it older than 10 minutes and wins a short claim calls GitHub, so ten open sessions make one request. The fetching session renews its claim while it works; a claim not renewed for 3 minutes is taken over. A failed fetch keeps the last good lists and is retried after a minute. `↻` in the drawer fetches right away.
 
-One GraphQL search returns every PR waiting for your review with what the cards need, and one more request with three searches fills My PRs and My issues. References come from the cross-reference events on the PRs and issues you authored. GitHub does not update an item's `updatedAt` when something references it, so items touched in the last 60 days are checked for references made in the last 30, 50 items per request. If GitHub refuses the reference search (it has a per-query resource limit), the last references are kept and the other tabs still update.
+One GraphQL search returns every PR waiting for your review with what the cards need, and one more request with three searches fills My PRs and Assigned & mentioned. References come from the cross-reference events on the PRs and issues you authored. GitHub does not update an item's `updatedAt` when something references it, so items touched in the last 60 days are checked for references made in the last 30, 50 items per request. If GitHub refuses the reference search (it has a per-query resource limit), the last references are kept and the other tabs still update.
 
 `refreshMinutes` changes those 10 minutes.
 
 ## Limits
 
 - At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
-- A search group shows its 20 most recently updated matches; its count is GitHub's total for the search.
-- The Activity tab reads up to 100 notifications from the last 30 days, and asks no more often than GitHub's poll interval allows.
+- A saved search shows its 20 most recently updated matches; its count is GitHub's total for the search.
+- The Notifications tab reads up to 100 notifications from the last 30 days, and asks no more often than GitHub's poll interval allows.
 - A reference to an item you have not touched in 60 days is missed.
 - `New review` clears on any new commit to the PR, including one made by GitHub's "Update branch" button or by a bot.
 - After a force-push that rewrote the commit you reviewed, a re-requested PR shows no "since my last review" line.

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { hasNextPage, htmlUrl, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, toThread } from '../hooks/activity'
+import { byReason, hasNextPage, htmlUrl, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, toThread } from '../hooks/activity'
 
 const raw = (over: Partial<Parameters<typeof toThread>[0]> = {}) => ({
   id: '7',
@@ -48,4 +48,20 @@ test('the tab leaves out threads that are cards elsewhere and reasons the other 
   const thread = threads[1]!
   expect(isThreadHidden({ 'thread:8': '2026-10-22T12:00:00Z' }, thread)).toBe(true)
   expect(isThreadHidden({ 'thread:8': '2026-10-22T12:00:00Z' }, { ...thread, updatedAt: '2026-10-23T09:00:00Z' })).toBe(false)
+})
+
+test('notifications group by reason in a fixed order, unknown reasons last as they come, each group newest first', () => {
+  const threads = [
+    toThread(raw({ id: '1', reason: 'something_new' })),
+    toThread(raw({ id: '2', reason: 'ci_activity' })),
+    toThread(raw({ id: '3', reason: 'comment' })),
+    toThread(raw({ id: '4', reason: 'ci_activity' })),
+    toThread(raw({ id: '5', reason: 'author' })),
+  ]
+  expect(byReason(threads).map(([reason, list]) => [reason, list.map(t => t.id)])).toEqual([
+    ['comment', ['3']],
+    ['ci_activity', ['2', '4']],
+    ['author', ['5']],
+    ['something_new', ['1']],
+  ])
 })

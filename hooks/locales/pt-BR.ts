@@ -6,7 +6,7 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? on
 export const ptBR: Messages = {
   title: 'Caixa de revisões',
   command: {
-    description: 'Abrir a caixa de revisões: PRs aguardando minha revisão, meus PRs e minhas issues',
+    description: 'Abrir a caixa de revisões: PRs aguardando minha revisão, meus PRs e issues atribuídas a mim ou que me mencionam',
     opened: 'Caixa de revisões aberta.',
     filled: 'Adicionado ao prompt; pressione Enter para enviar.',
   },
@@ -14,16 +14,16 @@ export const ptBR: Messages = {
     open: 'Abrir',
     reviews: (n: string) => `Para revisar ${n}`,
     prTodo: (n: string) => `Meus PRs a resolver ${n}`,
-    issues: (n: string) => `Minhas issues ${n}`,
-    searches: (n: string) => `Buscas ${n}`,
+    issues: (n: string) => `Atribuições e menções ${n}`,
+    searches: (n: string) => `Buscas salvas ${n}`,
     oldest: (days: number) => ` · solicitação mais antiga: ${count(days, 'dia')} de espera`,
   },
   tabs: {
     review: (n: string) => `Para revisar ${n}`,
     mine: (n: string) => `Meus PRs ${n}`,
-    issues: (n: string) => `Minhas issues ${n}`,
-    searches: (n: string) => `Buscas ${n}`,
-    activity: (n: string) => `Atividade ${n}`,
+    issues: (n: string) => `Atribuições e menções ${n}`,
+    searches: 'Buscas salvas',
+    activity: (n: string) => `Notificações ${n}`,
   },
   card: {
     rerequest: 'revisão solicitada novamente',
@@ -37,7 +37,7 @@ export const ptBR: Messages = {
     impact: 'Impacto',
     size: (files: number, added: string, removed: string) => `${count(files, 'arquivo')} (+${added} −${removed})`,
     hide: 'Ocultar',
-    review: 'Revisar',
+    review: 'Revisar com o Claude',
     added: 'Adicionado',
     task: {
       changes: 'Responder comentários',
@@ -81,7 +81,7 @@ export const ptBR: Messages = {
     review: 'Nenhum PR está aguardando sua revisão.',
     mine: 'Você não tem PRs abertos.',
     issues: 'Não há issues atribuídas a você ou que mencionem você.',
-    searches: "Nenhum grupo de busca. Adicione um com /review-inbox add-search.",
+    searches: "Nenhuma busca salva. Adicione uma com /review-inbox add-search.",
     activity: "Nenhuma outra notificação. Pedidos de revisão, atribuições e menções estão nas outras abas.",
   },
   sections: {
@@ -135,9 +135,9 @@ export const ptBR: Messages = {
     by: (who: string) => `nova revisão de ${who}`,
   },
   buttons: {
-    more: "Mais",
+    more: "Ações",
     none: "Você ainda não tem botões próprios; os integrados estão sendo mostrados.",
-    counts: (buttons, groups) => `Seus: ${buttons} botões, ${groups} grupos de busca`,
+    counts: (buttons, groups) => `Seus: ${buttons} botões, ${groups} buscas salvas`,
     how: "Com /review-inbox add-button ou /review-inbox add-search, o Claude escreve um com você.",
     hint: "Detalhes: /review-inbox buttons",
     file: (path: string) => `Meus botões: ${path}`,
@@ -148,8 +148,8 @@ export const ptBR: Messages = {
       fields: "precisa de id, name e prompt",
       scope: (scope: string) => `o scope "${scope}" não é review, pr nem issue`,
       variables: (names: string) => `variável desconhecida ${names}`,
-      groupFields: "um grupo de busca precisa de id, name e query",
-      groupScope: (scope: string) => `o scope "${scope}" do grupo de busca não é prs nem issues`,
+      groupFields: "uma busca salva precisa de id, name e query",
+      groupScope: (scope: string) => `o scope "${scope}" da busca salva não é prs nem issues`,
     },
     builtIn: {
       "summarize-risks": { name: "Resumir riscos", prompt: "Resuma os riscos de {{.PrUrl}}: leia o diff com `gh pr diff {{.PrUrl}}` e liste o que pode quebrar, para quem, e o que testar primeiro. Não mude nada." },
@@ -164,7 +164,7 @@ export const ptBR: Messages = {
     none: "Nada encontrado.",
     failed: (message: string) => `A busca falhou: ${message}`,
     more: (n: number) => `Mais ${n} no GitHub`,
-    tooMany: (n: number) => `${n} grupos de busca além dos 15 primeiros ficaram de fora`,
+    tooMany: (n: number) => `${n} buscas salvas além das 15 primeiras ficaram de fora`,
   },
   activity: {
     reasons: { comment: "Comentário", state_change: "Mudança de estado", author: "Aberto por você", team_mention: "Time mencionado", security_alert: "Alerta de segurança", ci_activity: "Execução de CI" },
@@ -191,7 +191,7 @@ export const ptBR: Messages = {
   },
   prompt: {
     addButton: (path: string, names: string) => `Adicione um botão à minha caixa de revisões editando ${path}; crie como {"buttons": []} se não existir. Cada entrada é {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, e o prompt pode usar ${names} como {{.Name}}. Primeiro me pergunte o que o botão deve fazer.`,
-    addGroup: (path: string) => `Adicione um grupo de busca à minha caixa de revisões editando ${path}; crie como {"groups": []} se não existir e mantenha os "buttons" que houver. Cada entrada é {"id", "name", "query", "scope": "prs" | "issues"}, com "countInBand": true para contar na faixa; a query usa a sintaxe de busca do GitHub. Primeiro me pergunte o que ele deve encontrar.`,
+    addGroup: (path: string) => `Adicione uma busca salva à minha caixa de revisões editando ${path}; crie como {"groups": []} se não existir e mantenha os "buttons" que houver. Cada entrada é {"id", "name", "query", "scope": "prs" | "issues"}, com "countInBand": true para contar na faixa; a query usa a sintaxe de busca do GitHub. Primeiro me pergunte o que ela deve encontrar.`,
     review: (url: string) => `Revise o PR ${url}.`,
     check: 'Verifique em especial: ',
     since: 'O que mudou desde a minha última revisão: ',

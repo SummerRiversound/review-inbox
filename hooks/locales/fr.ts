@@ -6,7 +6,7 @@ const count = (n: number, one: string, many = `${one}s`) => `${n} ${n < 2 ? one 
 export const fr: Messages = {
   title: 'Boîte de réception des revues',
   command: {
-    description: 'Ouvrir la boîte de réception des revues : PR en attente de ma revue, mes PR et mes issues',
+    description: 'Ouvrir la boîte de réception des revues : PR en attente de ma revue, mes PR et les issues qui me sont assignées ou me mentionnent',
     opened: 'La boîte de réception des revues est ouverte.',
     filled: 'Ajouté au prompt ; appuyez sur Entrée pour l’envoyer.',
   },
@@ -14,16 +14,16 @@ export const fr: Messages = {
     open: 'Ouvrir',
     reviews: n => `Revues à faire ${n}`,
     prTodo: n => `Mes PR à traiter ${n}`,
-    issues: n => `Mes issues ${n}`,
-    searches: n => `Recherches ${n}`,
+    issues: n => `Assignations et mentions ${n}`,
+    searches: n => `Recherches enregistrées ${n}`,
     oldest: days => ` · demande la plus ancienne : ${count(days, 'jour')} d'attente`,
   },
   tabs: {
     review: n => `Revues à faire ${n}`,
     mine: n => `Mes PR ${n}`,
-    issues: n => `Mes issues ${n}`,
-    searches: n => `Recherches ${n}`,
-    activity: n => `Activité ${n}`,
+    issues: n => `Assignations et mentions ${n}`,
+    searches: 'Recherches enregistrées',
+    activity: n => `Notifications ${n}`,
   },
   card: {
     rerequest: 'revue redemandée',
@@ -37,7 +37,7 @@ export const fr: Messages = {
     impact: 'Impact',
     size: (files, added, removed) => `${count(files, 'fichier')} (+${added} −${removed})`,
     hide: 'Masquer',
-    review: 'Faire la revue',
+    review: 'Revue par Claude',
     added: 'Ajouté',
     task: {
       changes: 'Traiter les commentaires',
@@ -81,7 +81,7 @@ export const fr: Messages = {
     review: "Aucune PR n'attend votre revue.",
     mine: "Vous n'avez aucune PR ouverte.",
     issues: 'Aucune issue ne vous est assignée ni ne vous mentionne.',
-    searches: "Aucun groupe de recherche. Ajoutez-en un avec /review-inbox add-search.",
+    searches: "Aucune recherche enregistrée. Ajoutez-en une avec /review-inbox add-search.",
     activity: "Aucune autre notification. Les demandes de revue, attributions et mentions sont dans les autres onglets.",
   },
   sections: {
@@ -134,9 +134,9 @@ export const fr: Messages = {
     by: who => `nouvelle revue par ${who}`,
   },
   buttons: {
-    more: "Plus",
+    more: "Actions",
     none: "Pas encore de boutons à vous ; les boutons intégrés sont affichés.",
-    counts: (buttons, groups) => `À vous : ${buttons} boutons, ${groups} groupes de recherche`,
+    counts: (buttons, groups) => `À vous : ${buttons} boutons, ${groups} recherches enregistrées`,
     how: "Avec /review-inbox add-button ou /review-inbox add-search, Claude en écrit un avec vous.",
     hint: "Détails : /review-inbox buttons",
     file: path => `Mes boutons : ${path}`,
@@ -147,8 +147,8 @@ export const fr: Messages = {
       fields: "il faut un id, un name et un prompt",
       scope: scope => `le scope "${scope}" n'est ni review, ni pr, ni issue`,
       variables: names => `variable inconnue ${names}`,
-      groupFields: "un groupe de recherche a besoin d’un id, d’un name et d’une query",
-      groupScope: scope => `le scope "${scope}" du groupe de recherche n’est ni prs ni issues`,
+      groupFields: "une recherche enregistrée a besoin d’un id, d’un name et d’une query",
+      groupScope: scope => `le scope "${scope}" de la recherche enregistrée n’est ni prs ni issues`,
     },
     builtIn: {
       "summarize-risks": { name: "Résumer les risques", prompt: "Résume les risques de {{.PrUrl}} : lis le diff avec `gh pr diff {{.PrUrl}}` et liste ce qui pourrait casser, pour qui, et ce qu'il faut tester en premier. Ne change rien." },
@@ -163,7 +163,7 @@ export const fr: Messages = {
     none: "Rien trouvé.",
     failed: message => `La recherche a échoué : ${message}`,
     more: n => `${n} de plus sur GitHub`,
-    tooMany: n => `${n} groupes de recherche au-delà des 15 premiers sont laissés de côté`,
+    tooMany: n => `${n} recherches enregistrées au-delà des 15 premières sont laissées de côté`,
   },
   activity: {
     reasons: { comment: "Commentaire", state_change: "Changement d'état", author: "Ouvert par vous", team_mention: "Équipe mentionnée", security_alert: "Alerte de sécurité", ci_activity: "Exécution CI" },
@@ -190,7 +190,7 @@ export const fr: Messages = {
   },
   prompt: {
     addButton: (path, names) => `Ajoute un bouton à ma boîte de réception de revues en modifiant ${path} ; crée-le sous la forme {"buttons": []} s'il n'existe pas. Chaque entrée est {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, et le prompt peut utiliser ${names} sous la forme {{.Name}}. Demande-moi d'abord ce que le bouton doit faire.`,
-    addGroup: path => `Ajoute un groupe de recherche à ma boîte de revues en modifiant ${path} ; crée-le sous la forme {"groups": []} s’il manque et garde les "buttons" qui s’y trouvent. Chaque entrée est {"id", "name", "query", "scope": "prs" | "issues"}, avec "countInBand": true pour le compter dans la bande ; la query suit la syntaxe de recherche GitHub. Demande-moi d’abord ce qu’il doit trouver.`,
+    addGroup: path => `Ajoute une recherche enregistrée à ma boîte de revues en modifiant ${path} ; crée-le sous la forme {"groups": []} s’il manque et garde les "buttons" qui s’y trouvent. Chaque entrée est {"id", "name", "query", "scope": "prs" | "issues"}, avec "countInBand": true pour la compter dans la bande ; la query suit la syntaxe de recherche GitHub. Demande-moi d’abord ce qu’elle doit trouver.`,
     review: url => `Fais la revue de ${url}.`,
     check: 'Vérifie en particulier : ',
     since: 'Changements depuis ma dernière revue : ',

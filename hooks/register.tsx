@@ -28,7 +28,7 @@ import type {
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
-import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
+import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
 import type { GqlHit } from './searches'
@@ -1580,14 +1580,13 @@ export const register: Register = (on, options) => {
     const direct = myIssues.filter(i => i.kind !== 'reference')
     const band = bandCounts(shownReviews.filter(i => !i.isDraft).length, shownPrs, shownIssues, bandSearchCount(groups, results))
     const isZero = state.kind === 'ready' && state.updatedAt !== undefined && BAND_KEYS.every(k => band[k] === 0)
-    const searchTotal = groups.reduce((sum, g) => sum + (resultOf(g, results)?.count ?? 0), 0)
     const tabCards: { repo: string }[] = active === 'review' ? shownReviews : active === 'mine' ? shownPrs : shownIssues
     const tabs: { id: Tab; label: string }[] = [
       { id: 'review', label: m.tabs.review(atLeast(ready.length, cappedTabs.review)) },
       { id: 'mine', label: m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)) },
       { id: 'issues', label: m.tabs.issues(atLeast(direct.length, cappedTabs.issues)) },
-      { id: 'searches', label: m.tabs.searches(`${searchTotal}`) },
-      { id: 'activity', label: `${m.tabs.activity(`${openThreads.length}`)}${openThreads.some(t => t.unread) ? ' ●' : ''}` },
+      { id: 'searches', label: m.tabs.searches },
+      { id: 'activity', label: m.tabs.activity(`${openThreads.filter(t => t.unread).length}`) },
     ]
     const empty = (text: string) =>
       state.kind === 'loading' && everything.length + allPrs.length + allIssues.length === 0 ? (
@@ -1688,9 +1687,7 @@ export const register: Register = (on, options) => {
               {t.unread ? '● ' : ''}
               {t.repo}
             </Text>
-            <Text dimColor>
-              {reasonText(t.reason)} · {m.card.ago(waitingDays(t.updatedAt, now))}
-            </Text>
+            <Text dimColor>{m.card.ago(waitingDays(t.updatedAt, now))}</Text>
           </Box>
           {titleRow(t.url, t.title, [
             <Button key={`done-${t.id}`} label={m.activity.done} dimColor onPress={() => void settleLater($, t, 'done')} />,
@@ -1811,14 +1808,21 @@ export const register: Register = (on, options) => {
               </Box>
             )}
             <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginY={1}>
-              {tabs.map(t => (
+              {tabs.map((t, i) => [
+                // The lists to act on, then the ones to browse.
+                i === 3 && (
+                  <Text key="tab-divider" dimColor>
+                    │
+                  </Text>
+                ),
                 <Button
                   key={`tab-${t.id}`}
-                  label={t.label}
+                  label={`${i + 1} ${t.label}`}
+                  hotkey={`${i + 1}`}
                   {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
                   onPress={() => void update($, tab, () => t.id)}
-                />
-              ))}
+                />,
+              ])}
             </Box>
 
             {active === 'review' && (
@@ -1869,7 +1873,7 @@ export const register: Register = (on, options) => {
                 {notified.noAccess && <Text color="warning">{m.activity.noAccess}</Text>}
                 {notified.error !== undefined && <Text color="warning">{m.status.error(notified.error)}</Text>}
                 {!notified.noAccess && threads.length === 0 && empty(m.empty.activity)}
-                {threads.map(threadRow)}
+                {byReason(threads).map(([reason, list]) => section(`activity:${reason}`, `${reasonText(reason)} ${list.length}`, list, threadRow))}
               </Box>
             )}
 
