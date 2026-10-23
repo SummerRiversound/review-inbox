@@ -1787,7 +1787,7 @@ export const register: Register = (on, options) => {
               </Box>
             )}
             {isMixed && active !== 'searches' && active !== 'activity' && (
-              <Box flexDirection="row" gap={1} marginTop={1}>
+              <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginTop={1}>
                 {[
                   { id: 'here', isOn: narrow, label: m.sections.here(tabCards.filter(c => isHere(c.repo, here)).length) },
                   { id: 'all', isOn: !narrow, label: m.sections.all(tabCards.length) },
@@ -1801,7 +1801,7 @@ export const register: Register = (on, options) => {
                 ))}
               </Box>
             )}
-            <Box flexDirection="row" gap={1} marginY={1}>
+            <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginY={1}>
               {tabs.map(t => (
                 <Button
                   key={`tab-${t.id}`}
