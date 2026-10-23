@@ -7,7 +7,7 @@
 A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
 
 - **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer. A count that goes down shows in green for a moment.
-- **Drawer** — `/review-inbox`, with five tabs: To review, My PRs and Assigned & mentioned hold what to act on, then Saved searches and Notifications are there to browse. Each tab starts with its key: press 1 to 5 while the drawer has focus. The number after a tab's name counts its cards; Saved searches has none, and Notifications counts the unread.
+- **Drawer** — `/review-inbox`, with five tabs: To review, My PRs and Assigned & mentioned hold what to act on, then Saved searches and Notifications are there to browse. Press 1 to 5 while the drawer has focus to switch to that tab, counting from the left. The number on a tab counts its cards; Saved searches has none, and Notifications counts the unread.
 - **Toasts** — a short notice when something new arrives while you work.
 
 ![The band above the prompt, then the drawer's three tabs: To review, My PRs and My issues](docs/images/en/overview.gif)

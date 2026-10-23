@@ -1817,7 +1817,7 @@ export const register: Register = (on, options) => {
                 ),
                 <Button
                   key={`tab-${t.id}`}
-                  label={`${i + 1} ${t.label}`}
+                  label={t.label}
                   hotkey={`${i + 1}`}
                   {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
                   onPress={() => void update($, tab, () => t.id)}
