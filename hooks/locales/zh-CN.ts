@@ -162,7 +162,7 @@ export const zhCN: Messages = {
     tooMany: n => `超出前 15 个的 ${n} 个搜索组未显示`,
   },
   activity: {
-    reasons: { comment: "评论", state_change: "状态变更", author: "我创建的", team_mention: "团队被提及", security_alert: "安全警报" },
+    reasons: { comment: "评论", state_change: "状态变更", author: "我创建的", team_mention: "团队被提及", security_alert: "安全警报", ci_activity: "CI 运行" },
     done: "完成",
     unsubscribe: "取消订阅",
     wasDone: "已完成",

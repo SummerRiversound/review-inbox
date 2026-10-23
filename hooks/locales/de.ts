@@ -166,7 +166,7 @@ export const de: Messages = {
     tooMany: n => `${n} Suchgruppen nach den ersten 15 werden ausgelassen`,
   },
   activity: {
-    reasons: { comment: "Kommentar", state_change: "Status geändert", author: "Von Ihnen eröffnet", team_mention: "Team erwähnt", security_alert: "Sicherheitswarnung" },
+    reasons: { comment: "Kommentar", state_change: "Status geändert", author: "Von Ihnen eröffnet", team_mention: "Team erwähnt", security_alert: "Sicherheitswarnung", ci_activity: "CI-Lauf" },
     done: "Erledigt",
     unsubscribe: "Abbestellen",
     wasDone: "Erledigt",
