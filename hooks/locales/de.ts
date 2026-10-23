@@ -68,6 +68,7 @@ export const de: Messages = {
     error: message => `Laden fehlgeschlagen, neuer Versuch in einer Minute (${message})`,
     updated: minutes => (minutes < 1 ? 'Gerade aktualisiert' : `Vor ${minutes} Min. aktualisiert`),
     firstFetch: 'Daten werden von GitHub abgerufen. Beim ersten Mal dauert das etwa eine Minute.',
+    timeout: 'GitHub hat zu lange gebraucht; grenze die Einstellung Search scope ein, z. B. org:my-org',
   },
   empty: {
     zero: '✓ Nichts wartet auf Sie',

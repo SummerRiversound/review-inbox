@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  INBOX_QUERY, REFRESH_MS, detailsOf, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  INBOX_QUERY, REFRESH_MS, detailsOf, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, isGatewayTimeout, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -217,4 +217,10 @@ test('the refresh interval comes from the option', async () => {
   const file = { items: [], mine: [], fetchedAt: now - 5 * 60_000 }
   expect(shouldFetch(file, now, false)).toBe(false)
   expect(shouldFetch(file, now, false, 5 * 60_000)).toBe(true)
+})
+
+test('a GitHub gateway page reads as a timeout, other failures as themselves', () => {
+  expect(isGatewayTimeout("invalid character '<' looking for beginning of value")).toBe(true)
+  expect(isGatewayTimeout('HTTP 502: Bad Gateway (https://api.github.com/graphql)')).toBe(true)
+  expect(isGatewayTimeout('HTTP 401: Bad credentials')).toBe(false)
 })

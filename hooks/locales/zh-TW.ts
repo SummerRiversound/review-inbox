@@ -65,6 +65,7 @@ export const zhTW: Messages = {
     error: message => `無法載入，1 分鐘後重試 (${message})`,
     updated: minutes => (minutes < 1 ? '剛剛更新' : `${minutes} 分鐘前更新`),
     firstFetch: '正在從 GitHub 擷取資料。第一次大約需要 1 分鐘。',
+    timeout: 'GitHub 回應逾時；請在 Search scope 設定中縮小範圍（例如 org:my-org）',
   },
   empty: {
     zero: '✓ 沒有需要你處理的事項',

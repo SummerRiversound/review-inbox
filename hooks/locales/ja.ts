@@ -65,6 +65,7 @@ export const ja: Messages = {
     error: (message: string) => `読み込めませんでした。1分後に再試行します (${message})`,
     updated: (minutes: number) => (minutes < 1 ? 'たった今更新' : `${minutes}分前に更新`),
     firstFetch: 'GitHub から取得しています。初回は1分ほどかかります。',
+    timeout: 'GitHub がタイムアウトしました。Search scope 設定で範囲を絞ってください (例: org:my-org)',
   },
   empty: {
     zero: '✓ 対応が必要なものはありません',

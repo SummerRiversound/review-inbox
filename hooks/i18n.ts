@@ -76,6 +76,7 @@ const en = {
     error: (message: string) => `Could not load; retrying in a minute (${message})`,
     updated: (minutes: number) => (minutes < 1 ? 'Updated just now' : `Updated ${minutes} min ago`),
     firstFetch: 'Fetching from GitHub. The first time takes about a minute.',
+    timeout: 'GitHub timed out; narrow the Search scope setting, e.g. org:my-org',
   },
   empty: {
     zero: '✓ Nothing needs you',

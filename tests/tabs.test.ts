@@ -4,7 +4,7 @@ import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -109,10 +109,11 @@ test('a count from a search that had more than one page reads as at least that m
   expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'My issues 97'])
 })
 
-test('my issues are read a full page at a time, newest first', async () => {
-  expect(TABS_QUERY).toContain('assigned: search(query: $assigned, type: ISSUE, first: 100)')
-  expect(TABS_QUERY).toContain('mentioned: search(query: $mentioned, type: ISSUE, first: 100)')
-  expect(TABS_QUERY.match(/pageInfo \{ hasNextPage \}/g)).toHaveLength(3)
+test('each tab search is its own request, my heavy PRs a smaller page than my issues', async () => {
+  expect(TAB_QUERIES.mine).toContain('search(query: $q, type: ISSUE, first: 30)')
+  expect(TAB_QUERIES.assigned).toContain('search(query: $q, type: ISSUE, first: 100)')
+  expect(TAB_QUERIES.mentioned).toContain('search(query: $q, type: ISSUE, first: 100)')
+  for (const query of Object.values(TAB_QUERIES)) expect(query).toContain('pageInfo { hasNextPage }')
 })
 
 test('a PR turning to needs-me is announced once, never on the first look', async () => {

@@ -28,20 +28,26 @@ export type GqlReferenced = Repo & {
   }
 }
 
-// Assigned and mentioned issues plus my open PRs: one request, three aliased searches.
-export const TABS_QUERY = `query($mine: String!, $assigned: String!, $mentioned: String!) {
+const tabSearch = (first: number, nodes: string) => `query($q: String!) {
   viewer { login }
-  mine: search(query: $mine, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes { ... on PullRequest {
+  search(query: $q, type: ISSUE, first: ${first}) { pageInfo { hasNextPage } nodes { ${nodes} } }
+}`
+
+// One request per search: together, on an account with many open PRs, they outran GitHub's ~10 s limit and got an HTML 502.
+// 30 of my PRs, newest first: each carries its checks and 30 reviews, the heaviest nodes any tab asks for.
+export const TAB_QUERIES = {
+  mine: tabSearch(30, `... on PullRequest {
     number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
     ${DETAILS_FIELDS}
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
-    reviews(last: 30) { nodes { state submittedAt author { login } } } } } }
-  assigned: search(query: $assigned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
-    ... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} } } }
-  mentioned: search(query: $mentioned, type: ISSUE, first: 100) { pageInfo { hasNextPage } nodes {
-    ... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }
-    ... on PullRequest { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} } } }
-}`
+    reviews(last: 30) { nodes { state submittedAt author { login } } } }`),
+  assigned: tabSearch(100, `... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }`),
+  mentioned: tabSearch(
+    100,
+    `... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }
+    ... on PullRequest { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }`,
+  ),
+}
 
 // My PRs and issues touched lately, with who pointed at them from elsewhere; paged.
 // 50 per page: at 100, items with long timelines exceed GitHub's per-query resource limit.
