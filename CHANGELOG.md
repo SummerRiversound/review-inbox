@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.8.1 — 2026-10-23
+
+### Fixed
+
+- On an account with many open PRs, every sync failed with `invalid character '<'`: the tab searches together outran GitHub's time limit. Each search now goes out on its own, My PRs reads 30 at a time, and a GitHub timeout says to narrow the `scope` setting.
+
 ## 0.8.0 — 2026-10-23
 
 ### Added
