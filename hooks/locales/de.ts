@@ -6,7 +6,7 @@ const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : 
 export const de: Messages = {
   title: 'Review-Posteingang',
   command: {
-    description: 'Review-Posteingang öffnen: PRs, die auf mein Review warten, meine PRs und meine Issues',
+    description: 'Review-Posteingang öffnen: PRs, die auf mein Review warten, meine PRs und Issues, die mir zugewiesen sind oder mich erwähnen',
     opened: 'Review-Posteingang geöffnet.',
     filled: 'In den Prompt eingefügt; mit Enter senden.',
   },
@@ -14,16 +14,16 @@ export const de: Messages = {
     open: 'Öffnen',
     reviews: n => `Zu reviewen ${n}`,
     prTodo: n => `Meine PRs zu bearbeiten ${n}`,
-    issues: n => `Meine Issues ${n}`,
-    searches: n => `Suchen ${n}`,
+    issues: n => `Zugewiesen & erwähnt ${n}`,
+    searches: n => `Gespeicherte Suchen ${n}`,
     oldest: days => ` · längste Wartezeit ${count(days, 'Tag', 'Tage')}`,
   },
   tabs: {
     review: n => `Zu reviewen ${n}`,
     mine: n => `Meine PRs ${n}`,
-    issues: n => `Meine Issues ${n}`,
+    issues: n => `Zugewiesen & erwähnt ${n}`,
     searches: 'Gespeicherte Suchen',
-    activity: n => `Aktivität ${n}`,
+    activity: n => `Benachrichtigungen ${n}`,
   },
   card: {
     rerequest: 'erneut angefragt',
@@ -37,7 +37,7 @@ export const de: Messages = {
     impact: 'Auswirkungen',
     size: (files, added, removed) => `${count(files, 'Datei', 'Dateien')} (+${added} −${removed})`,
     hide: 'Ausblenden',
-    review: 'Reviewen',
+    review: 'Mit Claude reviewen',
     added: 'Hinzugefügt',
     task: {
       changes: 'Kommentare umsetzen',
@@ -81,7 +81,7 @@ export const de: Messages = {
     review: 'Derzeit warten keine PRs auf mein Review.',
     mine: 'Derzeit ist keiner meiner PRs offen.',
     issues: 'Es gibt keine Issues, die mir zugewiesen sind oder mich erwähnen.',
-    searches: "Keine Suchgruppen. Mit /review-inbox add-search eine hinzufügen.",
+    searches: "Keine gespeicherten Suchen. Mit /review-inbox add-search eine hinzufügen.",
     activity: "Keine weiteren Benachrichtigungen. Review-Anfragen, Zuweisungen und Erwähnungen stehen in den anderen Tabs.",
   },
   sections: {
@@ -135,9 +135,9 @@ export const de: Messages = {
     by: who => `neues Review von ${who}`,
   },
   buttons: {
-    more: "Mehr",
+    more: "Aktionen",
     none: "Noch keine eigenen Schaltflächen; die eingebauten werden angezeigt.",
-    counts: (buttons, groups) => `Eigene: ${buttons} Schaltflächen, ${groups} Suchgruppen`,
+    counts: (buttons, groups) => `Eigene: ${buttons} Schaltflächen, ${groups} gespeicherte Suchen`,
     how: "Mit /review-inbox add-button oder /review-inbox add-search schreibt Claude eine mit Ihnen.",
     hint: "Details: /review-inbox buttons",
     file: path => `Meine Schaltflächen: ${path}`,
@@ -148,8 +148,8 @@ export const de: Messages = {
       fields: "braucht id, name und prompt",
       scope: scope => `scope "${scope}" ist weder review noch pr noch issue`,
       variables: names => `unbekannte Variable ${names}`,
-      groupFields: "eine Suchgruppe braucht id, name und query",
-      groupScope: scope => `scope "${scope}" der Suchgruppe ist weder prs noch issues`,
+      groupFields: "eine gespeicherte Suche braucht id, name und query",
+      groupScope: scope => `scope "${scope}" der gespeicherten Suche ist weder prs noch issues`,
     },
     builtIn: {
       "summarize-risks": { name: "Risiken zusammenfassen", prompt: "Fasse die Risiken in {{.PrUrl}} zusammen: lies den Diff mit `gh pr diff {{.PrUrl}}` und liste auf, was für wen kaputtgehen könnte und was zuerst getestet werden sollte. Ändere nichts." },
@@ -164,7 +164,7 @@ export const de: Messages = {
     none: "Nichts gefunden.",
     failed: message => `Suche fehlgeschlagen: ${message}`,
     more: n => `${n} weitere auf GitHub`,
-    tooMany: n => `${n} Suchgruppen nach den ersten 15 werden ausgelassen`,
+    tooMany: n => `${n} gespeicherte Suchen nach den ersten 15 werden ausgelassen`,
   },
   activity: {
     reasons: { comment: "Kommentar", state_change: "Status geändert", author: "Von Ihnen eröffnet", team_mention: "Team erwähnt", security_alert: "Sicherheitswarnung", ci_activity: "CI-Lauf" },
@@ -191,7 +191,7 @@ export const de: Messages = {
   },
   prompt: {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,
-    addGroup: path => `Füge meinem Review-Posteingang eine Suchgruppe hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,
+    addGroup: path => `Füge meinem Review-Posteingang eine gespeicherte Suche hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,
     review: url => `Bitte reviewe ${url}.`,
     check: 'Achte besonders auf: ',
     since: 'Seit meinem letzten Review geändert: ',
