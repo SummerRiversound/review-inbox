@@ -41,6 +41,7 @@ export type GqlPr = SearchHit & {
 export const INBOX_QUERY = `query($q: String!) {
   viewer { login }
   search(query: $q, type: ISSUE, first: 100) {
+    pageInfo { hasNextPage }
     nodes {
       ... on PullRequest {
         number title url isDraft createdAt body additions deletions changedFiles headRefOid

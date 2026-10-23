@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  REFRESH_MS, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  INBOX_QUERY, REFRESH_MS, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -154,6 +154,10 @@ test('waiting counts from the latest request to me or a team still on the PR, no
 test('the configured scope narrows the base query, and empty means every repository', async () => {
   expect(searchQuery('')).toBe('is:pr is:open review-requested:@me')
   expect(searchQuery('  org:acme repo:me/tool ')).toBe('is:pr is:open review-requested:@me org:acme repo:me/tool')
+})
+
+test('the review search asks whether a next page exists, since the fetch reads it to cap the count', async () => {
+  expect(INBOX_QUERY).toContain('pageInfo { hasNextPage }')
 })
 
 test('each account and scope gets its own shared cache file', async () => {

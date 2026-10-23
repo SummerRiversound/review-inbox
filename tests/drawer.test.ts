@@ -213,7 +213,8 @@ test('a session remembers the main checkout of each GitHub repository its folder
     throw new Error('mv: command not found')
   })
   await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
-  for (let i = 0; i < 2; i++) await clock.advance(1_000)
+  // Past the first sync too, which starts 1 to 5 seconds in: one still running when the test ends is aborted.
+  for (let i = 0; i < 6; i++) await clock.advance(1_000)
 
   const repos = JSON.parse(store.get(REPOS)!) as Record<string, { path: string }>
   expect(Object.fromEntries(Object.entries(repos).map(([repo, r]) => [repo, r.path]))).toEqual({
