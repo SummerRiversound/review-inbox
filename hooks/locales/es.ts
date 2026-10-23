@@ -73,6 +73,7 @@ export const es: Messages = {
     updated: (minutes: number) => (minutes < 1 ? 'Actualizado ahora mismo' : `Actualizado hace ${minutes} min`),
     firstFetch: 'Obteniendo datos de GitHub. La primera vez tarda aproximadamente un minuto.',
     timeout: 'GitHub tardó demasiado; acota el ajuste Search scope, p. ej. org:my-org',
+    older: (n, folders) => `${n} ${n === 1 ? 'sesión' : 'sesiones'} con una versión anterior (${folders}): ejecuta /reload-plugins allí`,
   },
   empty: {
     zero: '✓ Nada te necesita ahora',

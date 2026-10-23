@@ -74,6 +74,7 @@ export const ptBR: Messages = {
     updated: (minutes: number) => (minutes < 1 ? 'Atualizado agora mesmo' : `Atualizado há ${minutes} min`),
     firstFetch: 'Buscando dados no GitHub. Na primeira vez, isso leva cerca de um minuto.',
     timeout: 'O GitHub demorou demais; restrinja a configuração Search scope, por exemplo org:my-org',
+    older: (n, folders) => `${n} ${n === 1 ? 'sessão' : 'sessões'} em uma versão anterior (${folders}): execute /reload-plugins lá`,
   },
   empty: {
     zero: '✓ Nada precisa de você agora',

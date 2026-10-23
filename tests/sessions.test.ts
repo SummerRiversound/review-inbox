@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Presence } from '../types'
-import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
+import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
 
 const at = Date.UTC(2026, 9, 20, 12)
 const presence = (over: Partial<Presence>): Presence => ({ at, folder: 'review-inbox', remotes: [], prs: [], ...over })
@@ -82,4 +82,16 @@ test('the folders option maps an exact repository before an owner wildcard, with
 test('a mapped folder wins over this session\'s folder and the remembered one', async () => {
   const self = presence({ remotes: ['o/r'] })
   expect(placeOf('o/r', self, { 'o/r': { path: '/old', at } }, '/mapped')).toEqual({ kind: 'folder', path: '/mapped' })
+})
+
+test('a session on an older release, or from before releases were written, is named by its folder; mine and newer ones are not', async () => {
+  const sessions = {
+    self: presence({ folder: 'me', version: '0.12.0' }),
+    old: presence({ folder: 'dhub2', version: '0.9.0' }),
+    unknown: presence({ folder: 'prevention_system' }),
+    same: presence({ folder: 'web', version: '0.12.0' }),
+    newer: presence({ folder: 'api', version: '0.12.10' }),
+  }
+  expect(olderSessions(sessions, 'self', '0.12.0')).toEqual(['dhub2', 'prevention_system'])
+  expect(olderSessions(sessions, 'self', undefined)).toEqual([])
 })

@@ -1,10 +1,10 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { cacheKey } from '../hooks/inbox'
+import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
 
 // Where the mod keeps the inbox for HOME=/home/me with no scope, no account and English.
-const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
+const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}-f${INBOX_FORMAT}.json`
 
 const ran = (exitCode: number, stderr = '') => ({ exitCode, stdout: '', stderr, isStdoutTruncated: false, isStderrTruncated: false })
 

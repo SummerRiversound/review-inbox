@@ -35,6 +35,7 @@ import type { GqlHit } from './searches'
 import {
   CLAIM_MS,
   cacheKey,
+  INBOX_FORMAT,
   INBOX_QUERY,
   RETRY_MS,
   ageColor,
@@ -66,7 +67,7 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
-import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from './sessions'
+import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from './sessions'
 import type { Place } from './sessions'
 import type { Language, Messages } from './i18n'
 import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
@@ -185,6 +186,8 @@ const sessionToken = Math.random().toString(36).slice(2)
 // The session's own id, which a reload keeps, and the PRs its prompts linked to.
 let selfId = ''
 let linked: string[] = []
+// This session's release, from plugin.json, so other sessions can tell it is current.
+let version: string | undefined
 // Shortens the folders shown on cards to ~.
 let home = ''
 
@@ -228,7 +231,7 @@ async function writeJson($: EngineInterface, name: string, value: unknown) {
 
 // One shared file per account, scope and language, so sessions configured differently never overwrite each other
 // and a summary is never shown in another language than the cards around it.
-const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, config.language)}-f${INBOX_FORMAT}.json`
 // Keyed like the inbox: a hide prunes the entries its own list no longer has, so it must not share a file with another list.
 const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // Not keyed by language: a note I wrote stays when the language changes.
@@ -963,7 +966,7 @@ async function checkIn($: EngineInterface, leaving = false) {
     const remotes = [...new Set((await git(['remote', '-v'])).split('\n').flatMap(line => repoOf(line.split(/\s+/)[1] ?? '') ?? []))]
     const prs = [...new Set([...(old?.prs ?? []), ...linked])].slice(-20)
     const folder = cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd
-    next = { ...others, [selfId]: { at: Date.now(), folder, remotes, prs, ...(branch ? { branch } : {}) } }
+    next = { ...others, [selfId]: { at: Date.now(), folder, remotes, prs, ...(branch ? { branch } : {}), ...(version ? { version } : {}) } }
     await rememberFolder($, remotes, () => git(['rev-parse', '--path-format=absolute', '--git-common-dir']))
   }
   await writeJson($, SESSIONS_FILE, next)
@@ -1032,6 +1035,10 @@ export const register: Register = (on, options) => {
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
     selfId = await $.session.id()
+    version = await $.fs
+      .read(`${$.plugin.root}/.claude-plugin/plugin.json`)
+      .then(text => (JSON.parse(text) as { version?: string }).version)
+      .catch(() => undefined)
     $.clock.after(1_000, () => void checkIn($).catch(() => undefined))
     $.clock.every(SYNC_MS, () => void checkIn($).catch(() => undefined))
     $.clock.every(1_000, () => {
@@ -1139,6 +1146,7 @@ export const register: Register = (on, options) => {
     const allPrs = await read($, mine)
     const allIssues = await read($, issues)
     const live = liveSessions(await read($, sessions), now)
+    const older = olderSessions(live, selfId, version)
     // This session's repositories come first in every group; the scope buttons narrow the tabs to them.
     const here = thisRepos(live[selfId], ghRepo)
     const shownReviews = hereFirst(everything.filter(i => !away.review(i)), here)
@@ -1754,6 +1762,7 @@ export const register: Register = (on, options) => {
               }} />
           </Box>
         </Box>
+        {older.length > 0 && <Text color="warning">{m.status.older(older.length, [...new Set(older)].join(', '))}</Text>}
         {Input && (
           <Box marginTop={1}>
             <Input

@@ -150,6 +150,8 @@ export type Presence = {
   // GitHub repositories of its remotes, as owner/name.
   remotes: string[]
   prs: string[]
+  // The mod's release it runs; absent from releases before 0.12.0.
+  version?: string
 }
 
 // The folder on this machine last seen holding each GitHub repository, as owner/name; shared by every session and account.

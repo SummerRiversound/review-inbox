@@ -71,6 +71,7 @@ export const zhCN: Messages = {
     updated: minutes => (minutes < 1 ? '刚刚更新' : `${minutes} 分钟前更新`),
     firstFetch: '正在从 GitHub 获取数据。首次获取大约需要 1 分钟。',
     timeout: 'GitHub 响应超时；请在 Search scope 设置中缩小范围（例如 org:my-org）',
+    older: (n, folders) => `${n} 个会话仍是旧版本 (${folders}) · 请在那些会话中运行 /reload-plugins`,
   },
   empty: {
     zero: '✓ 没有需要你处理的事项',
