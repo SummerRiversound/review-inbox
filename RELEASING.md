@@ -1,6 +1,4 @@
-# review-inbox
-
-## Release
+# Releasing
 
 A release is not done until all four steps are:
 
