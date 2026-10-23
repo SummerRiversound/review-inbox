@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.7.1 — 2026-10-23
+
+### Fixed
+
+- Refreshes work again. Since 0.6.1 every refresh failed, so the drawer showed an error and kept its last lists: the To review search did not ask GitHub whether a next page exists, which the refresh reads to show `100+`.
+
 ## 0.7.0 — 2026-10-23
 
 ### Added
