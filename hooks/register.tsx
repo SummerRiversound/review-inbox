@@ -1375,7 +1375,7 @@ export const register: Register = (on, options) => {
         <Box key={`card-${item.repo}-${item.number}`} flexDirection="row" marginBottom={1}>
           <Box width={1} flexShrink={0} backgroundColor={item.isDraft ? 'inactive' : ageColor(days)} />
           <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
-            <Box flexDirection="row" justifyContent="space-between">
+            <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
               <Text bold>
                 {newDot(item.updatedAt)}
                 {item.repo} #{item.number}
@@ -1426,11 +1426,11 @@ export const register: Register = (on, options) => {
               </Box>
             )}
 
-            <Box flexDirection="row" justifyContent="space-between" marginTop={1}>
+            <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1} marginTop={1}>
               <Text dimColor>
                 {item.author} · {m.card.size(item.files, item.additions.toLocaleString(), item.deletions.toLocaleString())}
               </Text>
-              <Box flexDirection="row" gap={1}>
+              <Box flexDirection="row" gap={1} flexShrink={0}>
                 {moreButton(itemKey(item))}
                 <Button
                   key={`review-${itemKey(item)}`}
@@ -1474,7 +1474,7 @@ export const register: Register = (on, options) => {
       <Box key={`pr-${pr.url}`} flexDirection="row" marginBottom={1}>
         <Box width={1} flexShrink={0} backgroundColor={stateColor(pr.state)} />
         <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
-          <Box flexDirection="row" justifyContent="space-between">
+          <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
             <Text bold>
               {newDot(pr.updatedAt)}
               {pr.repo} #{pr.number}
@@ -1524,7 +1524,7 @@ export const register: Register = (on, options) => {
       <Box key={`issue-${issueKey(issue)}`} flexDirection="row" marginBottom={1}>
         <Box width={1} flexShrink={0} backgroundColor={issue.kind === 'reference' ? 'inactive' : 'suggestion'} />
         <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
-          <Box flexDirection="row" justifyContent="space-between">
+          <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
             <Text bold>
               {newDot(issue.at)}
               {issue.repo} #{issue.number}
@@ -1675,7 +1675,7 @@ export const register: Register = (on, options) => {
         )
       return (
         <Box key={`thread-${t.id}`} flexDirection="column" marginBottom={1}>
-          <Box flexDirection="row" justifyContent="space-between">
+          <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
             <Text bold>
               {t.unread ? '● ' : ''}
               {t.repo}
