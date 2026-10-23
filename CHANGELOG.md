@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.10.0 — 2026-10-23
+
+### Added
+
+- Direct GitHub actions, off unless the new `directActions` option is `on`. `Approve`, `Ready for review` and `Update branch` (shown only when the base branch has moved ahead) ask on the card first, naming what will be sent and as whom, and are not sent if the PR got new commits since you looked. `Rerun failed CI` and `Assign me` go at once, `Assign me` with an Undo.
+- A `Merge` button on your approved PR with no checks running. It adds a request to your prompt to check the repository's merge methods and run `gh pr merge`; nothing merges until you send it.
+
 ## 0.9.0 — 2026-10-23
 
 ### Added
