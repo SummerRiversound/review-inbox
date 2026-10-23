@@ -117,6 +117,17 @@ Add your own in `actions.json` in the cache folder. `▸ Edit buttons` at the bo
 
 `scope` is `review`, `pr` or `issue`. The prompt can use `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, written `{{.Name}}`, `{{Name}}`, `{{ .Name }}` as in gh-dash; one the card has no value for is left empty. A button with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field, an unknown scope or an unknown variable is left out and listed under `Edit buttons` with the reason; the rest keep working. `PrTitle` and `Author` come from GitHub as written, so a prompt that uses them passes someone else's text to Claude.
 
+### Direct GitHub actions
+
+With `directActions` set to `on`, cards also get buttons that write to GitHub themselves, as your `gh` account.
+
+- `Approve` on a review request, `Ready for review` on your draft PR, and `Update branch` on your PR when its base branch has moved ahead. Others see these and they cannot be taken back, so the first press turns the row into a line naming what will be sent and as whom, such as `Approve o/r#5 "Fix login" as kim — (no comment)`. `Confirm approve` sends it, as does `y` while the drawer has the keys; `Cancel`, or ten seconds, brings the buttons back. The focus moves to `Cancel`, and a confirm within 300 ms of the first press is ignored, so a held Enter sends nothing.
+- An approval has no comment and names the commit you looked at. If new commits arrived since, it is not sent and the card says so. `Update branch` merges the base branch in and never rebases.
+- `Rerun failed CI` on your PR with failing checks reruns the failed jobs of the GitHub Actions runs on its latest commit. `Assign me` on an issue that mentions you is sent at once, with `Undo` for ten seconds.
+- A write that fails stays on the card with GitHub's message, and its button comes back.
+
+Nothing merges directly. Your approved PR with no checks running gets a `Merge` button, with `directActions` off too: it adds a request to your prompt to check the repository's merge methods and run `gh pr merge`, which you send with Enter and Claude Code asks permission to run.
+
 ## Requirements
 
 - Claude Code 2.1.287 or later, the first builds with mods (function-hook plugins). Tested on 2.1.292. Mods are in early access, and their API may change between releases.
@@ -156,6 +167,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `refreshMinutes` | `10` | Minutes between fetches from GitHub: 5, 10, 15, 30 or 60. All sessions share one fetch. |
 | `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
 | `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
+| `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions above. |
 
 `scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
 
@@ -205,7 +217,7 @@ The mod reaches GitHub only through your own `gh`, sends PR text to Claude to wr
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Activity tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. The mod makes no other network calls of its own.
+- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Activity tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. With `directActions` on, a button you press runs `gh api user` for your account name and `gh api repos/<owner>/<repo>/pulls/<n>` to read the head commit, then one of `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` with `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, or `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. The mod makes no other network calls of its own.
 - **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch, and `git rev-parse --path-format=absolute --git-common-dir`, to remember the main folder of that repository.
 - **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
 - **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, branch, GitHub remotes and the PR links its prompts held, for every account; `repos.json` holds the main folder of each GitHub repository a session has run in, for the next-step buttons; `style-<hash>.json` holds the description of your review style. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place. It reads `actions.json` there if you made one, and never writes it.
@@ -232,6 +244,7 @@ One GraphQL search returns every PR waiting for your review with what the cards 
 - `New review` clears on any new commit to the PR, including one made by GitHub's "Update branch" button or by a bot.
 - After a force-push that rewrote the commit you reviewed, a re-requested PR shows no "since my last review" line.
 - Your review style is learned from the PRs GitHub's search returns for `reviewed-by:@me -author:@me`, within `scope`, so comments on PRs you wrote yourself are left out. Comments in a PR's conversation, outside a review, are not part of it.
+- `Rerun failed CI` reruns GitHub Actions only; checks from other CI services are rerun on their own site. Approving several PRs at once and approving with a comment are not offered.
 
 ## Troubleshooting
 

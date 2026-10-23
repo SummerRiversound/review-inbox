@@ -117,6 +117,17 @@ GitHub が通知を渡すのは gh のサインインとクラシックトーク
 
 `scope` は `review`、`pr`、`issue` のいずれかです。prompt では `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl` を gh-dash と同じく `{{.Name}}`, `{{Name}}`, `{{ .Name }}` の形で使え、カードに値がない変数は空になります。組み込みのボタンと同じ id にするとそのボタンを置き換え、`"hidden": true` で消せます。フィールドが欠けている、または scope や変数名が不明な項目は除かれ、`ボタンを編集` に理由と一緒に表示されます。ほかのボタンはそのまま動きます。`PrTitle` と `Author` は GitHub に書かれたままなので、これらを使う prompt は他人の書いた文章を Claude に渡すことになります。
 
+### GitHub への直接操作
+
+`directActions` を `on` にすると、カードに GitHub へ直接書き込むボタンが加わります。書き込みは自分の `gh` アカウントで行われます。
+
+- レビュー依頼には `承認`、自分のドラフト PR には `レビュー準備完了`、ベースブランチが先に進んだ自分の PR には `ブランチを更新` が付きます。ほかの人に見えて取り消せない操作なので、最初に押すとボタンの行が、何をどのアカウントで送るかを書いた行に変わります。例: `承認: o/r#5 "Fix login"、kim として — (コメントなし)`。`承認を確定` を押すか、ドロワーがキー入力を受けている間に `y` を押すと送信します。`キャンセル` を押すか 10 秒たつとボタンに戻ります。フォーカスは `キャンセル` に移り、最初に押してから 300ms 以内の確定は無視するので、Enter を押しっぱなしにしても送信されません。
+- 承認はコメントなしで、自分が見たコミットを指定して送ります。その後に新しいコミットがあれば送らず、カードにそう表示します。`ブランチを更新` はベースブランチをマージし、rebase はしません。
+- チェックが失敗している自分の PR の `失敗した CI を再実行` は、最新コミットの GitHub Actions の実行のうち失敗したジョブを再実行します。自分がメンションされたイシューの `自分に割り当て` はすぐに送り、10 秒間 `元に戻す` を表示します。
+- 失敗した書き込みは GitHub のメッセージとともにカードに残り、ボタンが戻ります。
+
+マージは直接行いません。承認済みで実行中のチェックがない自分の PR には、`directActions` がオフでも `マージ` ボタンが付きます。押すと、リポジトリのマージ方法を確認して `gh pr merge` を実行する依頼がプロンプトに入り、Enter で送ると Claude Code が実行の許可を求めます。
+
 ## 動作要件
 
 - Claude Code 2.1.287 以降。mod（function-hook プラグイン）に対応した最初のビルドです。2.1.292 で動作を確認しています。mod はアーリーアクセス段階のため、リリース間で API が変わる可能性があります。
@@ -156,6 +167,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `refreshMinutes` | `10` | GitHub から取得し直す間隔（分）です。5、10、15、30、60 のいずれかで、すべてのセッションが1回の取得を共有します。 |
 | `repoPaths` | 空 | 次の作業ボタンで、リポジトリごとに Claude が作業するフォルダです。下を参照してください。 |
 | `motion` | `auto` | `off` にすると帯の数が光りません。`auto` でも、Claude Code の動きを減らす設定（`prefersReducedMotion`）がオンなら光りません。 |
+| `directActions` | `off` | `on` にすると、カードから GitHub へ直接書き込むボタンが付きます。詳しくは上の「GitHub への直接操作」を参照してください。 |
 
 `scope` には、GitHub の [Issue と PR の検索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) で使えるものなら何でも指定できます。
 
@@ -205,7 +217,7 @@ my-org/legacy=~/old/legacy-app
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **`gh` の実行**: 一覧の取得と、週に1回の最近のレビューコメントの取得に `gh api graphql` を、再リクエストされた PR には `gh api repos/<owner>/<repo>/compare/<from>...<to>` を、`githubUser` が設定されている場合は `gh auth token -u <githubUser>` を実行します。アクティビティタブには `gh api notifications` を、`完了` や `購読解除` を押したときは `gh api -X DELETE notifications/threads/<id>`（購読解除ではその前に `/subscription` も）を実行します。mod 自身がこれ以外のネットワーク呼び出しを行うことはありません。
+- **`gh` の実行**: 一覧の取得と、週に1回の最近のレビューコメントの取得に `gh api graphql` を、再リクエストされた PR には `gh api repos/<owner>/<repo>/compare/<from>...<to>` を、`githubUser` が設定されている場合は `gh auth token -u <githubUser>` を実行します。アクティビティタブには `gh api notifications` を、`完了` や `購読解除` を押したときは `gh api -X DELETE notifications/threads/<id>`（購読解除ではその前に `/subscription` も）を実行します。`directActions` が `on` のときにボタンを押すと、アカウント名のために `gh api user`、最新コミットの確認のために `gh api repos/<owner>/<repo>/pulls/<n>` を実行し、続けて `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` と `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`、または `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` のいずれかを実行します。mod 自身がこれ以外のネットワーク呼び出しを行うことはありません。
 - **`git` の実行**: 30秒ごとにセッションのフォルダで `git branch --show-current` と `git remote -v` を実行して自分の PR のブランチにいるセッションを探し、`git rev-parse --path-format=absolute --git-common-dir` でそのリポジトリの元のフォルダを覚えます。
 - **Claude への依頼**（`sonnet` モデル）: 要約ごとに、PR のリポジトリ名、タイトル、説明（先頭12,000文字）、変更されたファイルのパス（最大80件）、変更規模を送ります。再リクエストされた PR では、前回の自分のレビュー以降の各コミットメッセージの1行目と、最大60件のファイルパスも送ります。これは Claude Code の使用量に含まれます。各 PR の要約は head コミットと言語の組み合わせごとに1回作成し、要約に失敗した場合の試行はコミットごとに最大3回までです。また週に1回、レビュースタイルを説明するために、最近レビューした PR（最大30件）に自分が残したレビューコメントを送ります。コメントはそれぞれ500文字で切り詰め、最大60件、合計12,000文字までです。5件未満の場合は何も送りません。
 - **ファイルの書き込み**: キャッシュフォルダ `~/.claude/plugins/data/review-inbox` の中にのみ書き込みます（`CLAUDE_CONFIG_DIR` が設定されている場合は `~/.claude` の代わりにそれを使います）。`inbox-<hash>.json` には一覧と要約、`hidden-<hash>.json` には非表示にした PR、`notes-<hash>.json` にはメモと延期（言語に関係なくアカウントとスコープごとに1ファイル）、`sessions.json` には生きている各セッションのフォルダ名、ブランチ、GitHub リモート、プロンプトに入った PR リンク（アカウントに関係なく1ファイル）、 `repos.json` にはセッションが開かれた GitHub リポジトリごとの元のフォルダ（次の作業ボタンが表示するフォルダ）、 `style-<hash>.json` にはレビュースタイルの説明を保存します。各ファイルは隣に一時ファイルとして書いてから `mv` で置き換えるため、書きかけのファイルを他のセッションが読むことはありません。Windows のように `mv` がない環境では、その場で直接書き込みます。自分で作った `actions.json` があればそこから読むだけで、書き込みはしません。
@@ -232,6 +244,7 @@ my-org/legacy=~/old/legacy-app
 - `新しいレビュー` は、PR に新しいコミットが追加されると消えます。GitHub の「Update branch」ボタンやボットによるコミットも含みます。
 - レビューしたコミットが force-push で書き換えられた後は、再リクエストされた PR に「前回の自分のレビュー以降」の行が表示されません。
 - レビュースタイルは、`scope` の範囲内で GitHub の検索が `reviewed-by:@me -author:@me` に対して返す PR から学習するため、自分が作成した PR に書いたコメントは含まれません。レビューの外で PR の会話に書いたコメントは含まれません。
+- `失敗した CI を再実行` が再実行するのは GitHub Actions だけです。ほかの CI サービスのチェックはそのサービス側で再実行してください。複数の PR の一括承認と、コメント付きの承認はありません。
 
 ## トラブルシューティング
 

@@ -16,6 +16,8 @@ export type GqlMyPr = Item & Body & GqlDetails & {
   createdAt: string
   updatedAt?: string
   isInMergeQueue?: boolean
+  headRefOid?: string
+  mergeStateStatus?: string
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
   mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN'
   commits: { nodes: { commit: { committedDate: string; statusCheckRollup: { state: string } | null } }[] }
@@ -39,7 +41,7 @@ const tabSearch = (nodes: string) => `query($q: String!, ${PAGE_ARGS}) {
 // One search per tab list, each paged on its own: together they outran GitHub's ~10 s limit on accounts with many PRs.
 export const TAB_QUERIES = {
   mine: tabSearch(`... on PullRequest {
-    number title url body headRefName baseRefName isDraft createdAt updatedAt isInMergeQueue repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
+    number title url body headRefName baseRefName isDraft createdAt updatedAt isInMergeQueue headRefOid mergeStateStatus repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
     ${DETAILS_FIELDS}
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } }`),
@@ -125,6 +127,8 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       createdAt: pr.createdAt,
       ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
       state: myPrState(pr),
+      ...(pr.headRefOid ? { headSha: pr.headRefOid } : {}),
+      ...(pr.mergeStateStatus === 'BEHIND' ? { isBehind: true } : {}),
       ciPending: ['PENDING', 'EXPECTED'].includes(pr.commits.nodes[0]?.commit.statusCheckRollup?.state ?? ''),
       newReviews: newReviews(pr, me),
       ...(pr.body ? { body: pr.body } : {}),
