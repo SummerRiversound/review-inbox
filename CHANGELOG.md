@@ -2,6 +2,21 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.12.0 — 2026-10-23
+
+### Added
+
+- Finished GitHub Actions runs you started show in the Notifications tab as `CI run`, linked to the repository's Actions page. GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings.
+- The drawer names other live sessions still on an older release, such as `2 sessions on an older version (dhub2): run /reload-plugins there`.
+- Number keys 1 to 5 switch tabs while the drawer has focus; each tab's name starts with its key, and a divider separates the lists to act on from the ones to browse.
+
+### Changed
+
+- Tabs are named for what they hold: My issues is now Assigned & mentioned, Searches is Saved searches, and Activity is Notifications. Saved searches shows no count, and Notifications counts only the unread.
+- Notifications are grouped into a section per reason (Comment, State changed, CI run and so on), each foldable.
+- `Review` is now `Review with Claude`, and a card's `▸ More` menu is `▸ Actions`.
+- Sessions on an older release no longer share the inbox file with newer ones, so their errors (such as `data.search.pageInfo.hasNextPage` from 0.8) no longer show in up-to-date sessions. The first open after updating fetches the lists and review summaries again.
+
 ## 0.11.1 — 2026-10-23
 
 ### Fixed
