@@ -67,6 +67,7 @@ export const es: Messages = {
     error: (message: string) => `No se pudo cargar; se reintentará en un minuto (${message})`,
     updated: (minutes: number) => (minutes < 1 ? 'Actualizado ahora mismo' : `Actualizado hace ${minutes} min`),
     firstFetch: 'Obteniendo datos de GitHub. La primera vez tarda aproximadamente un minuto.',
+    timeout: 'GitHub tardó demasiado; acota el ajuste Search scope, p. ej. org:my-org',
   },
   empty: {
     zero: '✓ Nada te necesita ahora',

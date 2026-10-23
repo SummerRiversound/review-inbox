@@ -68,6 +68,7 @@ export const ptBR: Messages = {
     error: (message: string) => `Não foi possível carregar; nova tentativa em um minuto (${message})`,
     updated: (minutes: number) => (minutes < 1 ? 'Atualizado agora mesmo' : `Atualizado há ${minutes} min`),
     firstFetch: 'Buscando dados no GitHub. Na primeira vez, isso leva cerca de um minuto.',
+    timeout: 'O GitHub demorou demais; restrinja a configuração Search scope, por exemplo org:my-org',
   },
   empty: {
     zero: '✓ Nada precisa de você agora',

@@ -39,6 +39,7 @@ import {
   reusableSummary,
   reviewPrompts,
   searchQuery,
+  isGatewayTimeout,
   shouldFetch,
   shownReady,
   sincePrompt,
@@ -62,7 +63,7 @@ import {
   AUTHORED_DAYS,
   ORDER,
   REFERENCE_DAYS,
-  TABS_QUERY,
+  TAB_QUERIES,
   atLeast,
   bandCounts,
   bandLabels,
@@ -298,19 +299,17 @@ async function fetchTabs(
   previous: IssueItem[],
 ): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
   const q = tabQueries(config.scope)
-  const data = JSON.parse(
-    await gh(
-      $,
-      ['api', 'graphql', '-f', `query=${TABS_QUERY}`, '-f', `mine=${q.mine}`, '-f', `assigned=${q.assigned}`,
-        '-f', `mentioned=${q.mentioned}`, '--jq', `.data | (.mine.nodes[], .assigned.nodes[], .mentioned.nodes[]) |= (if .body then .body |= .[:${BODY_CHARS}] else . end)`],
-      env,
-    ),
-  ) as {
-    viewer: { login: string }
-    mine: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlMyPr>[] }
-    assigned: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlTouched>[] }
-    mentioned: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlTouched>[] }
-  }
+  const page = async <T,>(key: keyof typeof q) =>
+    JSON.parse(
+      await gh(
+        $,
+        ['api', 'graphql', '-f', `query=${TAB_QUERIES[key]}`, '-f', `q=${q[key]}`,
+          '--jq', `.data | .search.nodes |= map(if .body then .body |= .[:${BODY_CHARS}] else . end)`],
+        env,
+      ),
+    ) as { viewer: { login: string }; search: { pageInfo: { hasNextPage: boolean }; nodes: Partial<T>[] } }
+  const [minePage, assigned, mentioned] = await Promise.all([page<GqlMyPr>('mine'), page<GqlTouched>('assigned'), page<GqlTouched>('mentioned')])
+  const data = { viewer: minePage.viewer, mine: minePage.search, assigned: assigned.search, mentioned: mentioned.search }
   const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
     nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
 
@@ -469,7 +468,8 @@ async function sync($: EngineInterface, force = false) {
       )
       result = { items: fetched.items, ...tabs, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const raw = error instanceof Error ? error.message : String(error)
+      const message = isGatewayTimeout(raw) ? m.status.timeout : raw
       // Keep the last good list and try again in a minute, not after a full refresh interval.
       result = { items: file.items, mine: file.mine, issues: file.issues, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }

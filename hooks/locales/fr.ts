@@ -68,6 +68,7 @@ export const fr: Messages = {
     error: message => `Impossible de charger ; nouvelle tentative dans une minute (${message})`,
     updated: minutes => (minutes < 1 ? "Mis à jour à l'instant" : `Mis à jour il y a ${minutes} min`),
     firstFetch: 'Récupération depuis GitHub. La première fois, cela prend environ une minute.',
+    timeout: 'GitHub a mis trop de temps ; restreignez le réglage Search scope, par exemple org:my-org',
   },
   empty: {
     zero: "✓ Rien n'attend votre action",

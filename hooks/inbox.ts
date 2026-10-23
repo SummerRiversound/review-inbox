@@ -132,6 +132,9 @@ export function sortItems(items: InboxItem[]): InboxItem[] {
   )
 }
 
+// GitHub gives up on a slow query after about 10 s and answers with an HTML error page that gh cannot parse.
+export const isGatewayTimeout = (message: string) => /HTTP 50[234]|invalid character '<'/.test(message)
+
 export function shouldFetch(file: InboxFile, now: number, force: boolean, refreshMs = REFRESH_MS): boolean {
   if (file.fetchingSince !== undefined && now - file.fetchingSince < CLAIM_MS) return false
   if (force || file.fetchedAt === undefined) return true
