@@ -2,6 +2,15 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.9.0 — 2026-10-23
+
+### Added
+
+- A Searches tab: named GitHub searches, each a section with its total and its 20 newest matches. Three are built in, as in GitHub's pull request inbox (open PRs that involve you, PRs you reviewed that are still open, your open issues); add your own under `groups` in `actions.json`, and count one in the band with `countInBand`.
+- An Activity tab: the GitHub notifications no other tab covers, such as comments, state changes, team mentions and security alerts. `Done` and `Unsubscribe` act on GitHub after a 10-second Undo.
+- A `●` before a card updated since you last closed the drawer.
+- My PRs shows `In merge queue` for a PR in a merge queue, after approved; the band does not count it.
+
 ## 0.8.2 — 2026-10-23
 
 ### Fixed
