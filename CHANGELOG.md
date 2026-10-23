@@ -2,6 +2,17 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.8.0 — 2026-10-23
+
+### Added
+
+- Cards from the session's repository (`GH_REPO`, else the folder's GitHub remotes) come first in every group, tagged `this repo`. When the tabs mix repositories, `This repo N` and `All N` above the tabs narrow them to it or show everything; the band still counts everything.
+- Each card shows up to two labels and how many more, its comment count and, for a PR, `→ base` when it targets a branch other than the default.
+- Your PR turning approved with no CI running toasts `Ready to merge` once.
+- A band count that goes down shows in green for a moment. With nothing needing you, the drawer says `✓ Nothing needs you` above the tabs.
+- `▸ More` on a card opens a row of buttons that hand it to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on review requests, `Draft reply to reviewer` and `Investigate CI failure` on your PRs. Add your own, or replace and hide the built-ins, in `actions.json` in the cache folder, with gh-dash style `{{.Name}}` templates. `▸ Edit buttons` shows the file's path and every entry left out with its reason, and `Add button` asks Claude to write one with you.
+- New options: `refreshMinutes` (5 to 60, default 10), `repoPaths` (`owner/repo=path` or `owner/*=path/*`, which wins over the folders the mod remembers) and `motion` (`auto` or `off`; `auto` also follows Claude Code's `prefersReducedMotion`).
+
 ## 0.7.1 — 2026-10-23
 
 ### Fixed
