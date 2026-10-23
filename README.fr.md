@@ -73,6 +73,23 @@ Quand votre PR est approuvée sans CI en cours, `Prête à merger` s'affiche une
 
 ![Trois notifications successives sous le prompt : une nouvelle demande de revue, des modifications demandées sur votre PR et une nouvelle mention](docs/images/en/toasts.gif)
 
+### Boutons des cartes
+
+`▸ Plus` sur une carte ouvre une rangée de boutons qui confient chacun la carte à Claude avec une demande toute prête : `Résumer les risques`, `Expliquer le diff` et `Rédiger un commentaire d'approbation` sur une demande de revue, `Rédiger une réponse au relecteur` et `Enquêter sur l'échec de la CI` sur votre PR. Un bouton ajoute la carte comme `Faire la revue`, et la demande arrive dans votre prompt quand vous fermez la boîte de réception. Rien ne s'exécute et rien n'est publié avant que vous appuyiez sur Entrée.
+
+Ajoutez les vôtres dans `actions.json`, dans le dossier de cache. `▸ Modifier les boutons`, en bas de la boîte de réception, affiche son chemin, et `Ajouter un bouton` demande à Claude d'en écrire un avec vous.
+
+```json
+{
+  "buttons": [
+    { "id": "test-plan", "name": "Plan de test", "scope": "review", "prompt": "Écris un plan de test pour {{.PrUrl}} dans {{.RepoPath}}." },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ]
+}
+```
+
+`scope` vaut `review`, `pr` ou `issue`. Le prompt peut utiliser `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, écrites comme dans gh-dash : `{{.Name}}`, `{{Name}}`, `{{ .Name }}` ; une variable sans valeur pour la carte reste vide. Un bouton qui reprend l'id d'un bouton intégré le remplace, et `"hidden": true` le retire. Une entrée à laquelle il manque un champ, ou dont le scope ou une variable est inconnu, est laissée de côté et listée sous `Modifier les boutons` avec la raison ; les autres continuent de fonctionner. `PrTitle` et `Author` viennent de GitHub tels qu'ils sont écrits : un prompt qui les utilise transmet donc à Claude un texte écrit par quelqu'un d'autre.
+
 ## Prérequis
 
 - Claude Code 2.1.287 ou ultérieur, les premières versions à prendre en charge les mods (plugins à hooks de fonction). Testé sur 2.1.292. Les mods sont en accès anticipé, et leur API peut changer d'une version à l'autre.
@@ -164,7 +181,7 @@ Le mod n'accède à GitHub que par votre propre `gh`, envoie le texte des PR à 
 - **Exécute `gh`** : `gh api graphql` pour les listes et, une fois par semaine, pour vos commentaires de revue récents ; `gh api repos/<owner>/<repo>/compare/<from>...<to>` pour une PR dont la revue est redemandée, et `gh auth token -u <githubUser>` quand `githubUser` est défini. Le mod ne fait aucun autre appel réseau de lui-même.
 - **Exécute `git`** dans le dossier de la session toutes les 30 secondes : `git branch --show-current` et `git remote -v`, pour trouver une session sur la branche de votre PR, et `git rev-parse --path-format=absolute --git-common-dir`, pour retenir le dossier principal de ce dépôt.
 - **Interroge Claude** (le modèle `sonnet`) pour chaque résumé, en envoyant le nom du dépôt de la PR, son titre, sa description (les 12 000 premiers caractères), les chemins des fichiers modifiés (jusqu'à 80) et sa taille ; pour une PR dont la revue est redemandée, également la première ligne de chaque message de commit et jusqu'à 60 chemins de fichiers depuis votre dernière revue. Cette consommation est décomptée de votre utilisation de Claude Code. Chaque PR est résumée une fois par commit de tête et par langue ; un résumé qui échoue est tenté au plus trois fois par commit. Une fois par semaine, le mod envoie aussi vos propres commentaires de revue sur jusqu'à 30 PR dont vous avez récemment fait la revue, chacun tronqué à 500 caractères, 60 commentaires et 12 000 caractères au total au maximum, pour décrire votre style de revue ; s'il y en a moins de cinq, rien n'est envoyé.
-- **Écrit des fichiers** uniquement dans son dossier de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` remplace `~/.claude` s'il est défini). `inbox-<hash>.json` contient les listes et les résumés ; `hidden-<hash>.json`, les PR masquées ; `notes-<hash>.json`, vos notes et reports, un fichier par compte et périmètre quelle que soit la langue ; `sessions.json`, le dossier, la branche, les dépôts distants GitHub et les liens de PR des prompts de chaque session active, un seul pour tous les comptes ; `repos.json`, le dossier principal de chaque dépôt GitHub où une session a été ouverte, pour les boutons d'étape suivante ; `style-<hash>.json`, la description de votre style de revue. Chaque fichier est d'abord écrit à côté, puis mis en place avec `mv`, pour qu'aucune session ne lise un fichier à moitié écrit ; là où `mv` n'existe pas, comme sous Windows, il est écrit directement.
+- **Écrit des fichiers** uniquement dans son dossier de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` remplace `~/.claude` s'il est défini). `inbox-<hash>.json` contient les listes et les résumés ; `hidden-<hash>.json`, les PR masquées ; `notes-<hash>.json`, vos notes et reports, un fichier par compte et périmètre quelle que soit la langue ; `sessions.json`, le dossier, la branche, les dépôts distants GitHub et les liens de PR des prompts de chaque session active, un seul pour tous les comptes ; `repos.json`, le dossier principal de chaque dépôt GitHub où une session a été ouverte, pour les boutons d'étape suivante ; `style-<hash>.json`, la description de votre style de revue. Chaque fichier est d'abord écrit à côté, puis mis en place avec `mv`, pour qu'aucune session ne lise un fichier à moitié écrit ; là où `mv` n'existe pas, comme sous Windows, il est écrit directement. Il y lit `actions.json` si vous en avez créé un, et ne l'écrit jamais.
 - **Lit des variables d'environnement** : `CLAUDE_CONFIG_DIR`, `HOME` et `USERPROFILE` pour trouver ce dossier ; `GH_REPO` pour connaître, comme `gh`, le dépôt de cette session ; `LC_ALL`, `LC_MESSAGES` et `LANG` seulement quand `language` vaut `auto`. Il n'en définit aucune.
 - **Lit les réglages de Claude Code** : la clé `language` seulement quand `language` vaut `auto`, et la clé `prefersReducedMotion` seulement quand `motion` vaut `auto`.
 - **Lit et remplit votre prompt** uniquement autour de la boîte de réception : il lit le texte en cours à l'ouverture de la boîte de réception, pour marquer les PR que ce texte demande déjà, et à sa fermeture il ajoute les demandes pour les PR que vous avez ajoutées, sur de nouvelles lignes après ce texte.

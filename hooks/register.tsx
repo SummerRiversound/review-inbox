@@ -1,7 +1,23 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { Capped, InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, RepoPaths, Tab } from '../types'
+import type {
+  ButtonError,
+  ButtonScope,
+  Capped,
+  CardButton,
+  InboxFile,
+  InboxItem,
+  InboxStatus,
+  IssueItem,
+  MyPr,
+  Note,
+  Presence,
+  RepoPaths,
+  Tab,
+} from '../types'
+import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeButtons, parseActions } from './actions'
+import type { Vars } from './actions'
 import {
   CLAIM_MS,
   cacheKey,
@@ -103,6 +119,9 @@ const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as stri
 const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
 const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, false)
 const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
+const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], errors: [] } as { buttons: CardButton[]; errors: ButtonError[] })
+const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
+const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
 
 type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string }
 
@@ -115,6 +134,11 @@ let isStill = false
 let lastBand: BandCounts | undefined
 // GH_REPO, which gh itself treats as the current repository.
 let ghRepo: string | undefined
+// Where actions.json lives, shown in the Edit buttons panel.
+let actionsPath = ''
+// A press of a card's own button is added as the card's key and the button's id; Add button has a key of its own.
+const buttonKey = (key: string, id: string) => `${key}::${id}`
+const ADD_BUTTON = '::add-button'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -544,6 +568,7 @@ async function openDrawer($: EngineInterface) {
     const cards = await pickable($)
     await update($, requested, () => cards.filter(c => hasRequest(text, c.url)).map(c => c.key))
     await update($, added, () => [])
+    await loadActions($)
   }
   await $.ui.open({
     id: PANE,
@@ -586,17 +611,60 @@ async function addCard($: EngineInterface, key: string) {
   $.ui.toast(m.toast.added(keys.length + 1))
 }
 
+// Read at each drawer open and each Edit buttons press, so an edit to the file shows without a restart.
+async function loadActions($: EngineInterface) {
+  actionsPath = `${await cacheDir($)}/${ACTIONS_FILE}`
+  const text = (await $.fs.exists(actionsPath)) ? await $.fs.read(actionsPath).catch(() => '') : undefined
+  await update($, actions, () => parseActions(text))
+}
+
+// What a card's own buttons can fill in, by the key its hide and note use.
+async function buttonCards($: EngineInterface): Promise<Map<string, Vars>> {
+  return new Map<string, Vars>([
+    ...(await read($, items)).map(i => [itemKey(i), { RepoName: i.repo, PrNumber: `${i.number}`, PrUrl: i.url, PrTitle: i.title, Author: i.author }] as const),
+    ...(await read($, mine)).map(
+      pr => [prHideKey(pr), { RepoName: pr.repo, PrNumber: `${pr.number}`, PrUrl: pr.url, PrTitle: pr.title, HeadRefName: pr.branch, BaseRefName: pr.base }] as const,
+    ),
+    ...(await read($, issues)).map(i => [issueHideKey(i), { RepoName: i.repo, IssueNumber: `${i.number}`, IssueTitle: i.title, IssueUrl: i.url }] as const),
+  ])
+}
+
+// One line per press of a card's own button, in the order pressed.
+async function buttonPrompts($: EngineInterface, keys: string[]): Promise<string> {
+  const buttons = mergeButtons(builtInButtons(m), (await read($, actions)).buttons)
+  const cards = await buttonCards($)
+  let text = ''
+  for (const key of keys) {
+    if (key === ADD_BUTTON) {
+      text += `${m.prompt.addButton(actionsPath, VARIABLES.join(', '))}\n`
+      continue
+    }
+    const at = key.lastIndexOf('::')
+    const vars = at > 0 ? cards.get(key.slice(0, at)) : undefined
+    const button = buttons.find(b => b.id === key.slice(at + 2))
+    if (!vars || !button) continue
+    const place = await placeFor($, vars.RepoName ?? '')
+    const repoPath = place.kind === 'folder' ? place.path : place.kind === 'here' ? await $.session.cwd() : ''
+    text += `${fillTemplate(button.prompt, { ...vars, RepoPath: repoPath })}\n`
+  }
+  return text
+}
+
 // False only when a dialog holds the keys: that passes, so the drawer stays open with its picks and the next close tries again.
 async function fillAdded($: EngineInterface): Promise<boolean> {
   const byKey = new Map((await pickable($)).map(c => [c.key, c]))
-  const chosen = (await read($, added)).flatMap(key => byKey.get(key) ?? [])
-  if (chosen.length > 0) {
+  const keys = await read($, added)
+  const chosen = keys.flatMap(key => byKey.get(key) ?? [])
+  if (keys.length > 0) {
     const { text } = await $.prompt.read()
     const style = (await readJson<StyleFile>($, styleFile(), {}))?.profile
     const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
-    const more = reviews + taskPrompts(text + reviews, tasks, m)
-    const filled = more ? await $.prompt.fill({ text: more, mode: 'append' }) : undefined
+    const queued = reviews + taskPrompts(text + reviews, tasks, m)
+    const own = await buttonPrompts($, keys)
+    const before = text + queued
+    const all = queued + (own && before !== '' && !before.endsWith('\n') ? `\n${own}` : own)
+    const filled = all ? await $.prompt.fill({ text: all, mode: 'append' }) : undefined
     if (filled?.isFilled === false) {
       $.ui.toast(m.toast.promptBusy)
       if (filled.refusal === 'dialog') return false
@@ -727,6 +795,7 @@ export const register: Register = (on, options) => {
     m = MESSAGES[config.language]
     home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
     ghRepo = await $.env.get('GH_REPO')
+    await loadActions($).catch(() => undefined)
     isStill =
       config.motion === 'off' || (await $.settings.read({ key: 'prefersReducedMotion' }).then(v => v === true, () => false))
     // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
@@ -888,6 +957,41 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const own = await read($, actions)
+    const buttons = mergeButtons(builtInButtons(m), own.buttons)
+    const moreKey = await read($, more)
+    const isEditing = await read($, buttonsOpen)
+    const moreButton = (key: string) => (
+      <Button
+        key={`more-${key}`}
+        label={`${moreKey === key ? '▾' : '▸'} ${m.buttons.more}`}
+        dimColor
+        onPress={() => void update($, more, open => (open === key ? '' : key))}
+      />
+    )
+    // One card's row at a time, like the note editor.
+    const moreRow = (key: string, scope: ButtonScope) =>
+      moreKey === key && (
+        <Box flexDirection="row" flexWrap="wrap" gap={1} marginTop={1}>
+          {buttons
+            .filter(b => b.scope === scope)
+            .map(b => {
+              const isAdded = addedKeys.includes(buttonKey(key, b.id))
+              return (
+                <Button
+                  key={`btn-${key}-${b.id}`}
+                  label={isAdded ? m.card.added : b.name}
+                  {...(isAdded ? { dimColor: true } : {})}
+                  onPress={() => void addCard($, buttonKey(key, b.id))}
+                />
+              )
+            })}
+        </Box>
+      )
+    const crowded = (['review', 'pr', 'issue'] as const)
+      .map(scope => [scope, buttons.filter(b => b.scope === scope).length] as const)
+      .filter(([, n]) => n > MAX_PER_SCOPE)
+
     // Only when the tabs mix repositories; on every card it would say nothing.
     const hereTag = (repo: string) => isMixed && isHere(repo, here) && <Text dimColor> · {m.card.thisRepo}</Text>
     const detailsLine = (card: Parameters<typeof detailsText>[0]) => {
@@ -1031,6 +1135,7 @@ export const register: Register = (on, options) => {
                 {item.author} · {m.card.size(item.files, item.additions.toLocaleString(), item.deletions.toLocaleString())}
               </Text>
               <Box flexDirection="row" gap={1}>
+                {moreButton(itemKey(item))}
                 {noteButton(itemKey(item))}
                 <Button
                   key={`hide-${item.repo}-${item.number}`}
@@ -1046,6 +1151,7 @@ export const register: Register = (on, options) => {
                 />
               </Box>
             </Box>
+            {moreRow(itemKey(item), 'review')}
             {noteEditor(itemKey(item), () => item.headSha)}
           </Box>
         </Box>
@@ -1086,6 +1192,7 @@ export const register: Register = (on, options) => {
           {sessionLine(pr)}
           {noteLine(prHideKey(pr))}
           {titleRow(pr.url, pr.title, [
+            moreButton(prHideKey(pr)),
             noteButton(prHideKey(pr)),
             <Button
               key={`hide-${pr.url}`}
@@ -1101,6 +1208,7 @@ export const register: Register = (on, options) => {
             </Text>
           )}
           {taskRow(pr, prHideKey(pr))}
+          {moreRow(prHideKey(pr), 'pr')}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
         </Box>
       </Box>
@@ -1121,6 +1229,7 @@ export const register: Register = (on, options) => {
           </Box>
           {noteLine(issueHideKey(issue))}
           {titleRow(issue.url, issue.title, [
+            moreButton(issueHideKey(issue)),
             noteButton(issueHideKey(issue)),
             <Button
               key={`hide-${issueKey(issue)}`}
@@ -1136,6 +1245,7 @@ export const register: Register = (on, options) => {
             </Text>
           )}
           {taskRow(issue, issueHideKey(issue))}
+          {moreRow(issueHideKey(issue), 'issue')}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
         </Box>
       </Box>
@@ -1336,6 +1446,46 @@ export const register: Register = (on, options) => {
                 })}
               </Box>
             )}
+
+            <Box flexDirection="column" marginTop={1}>
+              <Box>
+                <Button
+                  key="edit-buttons"
+                  label={`${isEditing ? '▾' : '▸'} ${m.buttons.edit}`}
+                  dimColor
+                  onPress={async () => {
+                    await loadActions($)
+                    await update($, buttonsOpen, open => !open)
+                  }}
+                />
+              </Box>
+              {isEditing && (
+                <Box flexDirection="column" marginTop={1}>
+                  <Text dimColor wrap="truncate-start">
+                    {m.buttons.file(home && actionsPath.startsWith(`${home}/`) ? `~${actionsPath.slice(home.length)}` : actionsPath)}
+                  </Text>
+                  {own.buttons.length === 0 && own.errors.length === 0 && <Text dimColor>{m.buttons.none}</Text>}
+                  {own.errors.map(error => (
+                    <Text key={`button-error-${error.at}`} color="warning">
+                      {errorText(error, m)}
+                    </Text>
+                  ))}
+                  {crowded.map(([scope, n]) => (
+                    <Text key={`crowded-${scope}`} color="warning">
+                      {m.buttons.tooMany(n, m.buttons.scopes[scope])}
+                    </Text>
+                  ))}
+                  <Box marginTop={1}>
+                    <Button
+                      key="add-button"
+                      label={addedKeys.includes(ADD_BUTTON) ? m.card.added : m.buttons.add}
+                      {...(addedKeys.includes(ADD_BUTTON) ? { dimColor: true } : { variant: 'primary' as const })}
+                      onPress={() => void addCard($, ADD_BUTTON)}
+                    />
+                  </Box>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
       </Box>
