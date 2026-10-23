@@ -65,6 +65,23 @@ Los elementos se agrupan en asignados, menciones y referencias. `Ocultar` oculta
 
 Una incidencia asignada a ti tiene un botón `Trabajar en esto` que funciona igual: Claude lee la incidencia, planifica el cambio y empieza en una rama nueva dentro de un worktree nuevo.
 
+### Búsquedas
+
+Búsquedas que nombras tú, cada una una sección con su cantidad y las 20 coincidencias actualizadas más recientemente. Un título abre ese PR o esa incidencia en GitHub, y `N más en GitHub` abre allí la búsqueda completa. Tres vienen incluidas, como en la bandeja de PR de GitHub: `Me involucran` (PR abiertos en los que participas pero que no abriste), `Revisados por mí, aún abiertos` y `Mis incidencias abiertas`. Pulsa el encabezado de una sección para plegarla. Las búsquedas se ejecutan en cada actualización, de tres en tres; una que falla muestra el motivo y no afecta a las demás. Sin llamadas al modelo.
+
+Añade las tuyas en `groups`, en el mismo `actions.json` que los botones de las tarjetas; `Añadir grupo de búsqueda`, bajo `Editar botones`, le pide a Claude que escriba uno contigo.
+
+```json
+{
+  "groups": [
+    { "id": "team", "name": "PR del equipo", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
+    { "id": "reviewed-by-me", "hidden": true }
+  ]
+}
+```
+
+`query` usa la sintaxis de búsqueda de GitHub. `scope` es `prs` o `issues`: añade `is:pr` o `is:issue` salvo que la consulta ya diga cuál, y se añade `sort:updated-desc` salvo que tenga su propio `sort:`. El ajuste `scope` y `Este repositorio` no restringen estas búsquedas, así que escribe `org:` o `repo:` en la consulta si lo necesitas. `"countInBand": true` suma la cantidad del grupo a la barra como `Búsquedas N`. Un grupo con un id incluido lo reemplaza, y `"hidden": true` lo quita. Una entrada con un campo que falta o un scope desconocido se omite y aparece en `Editar botones` con el motivo. Solo se buscan los primeros 15 grupos.
+
 ### Avisos
 
 Avisan de una nueva solicitud de revisión, una nueva revisión en uno de tus PR, uno de tus PR que pasa a cambios solicitados, CI con errores o conflicto de fusión, y una nueva asignación, mención o referencia. La primera consulta de una sesión no anuncia nada. Si llegan varios a la vez, se muestran uno tras otro, con cuatro segundos y medio de separación.
@@ -199,6 +216,7 @@ Una búsqueda GraphQL devuelve todos los PR que esperan tu revisión con lo que 
 ## Límites
 
 - Como máximo 100 PR que esperan tu revisión, en el orden de mejor coincidencia de GitHub. Las demás pestañas leen hasta 100 de tus PR abiertos, 100 incidencias asignadas y 100 que te mencionan, y referencias de hasta 500 elementos con actividad reciente, en cada caso con la actividad más reciente primero. Cuando una lista tiene más, su recuento se muestra como `100+`. Cada lista se lee de 25 en 25, y una página en la que GitHub agota el tiempo se vuelve a pedir con la mitad del tamaño, así que una cuenta con muchos PR no supera el límite de tiempo de GitHub.
+- Un grupo de búsqueda muestra sus 20 coincidencias actualizadas más recientemente; su cantidad es el total que GitHub da para la búsqueda.
 - Se pasa por alto una referencia a un elemento que no has tocado en 60 días.
 - `Nueva revisión` desaparece con cualquier commit nuevo en el PR, incluido uno hecho con el botón "Update branch" de GitHub o por un bot.
 - Tras un force-push que reescribió el commit que revisaste, un PR con revisión solicitada de nuevo no muestra la línea "Desde mi última revisión".

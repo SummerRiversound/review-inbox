@@ -65,6 +65,23 @@ Les éléments sont regroupés en assignés, mentions et références. `Masquer`
 
 Une issue qui vous est assignée a un bouton `Travailler dessus` qui fonctionne de la même façon : Claude lit l'issue, planifie le changement et commence sur une nouvelle branche dans un nouveau worktree.
 
+### Recherches
+
+Des recherches que vous nommez vous-même, chacune une section avec son nombre de résultats et les 20 plus récemment mis à jour. Un titre ouvre cette PR ou cette issue sur GitHub, et `N de plus sur GitHub` y ouvre la recherche complète. Trois sont fournies, comme dans la boîte de réception des PR de GitHub : `Me concernent` (PR ouvertes auxquelles vous participez sans les avoir ouvertes), `Revues par moi, encore ouvertes` et `Mes issues ouvertes`. Appuyez sur l'en-tête d'une section pour la replier. Les recherches s'exécutent à chaque actualisation, trois à la fois ; celle qui échoue affiche la raison sans toucher aux autres. Aucun appel au modèle.
+
+Ajoutez les vôtres sous `groups`, dans le même `actions.json` que les boutons des cartes ; `Ajouter un groupe de recherche`, sous `Modifier les boutons`, demande à Claude d'en écrire un avec vous.
+
+```json
+{
+  "groups": [
+    { "id": "team", "name": "PR de l'équipe", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
+    { "id": "reviewed-by-me", "hidden": true }
+  ]
+}
+```
+
+`query` suit la syntaxe de recherche de GitHub. `scope` vaut `prs` ou `issues` : il ajoute `is:pr` ou `is:issue` sauf si la requête le précise déjà, et `sort:updated-desc` est ajouté sauf si elle a son propre `sort:`. Le réglage `scope` et `Ce dépôt` ne restreignent pas ces recherches ; écrivez `org:` ou `repo:` dans la requête pour cela. `"countInBand": true` ajoute le nombre du groupe à la barre sous la forme `Recherches N`. Un groupe avec un id fourni le remplace, et `"hidden": true` le retire. Une entrée avec un champ manquant ou un scope inconnu est écartée et listée sous `Modifier les boutons` avec la raison. Seuls les 15 premiers groupes sont recherchés.
+
 ### Notifications
 
 Une nouvelle demande de revue, une nouvelle revue sur l'une de vos PR, l'une de vos PR qui passe à l'état modifications demandées, CI en échec ou conflit de fusion, et une nouvelle assignation, mention ou référence. La première consultation d'une session n'annonce rien. Quand plusieurs notifications arrivent en même temps, elles s'affichent l'une après l'autre, à quatre secondes et demie d'intervalle.
@@ -199,6 +216,7 @@ Une seule recherche GraphQL renvoie toutes les PR en attente de votre revue avec
 ## Limites
 
 - Au plus 100 PR en attente de votre revue, dans l'ordre de pertinence (best match) de GitHub. Les autres onglets lisent jusqu'à 100 de vos PR ouvertes, 100 issues assignées et 100 issues qui vous mentionnent, ainsi que les références provenant de 500 éléments récemment actifs au maximum, chaque fois en commençant par l'activité la plus récente. Quand une liste en contient davantage, son nombre s'affiche `100+`. Chaque liste est lue par 25, et une page sur laquelle GitHub dépasse son délai est redemandée avec une taille moitié moindre ; un compte avec beaucoup de PR reste ainsi dans la limite de temps de GitHub.
+- Un groupe de recherche montre ses 20 résultats les plus récemment mis à jour ; son nombre est le total que GitHub donne pour la recherche.
 - Une référence à un élément auquel vous n'avez pas touché depuis 60 jours passe inaperçue.
 - `Nouvelle revue` disparaît à chaque nouveau commit sur la PR, y compris un commit créé par le bouton « Update branch » de GitHub ou par un bot.
 - Après un force-push qui a réécrit le commit dont vous aviez fait la revue, une PR dont la revue est redemandée n'affiche pas de ligne « Depuis ma dernière revue ».

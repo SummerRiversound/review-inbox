@@ -97,16 +97,17 @@ test('the scope narrows every search, newest activity first, and references look
 test('the band counts only what needs me and leaves out zeros', async () => {
   const ref: IssueItem = { kind: 'reference', repo: 'o/r', number: 1, title: 't', url: 'r', at: '2026-10-01T00:00:00Z' }
   const quiet = bandCounts(0, [myPr('waiting'), myPr('approved')], [ref])
-  expect(quiet).toEqual({ reviews: 0, prTodo: 0, issues: 0 })
+  expect(quiet).toEqual({ reviews: 0, prTodo: 0, issues: 0, searches: 0 })
   expect(bandLabels(quiet, MESSAGES.en)).toEqual([])
   const busy = bandCounts(2, [myPr('changes'), myPr('waiting')], [{ ...ref, kind: 'mention' }, ref])
   expect(bandLabels(busy, MESSAGES.ko)).toEqual(['리뷰 2', '내 PR 할 일 1', '내 이슈 1'])
   expect(bandLabels(busy, MESSAGES.en)).toEqual(['To review 2', 'My PRs to act on 1', 'My issues 1'])
-  expect(bandLabels({ reviews: 0, prTodo: 3, issues: 0 }, MESSAGES.en)).toEqual(['My PRs to act on 3'])
+  expect(bandLabels({ reviews: 0, prTodo: 3, issues: 0, searches: 0 }, MESSAGES.en)).toEqual(['My PRs to act on 3'])
+  expect(bandLabels(bandCounts(1, [], [], 4), MESSAGES.en)).toEqual(['To review 1', 'Searches 4'])
 })
 
 test('a count from a search that had more than one page reads as at least that many', async () => {
-  const counts = { reviews: 100, prTodo: 2, issues: 97 }
+  const counts = { reviews: 100, prTodo: 2, issues: 97, searches: 0 }
   expect(bandLabels(counts, MESSAGES.ko, { review: true, issues: true })).toEqual(['리뷰 100+', '내 PR 할 일 2', '내 이슈 97+'])
   expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'My issues 97'])
 })
@@ -262,6 +263,6 @@ test('my PR turning approved with no CI running is announced once as ready to me
 test('a band count that goes down is picked out, one that rises, holds or reaches zero is not', async () => {
   const before = { reviews: 3, prTodo: 2, issues: 1 }
   expect(droppedCounts(undefined, before)).toEqual([])
-  expect(droppedCounts(before, { reviews: 2, prTodo: 2, issues: 0 })).toEqual(['reviews'])
-  expect(droppedCounts(before, { reviews: 4, prTodo: 1, issues: 1 })).toEqual(['prTodo'])
+  expect(droppedCounts(before, { reviews: 2, prTodo: 2, issues: 0, searches: 0 })).toEqual(['reviews'])
+  expect(droppedCounts(before, { reviews: 4, prTodo: 1, issues: 1, searches: 0 })).toEqual(['prTodo'])
 })

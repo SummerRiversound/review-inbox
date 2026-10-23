@@ -65,6 +65,23 @@ Items are grouped into assigned, mentions and references. `Hide` hides an item u
 
 An issue assigned to you has a `Work on this` button that works the same way: Claude reads the issue, plans the change and starts on a new branch in a new worktree.
 
+### Searches
+
+Searches you name yourself, each a section with its count and the 20 most recently updated matches. A title opens that PR or issue on GitHub, and `N more on GitHub` opens the whole search there. Three come built in, as in GitHub's own pull request inbox: `Involves me` (open PRs you take part in but did not open), `Reviewed by me, still open` and `My open issues`. Press a section's header to fold it. The searches run with every refresh, three at a time; one that fails shows why and leaves the others alone. No model calls.
+
+Add your own under `groups` in the same `actions.json` as the card buttons; `Add search group` under `Edit buttons` asks Claude to write one with you.
+
+```json
+{
+  "groups": [
+    { "id": "team", "name": "Team PRs", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
+    { "id": "reviewed-by-me", "hidden": true }
+  ]
+}
+```
+
+`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the group's count to the band as `Searches N`. A group with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out and listed under `Edit buttons` with the reason. Only the first 15 groups are searched.
+
 ### Toasts
 
 A new review request, a new review on one of your PRs, one of your PRs turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A session's first look announces nothing. When several arrive at once, they show one after another, 4.5 seconds apart.
@@ -199,6 +216,7 @@ One GraphQL search returns every PR waiting for your review with what the cards 
 ## Limits
 
 - At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
+- A search group shows its 20 most recently updated matches; its count is GitHub's total for the search.
 - A reference to an item you have not touched in 60 days is missed.
 - `New review` clears on any new commit to the PR, including one made by GitHub's "Update branch" button or by a bot.
 - After a force-push that rewrote the commit you reviewed, a re-requested PR shows no "since my last review" line.
