@@ -3,8 +3,10 @@ import { expect, test } from 'claude-code/testing'
 import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
+import { INBOX_QUERY } from '../hooks/inbox'
+import { STYLE_QUERY } from '../hooks/style'
 import {
-  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, REFERENCES_QUERY, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -109,11 +111,12 @@ test('a count from a search that had more than one page reads as at least that m
   expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'My issues 97'])
 })
 
-test('each tab search is its own request, my heavy PRs a smaller page than my issues', async () => {
-  expect(TAB_QUERIES.mine).toContain('search(query: $q, type: ISSUE, first: 30)')
-  expect(TAB_QUERIES.assigned).toContain('search(query: $q, type: ISSUE, first: 100)')
-  expect(TAB_QUERIES.mentioned).toContain('search(query: $q, type: ISSUE, first: 100)')
-  for (const query of Object.values(TAB_QUERIES)) expect(query).toContain('pageInfo { hasNextPage }')
+test('every search is paged by the same two variables and asks for its cursor', async () => {
+  for (const query of [...Object.values(TAB_QUERIES), REFERENCES_QUERY, INBOX_QUERY, STYLE_QUERY]) {
+    expect(query).toContain('$first: Int!, $after: String')
+    expect(query).toContain('search(query: $q, type: ISSUE, first: $first, after: $after)')
+    expect(query).toContain('pageInfo { hasNextPage endCursor }')
+  }
 })
 
 test('a PR turning to needs-me is announced once, never on the first look', async () => {

@@ -39,7 +39,6 @@ import {
   reusableSummary,
   reviewPrompts,
   searchQuery,
-  isGatewayTimeout,
   shouldFetch,
   shownReady,
   sincePrompt,
@@ -56,7 +55,9 @@ import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
 import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from './sessions'
 import type { Place } from './sessions'
 import type { Language, Messages } from './i18n'
-import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
+import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
+import type { Page } from './pages'
+import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
 import {
   REFERENCES_QUERY,
@@ -288,6 +289,20 @@ async function summarizeSince(
   }
 }
 
+// One search, read a page at a time; `jq` cuts each page below gh's output cap.
+function searchAll<T>($: EngineInterface, query: string, vars: Record<string, string>, env: Record<string, string>, limit: number, jq = '.data') {
+  const fields = Object.entries(vars).flatMap(([name, value]) => ['-f', `${name}=${value}`])
+  return readPages<T>(
+    async (first, after) =>
+      JSON.parse(
+        await gh($, ['api', 'graphql', '-f', `query=${query}`, ...fields, '-F', `first=${first}`, ...(after ? ['-f', `after=${after}`] : []), '--jq', jq], env),
+      ) as Page<T>,
+    limit,
+  )
+}
+
+const trimBodies = (chars: number) => `.data | .search.nodes |= map(if .body then .body |= .[:${chars}] else . end)`
+
 async function ghEnv($: EngineInterface): Promise<Record<string, string>> {
   if (!config.githubUser) return {}
   return { GH_TOKEN: (await gh($, ['auth', 'token', '-u', config.githubUser], {})).trim() }
@@ -299,17 +314,9 @@ async function fetchTabs(
   previous: IssueItem[],
 ): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
   const q = tabQueries(config.scope)
-  const page = async <T,>(key: keyof typeof q) =>
-    JSON.parse(
-      await gh(
-        $,
-        ['api', 'graphql', '-f', `query=${TAB_QUERIES[key]}`, '-f', `q=${q[key]}`,
-          '--jq', `.data | .search.nodes |= map(if .body then .body |= .[:${BODY_CHARS}] else . end)`],
-        env,
-      ),
-    ) as { viewer: { login: string }; search: { pageInfo: { hasNextPage: boolean }; nodes: Partial<T>[] } }
-  const [minePage, assigned, mentioned] = await Promise.all([page<GqlMyPr>('mine'), page<GqlTouched>('assigned'), page<GqlTouched>('mentioned')])
-  const data = { viewer: minePage.viewer, mine: minePage.search, assigned: assigned.search, mentioned: mentioned.search }
+  const tabSearch = <T,>(key: keyof typeof q) => searchAll<T>($, TAB_QUERIES[key], { q: q[key] }, env, SEARCH_LIMIT, trimBodies(BODY_CHARS))
+  const [minePrs, assigned, mentioned] = await Promise.all([tabSearch<GqlMyPr>('mine'), tabSearch<GqlTouched>('assigned'), tabSearch<GqlTouched>('mentioned')])
+  const me = minePrs.login ?? assigned.login ?? ''
   const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
     nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
 
@@ -317,32 +324,18 @@ async function fetchTabs(
   const touchedSince = new Date(Date.now() - AUTHORED_DAYS * 86_400_000).toISOString()
   let references: IssueItem[]
   try {
-    const referenced: GqlReferenced[] = []
-    let after: string | undefined
-    // ponytail: at most 10 pages (500 items touched in the window, newest first); past that the rest are left out
-    for (let page = 0; page < 10; page++) {
-      const result = JSON.parse(
-        await gh(
-          $,
-          ['api', 'graphql', '-f', `query=${REFERENCES_QUERY}`, '-f', `q=${referencesQuery(config.scope, touchedSince)}`,
-            '-f', `since=${since}`, ...(after ? ['-f', `after=${after}`] : []), '--jq', '.data.search'],
-          env,
-        ),
-      ) as { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: Partial<GqlReferenced>[] }
-      referenced.push(...real<GqlReferenced>(result.nodes))
-      if (!result.pageInfo.hasNextPage) break
-      after = result.pageInfo.endCursor
-    }
-    references = toReferences(referenced, data.viewer.login)
+    // ponytail: at most 500 items touched in the window, newest first; past that the rest are left out
+    const referenced = await searchAll<GqlReferenced>($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500)
+    references = toReferences(real<GqlReferenced>(referenced.nodes), me)
   } catch {
     // References are the costliest search; when GitHub refuses it, keep the last ones instead of failing every tab.
     references = previous.filter(i => i.kind === 'reference')
   }
 
   return {
-    mine: toMyPrs(real<GqlMyPr>(data.mine.nodes), data.viewer.login),
-    issues: toIssues(real<GqlTouched>(data.assigned.nodes), real<GqlTouched>(data.mentioned.nodes), references),
-    capped: { mine: data.mine.pageInfo.hasNextPage, issues: data.assigned.pageInfo.hasNextPage || data.mentioned.pageInfo.hasNextPage },
+    mine: toMyPrs(real<GqlMyPr>(minePrs.nodes), me),
+    issues: toIssues(real<GqlTouched>(assigned.nodes), real<GqlTouched>(mentioned.nodes), references),
+    capped: { mine: minePrs.capped, issues: assigned.capped || mentioned.capped },
   }
 }
 
@@ -352,17 +345,10 @@ async function fetchInbox(
   previous: InboxItem[],
   heartbeat: () => Promise<void>,
 ): Promise<{ items: InboxItem[]; capped: boolean }> {
-  const data = JSON.parse(
-    await gh(
-      $,
-      ['api', 'graphql', '-f', `query=${INBOX_QUERY}`,
-        '-f', `q=${searchQuery(config.scope)}`, '--jq', '.data | .search.nodes |= map(if .body then .body |= .[:12000] else . end)'],
-      env,
-    ),
-  ) as { viewer: { login: string }; search: { pageInfo: { hasNextPage: boolean }; nodes: Partial<GqlPr>[] } }
-  const me = data.viewer.login
+  const found = await searchAll<GqlPr>($, INBOX_QUERY, { q: searchQuery(config.scope) }, env, SEARCH_LIMIT, trimBodies(12_000))
+  const me = found.login ?? ''
   // Search can return non-PR nodes as empty objects.
-  const prs = data.search.nodes.filter((n): n is GqlPr => typeof n.number === 'number')
+  const prs = found.nodes.filter((n): n is GqlPr => typeof n.number === 'number')
   const before = new Map(previous.map(i => [itemKey(i), i]))
 
   const next: InboxItem[] = []
@@ -408,7 +394,7 @@ async function fetchInbox(
     next.push(...batch)
     await heartbeat()
   }
-  return { items: sortItems(next), capped: data.search.pageInfo.hasNextPage }
+  return { items: sortItems(next), capped: found.capped }
 }
 
 function toast($: EngineInterface, text: string) {
@@ -424,10 +410,8 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
   const file = await readJson<StyleFile>($, styleFile(), {})
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
-    const data = JSON.parse(
-      await gh($, ['api', 'graphql', '-f', `query=${STYLE_QUERY}`, '-f', `q=${styleQuery(config.scope)}`, '--jq', STYLE_JQ], env),
-    ) as { viewer: { login: string }; search: { nodes: Partial<GqlReviewed>[] } }
-    const samples = styleSamples(data.search.nodes, data.viewer.login)
+    const reviewed = await searchAll<GqlReviewed>($, STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
+    const samples = styleSamples(reviewed.nodes, reviewed.login ?? '')
     const prompt = stylePrompt(samples)
     if (prompt === undefined) {
       await writeJson($, styleFile(), { checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)

@@ -198,7 +198,7 @@ Una búsqueda GraphQL devuelve todos los PR que esperan tu revisión con lo que 
 
 ## Límites
 
-- Como máximo 100 PR que esperan tu revisión, en el orden de mejor coincidencia de GitHub. Las demás pestañas leen hasta 100 de tus PR abiertos, 100 incidencias asignadas y 100 que te mencionan, y referencias de hasta 500 elementos con actividad reciente, en cada caso con la actividad más reciente primero. Cuando una lista tiene más, su recuento se muestra como `100+`.
+- Como máximo 100 PR que esperan tu revisión, en el orden de mejor coincidencia de GitHub. Las demás pestañas leen hasta 100 de tus PR abiertos, 100 incidencias asignadas y 100 que te mencionan, y referencias de hasta 500 elementos con actividad reciente, en cada caso con la actividad más reciente primero. Cuando una lista tiene más, su recuento se muestra como `100+`. Cada lista se lee de 25 en 25, y una página en la que GitHub agota el tiempo se vuelve a pedir con la mitad del tamaño, así que una cuenta con muchos PR no supera el límite de tiempo de GitHub.
 - Se pasa por alto una referencia a un elemento que no has tocado en 60 días.
 - `Nueva revisión` desaparece con cualquier commit nuevo en el PR, incluido uno hecho con el botón "Update branch" de GitHub o por un bot.
 - Tras un force-push que reescribió el commit que revisaste, un PR con revisión solicitada de nuevo no muestra la línea "Desde mi última revisión".

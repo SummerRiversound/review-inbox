@@ -1,15 +1,20 @@
 import { MESSAGES } from './i18n'
 import type { Language } from './i18n'
+import { PAGE, PAGE_ARGS } from './pages'
 
 // PRs I reviewed and did not write, newest first; only my own reviews are kept, cut short, to stay far below gh's output cap.
-export const STYLE_QUERY = `query($q: String!) {
+export const STYLE_QUERY = `query($q: String!, ${PAGE_ARGS}) {
   viewer { login }
-  search(query: $q, type: ISSUE, first: 30) {
+  search(query: $q, type: ISSUE, ${PAGE}) {
+    pageInfo { hasNextPage endCursor }
     nodes { ... on PullRequest { reviews(last: 20) { nodes { author { login } body comments(first: 20) { nodes { body } } } } } }
   }
 }`
 export const STYLE_JQ =
   '.data | .viewer.login as $me | .search.nodes |= map(if .reviews then .reviews.nodes |= map(select(.author.login == $me) | .body |= .[:500] | .comments.nodes |= map(.body |= .[:500])) else . end)'
+
+// Enough PRs to fill the samples; the newest say the most about how I review now.
+export const STYLE_PRS = 30
 
 export function styleQuery(scope: string): string {
   return ['is:pr reviewed-by:@me -author:@me sort:updated-desc', scope.trim()].filter(Boolean).join(' ')

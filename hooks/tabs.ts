@@ -2,6 +2,7 @@ import type { Capped, IssueItem, MyPr, MyPrState, TaskKind } from '../types'
 import type { Messages } from './i18n'
 import { DETAILS_FIELDS, detailsOf, hasRequest } from './inbox'
 import type { GqlDetails } from './inbox'
+import { PAGE, PAGE_ARGS } from './pages'
 import type { Place } from './sessions'
 
 type Repo = { repository: { nameWithOwner: string; defaultBranchRef?: { name: string } | null } }
@@ -28,31 +29,28 @@ export type GqlReferenced = Repo & {
   }
 }
 
-const tabSearch = (first: number, nodes: string) => `query($q: String!) {
+const tabSearch = (nodes: string) => `query($q: String!, ${PAGE_ARGS}) {
   viewer { login }
-  search(query: $q, type: ISSUE, first: ${first}) { pageInfo { hasNextPage } nodes { ${nodes} } }
+  search(query: $q, type: ISSUE, ${PAGE}) { pageInfo { hasNextPage endCursor } nodes { ${nodes} } }
 }`
 
-// One request per search: together, on an account with many open PRs, they outran GitHub's ~10 s limit and got an HTML 502.
-// 30 of my PRs, newest first: each carries its checks and 30 reviews, the heaviest nodes any tab asks for.
+// One search per tab list, each paged on its own: together they outran GitHub's ~10 s limit on accounts with many PRs.
 export const TAB_QUERIES = {
-  mine: tabSearch(30, `... on PullRequest {
+  mine: tabSearch(`... on PullRequest {
     number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
     ${DETAILS_FIELDS}
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } }`),
-  assigned: tabSearch(100, `... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }`),
+  assigned: tabSearch(`... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }`),
   mentioned: tabSearch(
-    100,
     `... on Issue { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }
     ... on PullRequest { number title url body updatedAt repository { nameWithOwner } ${DETAILS_FIELDS} }`,
   ),
 }
 
-// My PRs and issues touched lately, with who pointed at them from elsewhere; paged.
-// 50 per page: at 100, items with long timelines exceed GitHub's per-query resource limit.
-export const REFERENCES_QUERY = `query($q: String!, $since: DateTime!, $after: String) {
-  search(query: $q, type: ISSUE, first: 50, after: $after) {
+// My PRs and issues touched lately, with who pointed at them from elsewhere.
+export const REFERENCES_QUERY = `query($q: String!, $since: DateTime!, ${PAGE_ARGS}) {
+  search(query: $q, type: ISSUE, ${PAGE}) {
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest { number repository { nameWithOwner }
