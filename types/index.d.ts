@@ -83,6 +83,18 @@ export type IssueItem = CardDetails & {
 
 export type Tab = 'review' | 'mine' | 'issues'
 
+// A button of my own from actions.json, or a built-in one of the same shape; its prompt is a template filled from the card.
+export type ButtonScope = 'review' | 'pr' | 'issue'
+export type CardButton = {
+  id: string
+  name: string
+  scope: ButtonScope
+  prompt: string
+  hidden?: boolean
+}
+// An entry of actions.json left out, by its id or position, or the whole file.
+export type ButtonError = { at: string; reason: 'file' | 'fields' | 'scope' | 'variables'; detail?: string }
+
 // What one live session is on, shared with every other: its folder, branch and remotes, and the PRs its prompts linked to.
 export type Presence = {
   at: number
@@ -144,6 +156,12 @@ declare module 'claude-code' {
       onlyHere: boolean
       // A band count that just went down, shown in the success color for a moment.
       dropped: string[]
+      // actions.json as last read: my buttons and the entries left out.
+      actions: { buttons: CardButton[]; errors: ButtonError[] }
+      // The card whose row of buttons is open, or empty.
+      more: string
+      // The Edit buttons panel is open.
+      buttonsOpen: boolean
       added: string[]
       requested: string[]
     }

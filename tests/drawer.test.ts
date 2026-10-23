@@ -254,3 +254,42 @@ test('a PR to act on keeps the inbox-zero line away', async ($, on) => {
   expect(await shown(ui, /Nothing needs you/)).toBe(false)
   await ui.unmount()
 })
+
+const ACTIONS = '/home/me/.claude/plugins/data/review-inbox/actions.json'
+
+test('More opens a card\'s own buttons, one card at a time, and a press adds the card', async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const own = {
+    buttons: [
+      { id: 'ship', name: 'Ship it', scope: 'pr', prompt: 'Merge {{.PrUrl}}' },
+      { id: 'draft-reply', scope: 'pr', hidden: true },
+    ],
+  }
+  const ui = await opened($, on, [pr(1, 'changes'), pr(2, 'waiting')], [], 'mine', { files: { [ACTIONS]: JSON.stringify(own) } })
+
+  expect(await ui.find({ key: 'btn-pr:u1-ship' })).toBe(undefined)
+  await ui.press({ key: 'more-pr:u1' })
+  expect(await label('btn-pr:u1-investigate-ci')).toBe('Investigate CI failure')
+  expect(await label('btn-pr:u1-ship')).toBe('Ship it')
+  expect(await ui.find({ key: 'btn-pr:u1-draft-reply' })).toBe(undefined)
+
+  await ui.press({ key: 'more-pr:u2' })
+  expect(await ui.find({ key: 'btn-pr:u1-ship' })).toBe(undefined)
+  await ui.press({ key: 'btn-pr:u2-ship' })
+  expect(await label('btn-pr:u2-ship')).toBe('Added')
+  await ui.unmount()
+})
+
+test('Edit buttons names the file and lists an entry left out with its reason, and Add button adds a request', async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const own = { buttons: [{ id: 'typo', name: 'Typo', scope: 'pr', prompt: 'Look at {{.PrLink}}' }] }
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'mine', { files: { [ACTIONS]: JSON.stringify(own) } })
+
+  expect(await shown(ui, /typo:/)).toBe(false)
+  await ui.press({ key: 'edit-buttons' })
+  expect(await shown(ui, /~\/\.claude\/plugins\/data\/review-inbox\/actions\.json/)).toBe(true)
+  expect(await shown(ui, /typo: unknown variable PrLink/)).toBe(true)
+  await ui.press({ key: 'add-button' })
+  expect(await label('add-button')).toBe('Added')
+  await ui.unmount()
+})

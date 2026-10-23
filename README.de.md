@@ -73,6 +73,23 @@ Wird Ihr PR genehmigt und läuft keine CI mehr, erscheint einmal `Bereit zum Mer
 
 ![Drei Benachrichtigungen nacheinander unter dem Prompt: eine neue Review-Anfrage, Änderungen angefordert an Ihrem PR und eine neue Erwähnung](docs/images/en/toasts.gif)
 
+### Schaltflächen auf Karten
+
+`▸ Mehr` auf einer Karte öffnet eine Reihe von Schaltflächen, die die Karte jeweils mit einer vorbereiteten Anfrage an Claude übergeben: `Risiken zusammenfassen`, `Diff erklären` und `Freigabe-Kommentar entwerfen` bei einer Review-Anfrage, `Antwort an Reviewer entwerfen` und `CI-Fehler untersuchen` bei Ihrem PR. Eine Schaltfläche fügt die Karte hinzu wie `Reviewen`, und die Anfrage landet in Ihrem Prompt, wenn Sie das Panel schließen. Bis Sie Enter drücken, wird nichts ausgeführt und nichts gepostet.
+
+Eigene Schaltflächen legen Sie in `actions.json` im Cache-Ordner an. `▸ Schaltflächen bearbeiten` unten im Panel zeigt den Pfad, und `Schaltfläche hinzufügen` bittet Claude, mit Ihnen eine zu schreiben.
+
+```json
+{
+  "buttons": [
+    { "id": "test-plan", "name": "Testplan", "scope": "review", "prompt": "Schreibe in {{.RepoPath}} einen Testplan für {{.PrUrl}}." },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ]
+}
+```
+
+`scope` ist `review`, `pr` oder `issue`. Der Prompt kann `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl` verwenden, geschrieben wie in gh-dash als `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; eine Variable, für die die Karte keinen Wert hat, bleibt leer. Eine Schaltfläche mit der id einer eingebauten ersetzt diese, und `"hidden": true` entfernt sie. Ein Eintrag mit fehlendem Feld, unbekanntem scope oder unbekannter Variable wird ausgelassen und unter `Schaltflächen bearbeiten` mit dem Grund aufgeführt; der Rest funktioniert weiter. `PrTitle` und `Author` kommen so von GitHub, wie sie dort stehen; ein Prompt, der sie verwendet, gibt also Text anderer Leute an Claude weiter.
+
 ## Voraussetzungen
 
 - Claude Code 2.1.287 oder neuer, die ersten Builds mit Mods (Function-Hook-Plugins). Getestet mit 2.1.292. Mods befinden sich im Early Access, und ihre API kann sich zwischen Releases ändern.
@@ -164,7 +181,7 @@ Die Mod greift nur über Ihr eigenes `gh` auf GitHub zu, sendet PR-Texte an Clau
 - **Führt `gh` aus**: `gh api graphql` für die Listen und einmal pro Woche für Ihre letzten Review-Kommentare; `gh api repos/<owner>/<repo>/compare/<from>...<to>` für einen erneut angefragten PR, und `gh auth token -u <githubUser>`, wenn `githubUser` gesetzt ist. Weitere eigene Netzwerkaufrufe macht die Mod nicht.
 - **Führt `git` aus** im Ordner der Sitzung, alle 30 Sekunden: `git branch --show-current` und `git remote -v`, um eine Sitzung auf dem Branch Ihres PRs zu finden, und `git rev-parse --path-format=absolute --git-common-dir`, um sich den Hauptordner dieses Repositorys zu merken.
 - **Fragt Claude** (Modell `sonnet`) nach jeder Zusammenfassung und sendet dabei Repository-Namen, Titel, Beschreibung (die ersten 12.000 Zeichen), geänderte Dateipfade (bis zu 80) und Größe eines PRs; bei einem erneut angefragten PR außerdem die erste Zeile jeder Commit-Nachricht und bis zu 60 Dateipfade seit Ihrem letzten Review. Das wird auf Ihre Nutzung von Claude Code angerechnet. Jeder PR wird pro Head-Commit und Sprache einmal zusammengefasst; eine fehlgeschlagene Zusammenfassung wird pro Commit höchstens dreimal versucht. Einmal pro Woche sendet die Mod außerdem Ihre eigenen Review-Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben – jeder auf 500 Zeichen gekürzt, höchstens 60 davon und insgesamt 12.000 Zeichen –, um Ihren Review-Stil zu beschreiben; bei weniger als fünf wird nichts gesendet.
-- **Schreibt Dateien** nur in ihren Cache-Ordner, `~/.claude/plugins/data/review-inbox` (ist `CLAUDE_CONFIG_DIR` gesetzt, tritt es an die Stelle von `~/.claude`). `inbox-<hash>.json` enthält die Listen und Zusammenfassungen, `hidden-<hash>.json` die ausgeblendeten PRs, `notes-<hash>.json` Ihre Notizen und Zurückstellungen (eine Datei pro Konto und Bereich, unabhängig von der Sprache), `sessions.json` Ordner, Branch, GitHub-Remotes und die PR-Links aus den Prompts jeder laufenden Sitzung (eine Datei für alle Konten), `repos.json` den Hauptordner jedes GitHub-Repositorys, in dem eine Sitzung lief (für die Schaltflächen zum nächsten Schritt) und `style-<hash>.json` die Beschreibung Ihres Review-Stils. Jede Datei wird zuerst daneben geschrieben und dann mit `mv` an ihren Platz verschoben, sodass keine Sitzung eine halb geschriebene Datei liest; wo es kein `mv` gibt, etwa unter Windows, wird sie direkt geschrieben.
+- **Schreibt Dateien** nur in ihren Cache-Ordner, `~/.claude/plugins/data/review-inbox` (ist `CLAUDE_CONFIG_DIR` gesetzt, tritt es an die Stelle von `~/.claude`). `inbox-<hash>.json` enthält die Listen und Zusammenfassungen, `hidden-<hash>.json` die ausgeblendeten PRs, `notes-<hash>.json` Ihre Notizen und Zurückstellungen (eine Datei pro Konto und Bereich, unabhängig von der Sprache), `sessions.json` Ordner, Branch, GitHub-Remotes und die PR-Links aus den Prompts jeder laufenden Sitzung (eine Datei für alle Konten), `repos.json` den Hauptordner jedes GitHub-Repositorys, in dem eine Sitzung lief (für die Schaltflächen zum nächsten Schritt) und `style-<hash>.json` die Beschreibung Ihres Review-Stils. Jede Datei wird zuerst daneben geschrieben und dann mit `mv` an ihren Platz verschoben, sodass keine Sitzung eine halb geschriebene Datei liest; wo es kein `mv` gibt, etwa unter Windows, wird sie direkt geschrieben. Dort liest sie `actions.json`, falls Sie eine angelegt haben, und schreibt sie nie.
 - **Liest Umgebungsvariablen**: `CLAUDE_CONFIG_DIR`, `HOME` und `USERPROFILE`, um diesen Ordner zu finden; `GH_REPO`, um wie `gh` das Repository dieser Sitzung zu kennen; `LC_ALL`, `LC_MESSAGES` und `LANG` nur, wenn `language` auf `auto` steht. Sie setzt keine.
 - **Liest Einstellungen von Claude Code**: den Schlüssel `language` nur, wenn `language` auf `auto` steht, und den Schlüssel `prefersReducedMotion` nur, wenn `motion` auf `auto` steht.
 - **Liest und befüllt Ihren Prompt** nur rund um das Panel: Beim Öffnen des Panels liest sie den bereits eingegebenen Text, um die PRs zu markieren, für die er schon eine Anfrage enthält, und beim Schließen fügt sie die Anfragen für die von Ihnen hinzugefügten PRs in neuen Zeilen nach diesem Text an.

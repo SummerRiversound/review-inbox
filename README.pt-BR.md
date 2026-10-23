@@ -73,6 +73,23 @@ Quando seu PR é aprovado e não há CI rodando, aparece `Pronto para merge` uma
 
 ![Três notificações em sequência abaixo do prompt: uma nova solicitação de revisão, alterações solicitadas no seu PR e uma nova menção](docs/images/en/toasts.gif)
 
+### Botões dos cartões
+
+`▸ Mais` em um cartão abre uma linha de botões que entregam o cartão ao Claude com um pedido pronto: `Resumir riscos`, `Explicar o diff` e `Rascunhar aprovação` em um pedido de revisão, `Rascunhar resposta ao revisor` e `Investigar falha de CI` no seu PR. Um botão adiciona o cartão do mesmo jeito que `Revisar`, e o pedido entra no seu prompt quando você fecha a caixa. Nada roda e nada é publicado até você apertar Enter.
+
+Adicione os seus em `actions.json`, na pasta de cache. `▸ Editar botões`, no fim da caixa, mostra o caminho, e `Adicionar botão` pede ao Claude que escreva um com você.
+
+```json
+{
+  "buttons": [
+    { "id": "test-plan", "name": "Plano de testes", "scope": "review", "prompt": "Escreva um plano de testes para {{.PrUrl}} em {{.RepoPath}}." },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ]
+}
+```
+
+`scope` é `review`, `pr` ou `issue`. O prompt pode usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como no gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; uma variável sem valor no cartão fica vazia. Um botão com o id de um integrado o substitui, e `"hidden": true` o remove. Uma entrada sem algum campo, ou com scope ou variável desconhecidos, fica de fora e aparece em `Editar botões` com o motivo; o resto continua funcionando. `PrTitle` e `Author` vêm do GitHub como foram escritos, então um prompt que os usa passa ao Claude um texto escrito por outra pessoa.
+
 ## Requisitos
 
 - Claude Code 2.1.287 ou posterior, as primeiras builds com mods (plugins com hooks de função). Testado na 2.1.292. Os mods estão em acesso antecipado, e a API deles pode mudar de uma versão para outra.
@@ -164,7 +181,7 @@ O mod acessa o GitHub só pelo seu próprio `gh`, envia o texto dos PRs ao Claud
 - **Executa o `gh`**: `gh api graphql` para as listas e, uma vez por semana, para os seus comentários de revisão recentes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para um PR com revisão solicitada novamente; e `gh auth token -u <githubUser>` quando `githubUser` está definido. O mod não faz nenhuma outra chamada de rede por conta própria.
 - **Executa o `git`** na pasta da sessão a cada 30 segundos: `git branch --show-current` e `git remote -v`, para achar uma sessão no branch do seu PR, e `git rev-parse --path-format=absolute --git-common-dir`, para lembrar a pasta principal desse repositório.
 - **Consulta o Claude** (o modelo `sonnet`) para cada resumo, enviando o nome do repositório do PR, o título, a descrição (os primeiros 12.000 caracteres), os caminhos dos arquivos alterados (até 80) e o tamanho; para um PR com revisão solicitada novamente, também a primeira linha de cada mensagem de commit e até 60 caminhos de arquivo desde a sua última revisão. Isso conta no seu uso do Claude Code. Cada PR é resumido uma vez por commit de head e por idioma; um resumo que falha é tentado no máximo três vezes por commit. Uma vez por semana, ele também envia os seus próprios comentários de revisão em até 30 PRs que você revisou recentemente, cada um cortado em 500 caracteres, no máximo 60 comentários e 12.000 caracteres no total, para descrever o seu estilo de revisão; com menos de cinco, nada é enviado.
-- **Grava arquivos** apenas na própria pasta de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` substitui `~/.claude` quando está definido). `inbox-<hash>.json` guarda as listas e os resumos; `hidden-<hash>.json` guarda os PRs ocultos; `notes-<hash>.json` guarda suas notas e adiamentos, um arquivo por conta e escopo, qualquer que seja o idioma; `sessions.json` guarda a pasta, o branch, os remotos do GitHub e os links de PR dos prompts de cada sessão ativa, um para todas as contas; `repos.json` guarda a pasta principal de cada repositório do GitHub em que uma sessão foi aberta, para os botões de próximo passo; `style-<hash>.json` guarda a descrição do seu estilo de revisão. Cada arquivo é gravado primeiro em um temporário ao lado e movido para o lugar com `mv`, assim nenhuma sessão lê um arquivo pela metade; onde não há `mv`, como no Windows, ele é gravado diretamente.
+- **Grava arquivos** apenas na própria pasta de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` substitui `~/.claude` quando está definido). `inbox-<hash>.json` guarda as listas e os resumos; `hidden-<hash>.json` guarda os PRs ocultos; `notes-<hash>.json` guarda suas notas e adiamentos, um arquivo por conta e escopo, qualquer que seja o idioma; `sessions.json` guarda a pasta, o branch, os remotos do GitHub e os links de PR dos prompts de cada sessão ativa, um para todas as contas; `repos.json` guarda a pasta principal de cada repositório do GitHub em que uma sessão foi aberta, para os botões de próximo passo; `style-<hash>.json` guarda a descrição do seu estilo de revisão. Cada arquivo é gravado primeiro em um temporário ao lado e movido para o lugar com `mv`, assim nenhuma sessão lê um arquivo pela metade; onde não há `mv`, como no Windows, ele é gravado diretamente. Lê `actions.json` ali, se você criou um, e nunca o escreve.
 - **Lê variáveis de ambiente**: `CLAUDE_CONFIG_DIR`, `HOME` e `USERPROFILE` para achar essa pasta; `GH_REPO` para saber, como o `gh`, o repositório desta sessão; `LC_ALL`, `LC_MESSAGES` e `LANG` só quando `language` é `auto`. Não define nenhuma.
 - **Lê as configurações do Claude Code**: a chave `language` só quando `language` é `auto`, e a chave `prefersReducedMotion` só quando `motion` é `auto`.
 - **Lê e preenche o seu prompt** só ao abrir e fechar a caixa de revisões: ao abrir, lê o texto que já está no prompt para marcar os PRs que ele já pede; ao fechar, acrescenta os pedidos dos PRs que você adicionou, em novas linhas depois desse texto.

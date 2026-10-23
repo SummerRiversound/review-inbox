@@ -73,6 +73,23 @@
 
 ![输入框下方依次出现三条通知：新的审查请求、你的 PR 被请求更改、新的提及](docs/images/en/toasts.gif)
 
+### 卡片按钮
+
+点击卡片上的 `▸ 更多` 会打开一排按钮，每个按钮都会带着预设的请求把卡片交给 Claude：审查请求上有 `总结风险`、`解释改动` 和 `起草批准评论`，你的 PR 上有 `起草给审查者的回复` 和 `调查 CI 失败`。按钮会像 `审查` 一样添加卡片，关闭抽屉时请求会进入你的输入框。在你按 Enter 之前，不会运行或发布任何内容。
+
+可以在缓存文件夹的 `actions.json` 中添加自己的按钮。抽屉底部的 `▸ 编辑按钮` 会显示它的路径，`添加按钮` 会让 Claude 和你一起写一个。
+
+```json
+{
+  "buttons": [
+    { "id": "test-plan", "name": "测试计划", "scope": "review", "prompt": "在 {{.RepoPath}} 中为 {{.PrUrl}} 写一份测试计划。" },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ]
+}
+```
+
+`scope` 是 `review`、`pr` 或 `issue`。prompt 中可以像 gh-dash 一样以 `{{.Name}}`, `{{Name}}`, `{{ .Name }}` 的形式使用 `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`；卡片没有值的变量会留空。与内置按钮 id 相同的按钮会替换它，`"hidden": true` 会移除它。缺少字段、scope 或变量名未知的条目会被跳过，并在 `编辑按钮` 下列出原因；其余按钮照常工作。`PrTitle` 和 `Author` 原样来自 GitHub，所以使用它们的 prompt 会把别人写的文字交给 Claude。
+
 ## 环境要求
 
 - Claude Code 2.1.287 或更高版本，这是最早支持 mod（函数钩子插件）的版本。已在 2.1.292 上测试。mod 目前处于早期体验阶段，其 API 可能在不同版本之间发生变化。
@@ -164,7 +181,7 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 - **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。除此之外，mod 自身不发起任何网络调用。
 - **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
-- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。
+- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。
 - **读取环境变量**：读取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 来找到该文件夹；像 `gh` 一样读取 `GH_REPO` 来确定当前会话的仓库；只有 `language` 为 `auto` 时才读取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不设置任何环境变量。
 - **读取 Claude Code 设置**：只有 `language` 为 `auto` 时才读取 `language` 键，只有 `motion` 为 `auto` 时才读取 `prefersReducedMotion` 键。
 - **读取并填写输入框**：仅在抽屉打开和关闭时进行。打开抽屉时读取输入框中已有的内容，以标记其中已经请求审查的 PR；关闭抽屉时，把你添加的 PR 的审查请求另起新行，追加到已有内容之后。

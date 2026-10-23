@@ -73,6 +73,23 @@ Cuando tu PR queda aprobado y no hay CI en marcha, aparece `Listo para merge` un
 
 ![Tres avisos seguidos bajo el prompt: una nueva solicitud de revisión, cambios solicitados en tu PR y una nueva mención](docs/images/en/toasts.gif)
 
+### Botones de las tarjetas
+
+`▸ Más` en una tarjeta abre una fila de botones que pasan la tarjeta a Claude con una solicitud ya preparada: `Resumir riesgos`, `Explicar el diff` y `Redactar aprobación` en una solicitud de revisión, `Redactar respuesta al revisor` e `Investigar fallo de CI` en tu PR. Un botón añade la tarjeta igual que `Revisar`, y la solicitud entra en tu prompt al cerrar la bandeja. Nada se ejecuta ni se publica hasta que pulses Enter.
+
+Añade los tuyos en `actions.json`, en la carpeta de caché. `▸ Editar botones`, al final de la bandeja, muestra su ruta, y `Añadir botón` pide a Claude que escriba uno contigo.
+
+```json
+{
+  "buttons": [
+    { "id": "test-plan", "name": "Plan de pruebas", "scope": "review", "prompt": "Escribe un plan de pruebas para {{.PrUrl}} en {{.RepoPath}}." },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ]
+}
+```
+
+`scope` es `review`, `pr` o `issue`. El prompt puede usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como en gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; si la tarjeta no tiene valor para una, queda vacía. Un botón con el id de uno integrado lo sustituye, y `"hidden": true` lo quita. Una entrada a la que le falta un campo, o con un scope o una variable desconocidos, se deja fuera y aparece en `Editar botones` con el motivo; el resto sigue funcionando. `PrTitle` y `Author` llegan de GitHub tal como están escritos, así que un prompt que los usa pasa a Claude texto escrito por otra persona.
+
 ## Requisitos
 
 - Claude Code 2.1.287 o posterior, las primeras compilaciones con mods (plugins de hooks de función). Probado en 2.1.292. Los mods están en acceso anticipado y su API puede cambiar entre versiones.
@@ -164,7 +181,7 @@ El mod accede a GitHub solo a través de tu propio `gh`, envía a Claude el text
 - **Ejecuta `gh`**: `gh api graphql` para las listas y, una vez por semana, para tus comentarios de revisión recientes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para un PR con revisión solicitada de nuevo, y `gh auth token -u <githubUser>` cuando `githubUser` está definido. El mod no hace por su cuenta ninguna otra llamada de red.
 - **Ejecuta `git`** en la carpeta de la sesión cada 30 segundos: `git branch --show-current` y `git remote -v`, para encontrar una sesión en la rama de tu PR, y `git rev-parse --path-format=absolute --git-common-dir`, para recordar la carpeta principal de ese repositorio.
 - **Consulta a Claude** (el modelo `sonnet`) para cada resumen y le envía el nombre del repositorio del PR, el título, la descripción (los primeros 12 000 caracteres), las rutas de los archivos modificados (hasta 80) y el tamaño; para un PR con revisión solicitada de nuevo, también la primera línea de cada mensaje de commit y hasta 60 rutas de archivo desde tu última revisión. Esto cuenta para tu uso de Claude Code. Cada PR se resume una vez por commit head e idioma; un resumen que falla se intenta como máximo tres veces por commit. Una vez por semana también envía tus propios comentarios de revisión en hasta 30 PR que revisaste recientemente, cada uno recortado a 500 caracteres, con un máximo de 60 comentarios y 12 000 caracteres en total, para describir tu estilo de revisión; si hay menos de cinco, no se envía nada.
-- **Escribe archivos** solo en su carpeta de caché, `~/.claude/plugins/data/review-inbox` (si `CLAUDE_CONFIG_DIR` está definida, ocupa el lugar de `~/.claude`). `inbox-<hash>.json` guarda las listas y los resúmenes; `hidden-<hash>.json`, los PR ocultos; `notes-<hash>.json`, tus notas y lo pospuesto, un archivo por cuenta y alcance sea cual sea el idioma; `sessions.json`, la carpeta, la rama, los remotos de GitHub y los enlaces a PR de los prompts de cada sesión activa, uno para todas las cuentas; `repos.json`, la carpeta principal de cada repositorio de GitHub en el que se abrió una sesión, para los botones del siguiente paso; `style-<hash>.json`, la descripción de tu estilo de revisión. Cada archivo se escribe primero en uno temporal a su lado y se mueve a su sitio con `mv`, así ninguna sesión lee un archivo a medio escribir; donde no hay `mv`, como en Windows, se escribe directamente.
+- **Escribe archivos** solo en su carpeta de caché, `~/.claude/plugins/data/review-inbox` (si `CLAUDE_CONFIG_DIR` está definida, ocupa el lugar de `~/.claude`). `inbox-<hash>.json` guarda las listas y los resúmenes; `hidden-<hash>.json`, los PR ocultos; `notes-<hash>.json`, tus notas y lo pospuesto, un archivo por cuenta y alcance sea cual sea el idioma; `sessions.json`, la carpeta, la rama, los remotos de GitHub y los enlaces a PR de los prompts de cada sesión activa, uno para todas las cuentas; `repos.json`, la carpeta principal de cada repositorio de GitHub en el que se abrió una sesión, para los botones del siguiente paso; `style-<hash>.json`, la descripción de tu estilo de revisión. Cada archivo se escribe primero en uno temporal a su lado y se mueve a su sitio con `mv`, así ninguna sesión lee un archivo a medio escribir; donde no hay `mv`, como en Windows, se escribe directamente. Allí lee `actions.json` si creaste uno, y nunca lo escribe.
 - **Lee variables de entorno**: `CLAUDE_CONFIG_DIR`, `HOME` y `USERPROFILE` para encontrar esa carpeta; `GH_REPO` para saber, como `gh`, el repositorio de esta sesión; `LC_ALL`, `LC_MESSAGES` y `LANG` solo cuando `language` es `auto`. No define ninguna.
 - **Lee los ajustes de Claude Code**: la clave `language` solo cuando `language` es `auto`, y la clave `prefersReducedMotion` solo cuando `motion` es `auto`.
 - **Lee y rellena tu prompt** solo en torno a la bandeja: lee el texto del prompt cuando se abre la bandeja, para marcar los PR que ya pide, y cuando se cierra añade las solicitudes de los PR que añadiste, en líneas nuevas después de ese texto.
