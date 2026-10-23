@@ -28,7 +28,7 @@ const touched = (url: string, updatedAt: string): GqlTouched =>
 const myPr = (state: MyPr['state'], url = 'u', newReviews: MyPr['newReviews'] = []): MyPr =>
   ({ repo: 'o/r', number: 1, title: 't', url, createdAt: '2026-10-01T00:00:00Z', state, ciPending: false, newReviews })
 
-test('my PRs put what needs me first: changes requested, CI failing, conflict, then waiting, approved, drafts', async () => {
+test('my PRs put what needs me first: changes requested, CI failing, conflict, then waiting, approved, in the merge queue, drafts', async () => {
   const prs = toMyPrs([
     gqlPr({ number: 1, isDraft: true, reviewDecision: 'CHANGES_REQUESTED' }),
     gqlPr({ number: 2, reviewDecision: 'APPROVED' }),
@@ -37,10 +37,13 @@ test('my PRs put what needs me first: changes requested, CI failing, conflict, t
     gqlPr({ number: 5, ci: 'FAILURE', mergeable: 'CONFLICTING' }),
     gqlPr({ number: 7, ci: 'ERROR' }),
     gqlPr({ number: 6, reviewDecision: 'CHANGES_REQUESTED', ci: 'FAILURE' }),
+    gqlPr({ number: 8, reviewDecision: 'APPROVED', isInMergeQueue: true, ci: 'PENDING' }),
   ], 'me')
   expect(prs.map(p => [p.number, p.state])).toEqual([
-    [6, 'changes'], [5, 'ci-failing'], [7, 'ci-failing'], [4, 'conflict'], [3, 'waiting'], [2, 'approved'], [1, 'draft'],
+    [6, 'changes'], [5, 'ci-failing'], [7, 'ci-failing'], [4, 'conflict'], [3, 'waiting'], [2, 'approved'], [8, 'queued'], [1, 'draft'],
   ])
+  // Nothing is left for me on a queued PR, so the band does not count it.
+  expect(bandCounts(0, prs.filter(p => p.number === 8), []).prTodo).toBe(0)
 })
 
 test('the oldest waiting PR comes first, and running CI is shown alongside the state', async () => {

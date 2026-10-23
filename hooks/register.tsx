@@ -138,6 +138,7 @@ const settling = atom({ plugin: 'review-inbox', key: 'settling' } as const, {} a
 const settleErrors = atom({ plugin: 'review-inbox', key: 'settleErrors' } as const, {} as Record<string, string>)
 const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
+const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 
 type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string }
 
@@ -222,6 +223,8 @@ const inboxFile = () => `inbox-${cacheKey(config.githubUser, config.scope, confi
 const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // Not keyed by language: a note I wrote stays when the language changes.
 const notesFile = () => `notes-${cacheKey(config.githubUser, config.scope)}.json`
+// Not keyed by language either: the last close of the drawer is the same whatever it was drawn in.
+const seenFile = () => `seen-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
@@ -396,6 +399,7 @@ async function fetchInbox(
           ...(pr.body ? { body: pr.body.slice(0, BODY_CHARS) } : {}),
           author: pr.author?.login ?? 'ghost',
           createdAt: pr.createdAt,
+          ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
           requestedAt: requestedAt(pr, me),
           isDraft: pr.isDraft,
           ...(team ? { team } : {}),
@@ -644,6 +648,12 @@ async function flashDrops($: EngineInterface) {
   $.clock.after(FLASH_MS, () => void update($, dropped, () => []))
 }
 
+// Read as the drawer opens, not while it is up, so a card stays marked until it closes.
+async function loadSeen($: EngineInterface) {
+  const seen = await readJson<{ at?: number }>($, seenFile(), {})
+  await update($, seenAt, () => seen?.at ?? 0)
+}
+
 async function openDrawer($: EngineInterface) {
   // Opening an open drawer only brings it forward; its picks wait for the close that fills them.
   if (!(await $.ui.panes()).some(p => p.id === PANE)) {
@@ -652,6 +662,7 @@ async function openDrawer($: EngineInterface) {
     const cards = await pickable($)
     await update($, requested, () => cards.filter(c => hasRequest(text, c.url)).map(c => c.key))
     await update($, added, () => [])
+    await loadSeen($)
     await loadActions($)
     // A group added or edited since the last fetch has nothing to show yet.
     const results = await read($, groupResults)
@@ -884,6 +895,8 @@ export const register: Register = (on, options) => {
     home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
     ghRepo = await $.env.get('GH_REPO')
     await loadActions($).catch(() => undefined)
+    // A pane a reload kept open was not opened through openDrawer.
+    await loadSeen($).catch(() => undefined)
     isStill =
       config.motion === 'off' || (await $.settings.read({ key: 'prefersReducedMotion' }).then(v => v === true, () => false))
     // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
@@ -936,7 +949,9 @@ export const register: Register = (on, options) => {
       $.ui.toast(m.toast.retry)
       return true
     })
-    return isFilled ? next(e) : { value: undefined }
+    if (!isFilled) return { value: undefined }
+    await writeJson($, seenFile(), { at: Date.now() }).catch(() => undefined)
+    return next(e)
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -1056,6 +1071,10 @@ export const register: Register = (on, options) => {
     const threads = shownThreads(notified.threads, cardUrls).filter(t => !isThreadHidden(hiddenMap, t))
     const openThreads = threads.filter(t => !pendingThreads[t.id])
     const moreKey = await read($, more)
+    const seen = await read($, seenAt)
+    // Updated since the drawer was last closed, as GitHub's inbox marks what changed since my last visit.
+    const newDot = (updatedAt: string | undefined) =>
+      seen > 0 && updatedAt !== undefined && Date.parse(updatedAt) > seen && <Text color="suggestion">● </Text>
     const isEditing = await read($, buttonsOpen)
     const moreButton = (key: string) => (
       <Button
@@ -1178,6 +1197,7 @@ export const register: Register = (on, options) => {
           <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
             <Box flexDirection="row" justifyContent="space-between">
               <Text bold>
+                {newDot(item.updatedAt)}
                 {item.repo} #{item.number}
                 {hereTag(item.repo)}
                 {item.isRerequest && <Text color="suggestion"> {m.card.rerequest}</Text>}
@@ -1273,6 +1293,7 @@ export const register: Register = (on, options) => {
         <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Text bold>
+              {newDot(pr.updatedAt)}
               {pr.repo} #{pr.number}
               {hereTag(pr.repo)}
             </Text>
@@ -1316,6 +1337,7 @@ export const register: Register = (on, options) => {
         <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
           <Box flexDirection="row" justifyContent="space-between">
             <Text bold>
+              {newDot(issue.at)}
               {issue.repo} #{issue.number}
               {hereTag(issue.repo)}
             </Text>

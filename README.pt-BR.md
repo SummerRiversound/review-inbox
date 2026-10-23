@@ -28,6 +28,8 @@ Os cartões do repositório desta sessão vêm primeiro em cada grupo, marcados 
 
 Abaixo do título, um cartão mostra até dois rótulos e quantos mais há, o número de comentários e, em um PR, `→ branch` quando ele aponta para um branch que não é o padrão do repositório.
 
+Um `●` antes do repositório de um cartão marca um que mudou desde a última vez que você fechou a caixa, como a caixa de entrada do GitHub marca o que mudou desde a sua última visita. Antes do primeiro fechamento nada é marcado.
+
 Quando nada precisa de você (nenhum pedido de revisão, nenhum PR seu com algo a fazer, nenhuma issue atribuída a você ou que mencione você), a caixa mostra `✓ Nada precisa de você agora` acima das abas, e a faixa continua escondida.
 
 ### Para revisar
@@ -45,7 +47,7 @@ O pedido também leva uma linha que descreve como você costuma revisar, para qu
 
 ### Meus PRs
 
-Os seus PRs abertos, com o estado no lugar do resumo, na ordem em que você precisa agir sobre eles: alterações solicitadas, CI com falha, conflito de merge, aguardando revisão (os mais antigos primeiro), aprovado, rascunho. O CI em execução aparece ao lado do estado.
+Os seus PRs abertos, com o estado no lugar do resumo, na ordem em que você precisa agir sobre eles: alterações solicitadas, CI com falha, conflito de merge, aguardando revisão (os mais antigos primeiro), aprovado, na fila de merge, rascunho. O CI em execução aparece ao lado do estado. Um PR em uma fila de merge mostra `Na fila de merge`: o GitHub faz o merge assim que as verificações da fila passam, então a faixa não o conta e ele nunca mostra `Pronto para merge`.
 
 `Ocultar` oculta um PR até ele mudar de estado ou alguém revisá-lo; o seu próprio push não o traz de volta.
 

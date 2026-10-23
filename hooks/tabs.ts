@@ -14,6 +14,8 @@ export type GqlMyPr = Item & Body & GqlDetails & {
   baseRefName?: string
   isDraft: boolean
   createdAt: string
+  updatedAt?: string
+  isInMergeQueue?: boolean
   reviewDecision: 'APPROVED' | 'CHANGES_REQUESTED' | 'REVIEW_REQUIRED' | null
   mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN'
   commits: { nodes: { commit: { committedDate: string; statusCheckRollup: { state: string } | null } }[] }
@@ -37,7 +39,7 @@ const tabSearch = (nodes: string) => `query($q: String!, ${PAGE_ARGS}) {
 // One search per tab list, each paged on its own: together they outran GitHub's ~10 s limit on accounts with many PRs.
 export const TAB_QUERIES = {
   mine: tabSearch(`... on PullRequest {
-    number title url body headRefName baseRefName isDraft createdAt repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
+    number title url body headRefName baseRefName isDraft createdAt updatedAt isInMergeQueue repository { nameWithOwner defaultBranchRef { name } } reviewDecision mergeable
     ${DETAILS_FIELDS}
     commits(last: 1) { nodes { commit { committedDate statusCheckRollup { state } } } }
     reviews(last: 30) { nodes { state submittedAt author { login } } } }`),
@@ -88,11 +90,13 @@ export function referencesQuery(scope: string, touchedSince: string): string {
 }
 
 // Ordered by what I have to do next.
-export const ORDER: MyPrState[] = ['changes', 'ci-failing', 'conflict', 'waiting', 'approved', 'draft']
+export const ORDER: MyPrState[] = ['changes', 'ci-failing', 'conflict', 'waiting', 'approved', 'queued', 'draft']
 
 export function myPrState(pr: GqlMyPr): MyPrState {
   const ci = pr.commits.nodes[0]?.commit.statusCheckRollup?.state
   if (pr.isDraft) return 'draft'
+  // Nothing left for me: GitHub merges it once the queue's checks pass, or drops it back to a state that is.
+  if (pr.isInMergeQueue) return 'queued'
   if (pr.reviewDecision === 'CHANGES_REQUESTED') return 'changes'
   if (ci === 'FAILURE' || ci === 'ERROR') return 'ci-failing'
   // UNKNOWN is GitHub not having computed it yet, not a conflict.
@@ -119,6 +123,7 @@ export function toMyPrs(prs: GqlMyPr[], me: string): MyPr[] {
       title: pr.title,
       url: pr.url,
       createdAt: pr.createdAt,
+      ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
       state: myPrState(pr),
       ciPending: ['PENDING', 'EXPECTED'].includes(pr.commits.nodes[0]?.commit.statusCheckRollup?.state ?? ''),
       newReviews: newReviews(pr, me),
@@ -182,7 +187,7 @@ export function stateColor(state: MyPrState): 'error' | 'warning' | 'success' | 
     ? 'error'
     : state === 'conflict'
       ? 'warning'
-      : state === 'approved'
+      : state === 'approved' || state === 'queued'
         ? 'success'
         : state === 'draft'
           ? 'inactive'

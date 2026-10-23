@@ -56,6 +56,7 @@ export const zhCN: Messages = {
     conflict: '合并冲突',
     waiting: '等待审查',
     approved: '已批准',
+    queued: '在合并队列中',
     draft: '草稿',
   },
   issueKind: {

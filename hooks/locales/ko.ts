@@ -56,6 +56,7 @@ export const ko: Messages = {
     conflict: '충돌',
     waiting: '리뷰 대기',
     approved: '승인됨',
+    queued: '머지 큐에 있음',
     draft: '초안',
   },
   issueKind: {

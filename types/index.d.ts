@@ -24,6 +24,8 @@ export type InboxItem = CardDetails & {
   headSha: string
   author: string
   createdAt: string
+  // Any activity on the PR; newer than the last close of the drawer marks the card.
+  updatedAt?: string
   // When my review (or my team's) was last asked for: what the waiting days count from.
   requestedAt: string
   isDraft: boolean
@@ -45,7 +47,7 @@ export type InboxItem = CardDetails & {
 }
 
 // My open PR, judged by what I have to do next.
-export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'draft'
+export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'queued' | 'draft'
 
 export type MyPr = CardDetails & {
   repo: string
@@ -53,6 +55,7 @@ export type MyPr = CardDetails & {
   title: string
   url: string
   createdAt: string
+  updatedAt?: string
   state: MyPrState
   ciPending: boolean
   // Reviews by others, bots included, left on the current head commit; a new push clears them.
@@ -201,6 +204,8 @@ declare module 'claude-code' {
       more: string
       // The Edit buttons panel is open.
       buttonsOpen: boolean
+      // When the drawer was last closed, read as it opens; 0 before the first close marks nothing new.
+      seenAt: number
       added: string[]
       requested: string[]
     }

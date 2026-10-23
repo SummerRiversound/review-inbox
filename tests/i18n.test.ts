@@ -55,7 +55,7 @@ test('every string a table builds shows each number and name it is given', async
 
 test('every PR state and issue kind has a label in every language', async () => {
   for (const m of LANGUAGES.map(l => MESSAGES[l])) {
-    expect(Object.keys(m.state).sort()).toEqual(['approved', 'changes', 'ci-failing', 'conflict', 'draft', 'waiting'])
+    expect(Object.keys(m.state).sort()).toEqual(['approved', 'changes', 'ci-failing', 'conflict', 'draft', 'queued', 'waiting'])
     expect(Object.keys(m.issueKind).sort()).toEqual(['assigned', 'mention', 'reference'])
   }
 })

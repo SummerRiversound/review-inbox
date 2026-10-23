@@ -10,6 +10,7 @@ export type SearchHit = {
   url: string
   author: { login: string } | null
   createdAt: string
+  updatedAt?: string
   isDraft: boolean
 }
 
@@ -49,7 +50,7 @@ export const INBOX_QUERY = `query($q: String!, ${PAGE_ARGS}) {
     pageInfo { hasNextPage endCursor }
     nodes {
       ... on PullRequest {
-        number title url isDraft createdAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
+        number title url isDraft createdAt updatedAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
         author { login }
         repository { nameWithOwner defaultBranchRef { name } }
         files(first: 80) { nodes { path } }

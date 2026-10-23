@@ -28,6 +28,8 @@ Las tarjetas del repositorio de esta sesión van primero en cada grupo, marcadas
 
 Bajo el título, una tarjeta muestra hasta dos etiquetas y cuántas más hay, su número de comentarios y, en un PR, `→ rama` cuando apunta a una rama que no es la predeterminada del repositorio.
 
+Un `●` delante del repositorio de una tarjeta marca una que cambió desde la última vez que cerraste la bandeja, como la bandeja de entrada de GitHub marca lo que cambió desde tu última visita. Antes del primer cierre no se marca nada.
+
 Cuando nada te necesita (ninguna solicitud de revisión, ningún PR tuyo con algo que hacer, ninguna incidencia asignada a ti o que te mencione), la bandeja muestra `✓ Nada te necesita ahora` encima de las pestañas, y la barra sigue oculta.
 
 ### Por revisar
@@ -45,7 +47,7 @@ La solicitud también incluye una línea que describe cómo sueles revisar, para
 
 ### Mis PR
 
-Tus PR abiertos, con su estado en lugar de un resumen, en el orden en que tienes que atenderlos: cambios solicitados, CI con errores, conflicto de fusión, pendiente de revisión (los más antiguos primero), aprobado y borrador. Si hay CI en ejecución, se indica junto al estado.
+Tus PR abiertos, con su estado en lugar de un resumen, en el orden en que tienes que atenderlos: cambios solicitados, CI con errores, conflicto de fusión, pendiente de revisión (los más antiguos primero), aprobado, en la cola de fusión y borrador. Si hay CI en ejecución, se indica junto al estado. Un PR en una cola de fusión muestra `En la cola de fusión`: GitHub lo fusiona cuando pasan las comprobaciones de la cola, así que la barra no lo cuenta y nunca muestra `Listo para merge`.
 
 `Ocultar` oculta un PR hasta que cambie de estado o alguien lo revise; tu propio push no lo vuelve a mostrar.
 

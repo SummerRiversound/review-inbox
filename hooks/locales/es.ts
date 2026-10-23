@@ -58,6 +58,7 @@ export const es: Messages = {
     conflict: 'Conflicto de fusión',
     waiting: 'Pendiente de revisión',
     approved: 'Aprobado',
+    queued: 'En la cola de fusión',
     draft: 'Borrador',
   },
   issueKind: {

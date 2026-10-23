@@ -28,6 +28,8 @@ Cards from this session's repository come first in every group, tagged `this rep
 
 Under its title a card shows up to two labels and how many more, its comment count and, for a PR, `→ base` when it targets a branch other than the repository's default.
 
+A `●` before a card's repository marks one updated since you last closed the drawer, as GitHub's own inbox marks what changed since your last visit. Before the first close nothing is marked.
+
 When nothing needs you (no review request, none of your PRs to act on, no issue assigned to you or mentioning you), the drawer says `✓ Nothing needs you` above the tabs, and the band stays hidden.
 
 ### To review
@@ -45,7 +47,7 @@ The request also carries one line describing how you usually review, so Claude r
 
 ### My PRs
 
-Your open PRs with their state instead of a summary, in the order you have to act on them: changes requested, CI failing, merge conflict, waiting for review (oldest first), approved, draft. Running CI is shown next to the state.
+Your open PRs with their state instead of a summary, in the order you have to act on them: changes requested, CI failing, merge conflict, waiting for review (oldest first), approved, in merge queue, draft. Running CI is shown next to the state. A PR in a merge queue shows `In merge queue`: GitHub merges it once the queue's checks pass, so it is not counted in the band and never shows `Ready to merge`.
 
 `Hide` hides a PR until it turns to another state or someone reviews it; your own push alone does not bring it back.
 
