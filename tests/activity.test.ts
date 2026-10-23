@@ -34,15 +34,17 @@ test('gh api -i output splits into headers and body, with the next page, the pol
   expect(notificationsPath(2, now)).toBe('notifications?all=true&participating=true&per_page=50&page=2&since=2026-09-23T00:00:00.000Z')
 })
 
-test('the tab leaves out threads that are cards elsewhere and reasons the other tabs cover; Done hides until new activity', () => {
+test('the tab leaves out threads that are cards elsewhere and reasons the other tabs cover, and links a CI run to Actions; Done hides until new activity', () => {
   const threads = [
     toThread(raw()),
     toThread(raw({ id: '8', url: 'https://api.github.com/repos/o/r/issues/5' })),
     toThread(raw({ id: '9', reason: 'review_requested', url: null })),
     toThread(raw({ id: '10', reason: 'security_alert', url: null })),
     toThread(raw({ id: '11', reason: 'something_new', url: null })),
+    toThread(raw({ id: '12', reason: 'ci_activity', url: null })),
   ]
-  expect(shownThreads(threads, new Set(['https://github.com/o/r/pull/3'])).map(t => t.id)).toEqual(['8', '10', '11'])
+  expect(shownThreads(threads, new Set(['https://github.com/o/r/pull/3'])).map(t => t.id)).toEqual(['8', '10', '11', '12'])
+  expect(threads[5]!.url).toBe('https://github.com/o/r/actions')
   const thread = threads[1]!
   expect(isThreadHidden({ 'thread:8': '2026-10-22T12:00:00Z' }, thread)).toBe(true)
   expect(isThreadHidden({ 'thread:8': '2026-10-22T12:00:00Z' }, { ...thread, updatedAt: '2026-10-23T09:00:00Z' })).toBe(false)

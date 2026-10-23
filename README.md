@@ -86,7 +86,7 @@ Add your own under `groups` in the same `actions.json` as the card buttons; `/re
 
 ### Activity
 
-Your GitHub notifications that no other tab already shows, newest first: comments, state changes and new activity on threads you opened or take part in, team mentions and security alerts. Review requests, assignments and mentions are left out, as are threads whose PR or issue is already a card. An unread thread is marked `●`, and so is the tab while any is. Up to 100 notifications from the last 30 days are read.
+Your GitHub notifications that no other tab already shows, newest first: comments, state changes and new activity on threads you opened or take part in, team mentions and security alerts. Finished GitHub Actions runs you started show too, as `CI run`, linked to the repository's Actions page; GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings. Review requests, assignments and mentions are left out, as are threads whose PR or issue is already a card. An unread thread is marked `●`, and so is the tab while any is. Up to 100 notifications from the last 30 days are read.
 
 `Done` and `Unsubscribe` take the row away at once and leave `Done · Undo` or `Unsubscribed · Undo` in its place for 10 seconds; closing the drawer before then sends them right away. Then `Done` marks the thread done on GitHub, as GitHub's own inbox does, and `Unsubscribe` also stops its notifications until someone mentions you or you comment. A thread marked done comes back when it has new activity. If either fails, the row comes back with the reason. No model calls.
 

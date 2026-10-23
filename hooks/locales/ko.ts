@@ -162,7 +162,7 @@ export const ko: Messages = {
     tooMany: n => `처음 15개를 넘는 검색 그룹 ${n}개는 빠졌습니다`,
   },
   activity: {
-    reasons: { comment: "댓글", state_change: "상태 변경", author: "내가 연 항목", team_mention: "팀 언급", security_alert: "보안 경고" },
+    reasons: { comment: "댓글", state_change: "상태 변경", author: "내가 연 항목", team_mention: "팀 언급", security_alert: "보안 경고", ci_activity: "CI 실행" },
     done: "완료",
     unsubscribe: "구독 해제",
     wasDone: "완료함",

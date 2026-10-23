@@ -162,7 +162,7 @@ export const ja: Messages = {
     tooMany: (n: number) => `最初の15個を超える検索グループ ${n} 個は省かれています`,
   },
   activity: {
-    reasons: { comment: "コメント", state_change: "状態の変更", author: "自分が作成", team_mention: "チームへのメンション", security_alert: "セキュリティアラート" },
+    reasons: { comment: "コメント", state_change: "状態の変更", author: "自分が作成", team_mention: "チームへのメンション", security_alert: "セキュリティアラート", ci_activity: "CI 実行" },
     done: "完了",
     unsubscribe: "購読解除",
     wasDone: "完了しました",

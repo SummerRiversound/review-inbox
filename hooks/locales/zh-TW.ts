@@ -162,7 +162,7 @@ export const zhTW: Messages = {
     tooMany: n => `超出前 15 個的 ${n} 個搜尋群組未顯示`,
   },
   activity: {
-    reasons: { comment: "留言", state_change: "狀態變更", author: "我建立的", team_mention: "團隊被提及", security_alert: "安全性警示" },
+    reasons: { comment: "留言", state_change: "狀態變更", author: "我建立的", team_mention: "團隊被提及", security_alert: "安全性警示", ci_activity: "CI 執行" },
     done: "完成",
     unsubscribe: "取消訂閱",
     wasDone: "已完成",

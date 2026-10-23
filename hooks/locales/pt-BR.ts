@@ -166,7 +166,7 @@ export const ptBR: Messages = {
     tooMany: (n: number) => `${n} grupos de busca além dos 15 primeiros ficaram de fora`,
   },
   activity: {
-    reasons: { comment: "Comentário", state_change: "Mudança de estado", author: "Aberto por você", team_mention: "Time mencionado", security_alert: "Alerta de segurança" },
+    reasons: { comment: "Comentário", state_change: "Mudança de estado", author: "Aberto por você", team_mention: "Time mencionado", security_alert: "Alerta de segurança", ci_activity: "Execução de CI" },
     done: "Concluir",
     unsubscribe: "Cancelar inscrição",
     wasDone: "Concluído",

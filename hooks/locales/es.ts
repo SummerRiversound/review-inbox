@@ -165,7 +165,7 @@ export const es: Messages = {
     tooMany: (n: number) => `Se omiten ${n} grupos de búsqueda después de los primeros 15`,
   },
   activity: {
-    reasons: { comment: "Comentario", state_change: "Cambio de estado", author: "Lo abriste tú", team_mention: "Mención al equipo", security_alert: "Alerta de seguridad" },
+    reasons: { comment: "Comentario", state_change: "Cambio de estado", author: "Lo abriste tú", team_mention: "Mención al equipo", security_alert: "Alerta de seguridad", ci_activity: "Ejecución de CI" },
     done: "Hecho",
     unsubscribe: "Cancelar suscripción",
     wasDone: "Hecho",

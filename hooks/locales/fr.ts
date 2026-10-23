@@ -165,7 +165,7 @@ export const fr: Messages = {
     tooMany: n => `${n} groupes de recherche au-delà des 15 premiers sont laissés de côté`,
   },
   activity: {
-    reasons: { comment: "Commentaire", state_change: "Changement d'état", author: "Ouvert par vous", team_mention: "Équipe mentionnée", security_alert: "Alerte de sécurité" },
+    reasons: { comment: "Commentaire", state_change: "Changement d'état", author: "Ouvert par vous", team_mention: "Équipe mentionnée", security_alert: "Alerte de sécurité", ci_activity: "Exécution CI" },
     done: "Terminé",
     unsubscribe: "Se désabonner",
     wasDone: "Terminé",

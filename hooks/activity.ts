@@ -8,7 +8,7 @@ export const ACTIVITY_DAYS = 30
 export const UNDO_MS = 10_000
 
 // Already a card on another tab, or nothing to act on: left out whatever their target.
-const LEFT_OUT = ['review_requested', 'assign', 'mention', 'ci_activity', 'subscribed']
+const LEFT_OUT = ['review_requested', 'assign', 'mention', 'subscribed']
 
 // Read ones too, as GitHub's own inbox keeps them until Done; the window starts at midnight UTC so a day's looks ask the same.
 export function notificationsPath(page: number, now: number) {
@@ -51,7 +51,8 @@ export const toThread = (raw: RawThread): Thread => ({
   id: raw.id,
   repo: raw.repo,
   title: raw.title,
-  url: htmlUrl(raw.url, raw.repo),
+  // A workflow run has no subject URL; its repository's Actions page lists the run.
+  url: raw.reason === 'ci_activity' && !raw.url ? `https://github.com/${raw.repo}/actions` : htmlUrl(raw.url, raw.repo),
   reason: raw.reason,
   updatedAt: raw.updated_at,
   unread: raw.unread,

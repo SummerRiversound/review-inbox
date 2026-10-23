@@ -173,7 +173,7 @@ const en = {
     tooMany: (n: number) => `${n} search groups past the first 15 are left out`,
   },
   activity: {
-    reasons: { comment: "Comment", state_change: "State changed", author: "You opened it", team_mention: "Team mentioned", security_alert: "Security alert" },
+    reasons: { comment: "Comment", state_change: "State changed", author: "You opened it", team_mention: "Team mentioned", security_alert: "Security alert", ci_activity: "CI run" },
     done: "Done",
     unsubscribe: "Unsubscribe",
     wasDone: "Done",
