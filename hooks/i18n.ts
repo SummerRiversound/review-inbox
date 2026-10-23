@@ -16,6 +16,7 @@ const en = {
   command: {
     description: 'Open the review inbox: PRs awaiting my review, my PRs and my issues',
     opened: 'Opened the review inbox.',
+    filled: 'Added to your prompt; press Enter to send it.',
   },
   band: {
     open: 'Open',
@@ -87,7 +88,7 @@ const en = {
     review: 'No PRs are waiting for your review.',
     mine: 'You have no open PRs.',
     issues: 'No issues are assigned to you or mention you.',
-    searches: "No search groups. Add one under Edit buttons.",
+    searches: "No search groups. Add one with /review-inbox add-search.",
     activity: "No other notifications. Review requests, assignments and mentions are on the other tabs.",
   },
   sections: {
@@ -140,10 +141,10 @@ const en = {
   },
   buttons: {
     more: "More",
-    edit: "Edit buttons",
-    add: "Add button",
-    addGroup: "Add search group",
     none: "No buttons of my own yet; the built-in ones are shown.",
+    counts: (buttons: number, groups: number) => `Of my own: ${buttons} buttons, ${groups} search groups`,
+    how: "/review-inbox add-button or /review-inbox add-search asks Claude to write one with you.",
+    hint: "See /review-inbox buttons",
     file: (path: string) => `My buttons: ${path}`,
     tooMany: (n: number, scope: string) => `${n} buttons on ${scope} cards; past 20 the row gets hard to scan`,
     scopes: { review: "review", pr: "my PR", issue: "issue" },

@@ -5,6 +5,7 @@ export const zhCN: Messages = {
   command: {
     description: '打开审查收件箱：等待我审查的 PR、我的 PR 和我的议题',
     opened: '已打开审查收件箱。',
+    filled: '已放入提示框，按 Enter 发送。',
   },
   band: {
     open: '打开',
@@ -76,7 +77,7 @@ export const zhCN: Messages = {
     review: '目前没有等待你审查的 PR。',
     mine: '你目前没有打开的 PR。',
     issues: '没有分配给你或提及你的议题。',
-    searches: "没有搜索组。请在“编辑按钮”中添加。",
+    searches: "没有搜索组。请用 /review-inbox add-search 添加。",
     activity: "没有其他通知。审查请求、分配和提及在其他标签页中。",
   },
   sections: {
@@ -129,10 +130,10 @@ export const zhCN: Messages = {
   },
   buttons: {
     more: "更多",
-    edit: "编辑按钮",
-    add: "添加按钮",
-    addGroup: "添加搜索组",
     none: "还没有自己的按钮，目前只显示内置按钮。",
+    counts: (buttons, groups) => `我的按钮 ${buttons} 个，搜索分组 ${groups} 个`,
+    how: "输入 /review-inbox add-button 或 /review-inbox add-search，与 Claude 一起编写。",
+    hint: "详情：/review-inbox buttons",
     file: path => `我的按钮：${path}`,
     tooMany: (n, scope) => `${scope}卡片上有 ${n} 个按钮；超过 20 个就难以一眼看清`,
     scopes: { review: "审查", pr: "我的 PR", issue: "议题" },

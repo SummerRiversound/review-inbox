@@ -5,6 +5,7 @@ export const ja: Messages = {
   command: {
     description: 'レビュー受信トレイを開く: 自分のレビューを待っている PR、自分の PR、自分の Issue',
     opened: 'レビュー受信トレイを開きました。',
+    filled: 'プロンプトに入れました。Enter で送信します。',
   },
   band: {
     open: '開く',
@@ -76,7 +77,7 @@ export const ja: Messages = {
     review: '自分のレビューを待っている PR はありません。',
     mine: 'オープン中の自分の PR はありません。',
     issues: '自分に割り当てられた Issue や、自分がメンションされた Issue はありません。',
-    searches: "検索グループはありません。「ボタンを編集」から追加してください。",
+    searches: "検索グループはありません。/review-inbox add-search で追加してください。",
     activity: "ほかの通知はありません。レビュー依頼、割り当て、メンションはほかのタブにあります。",
   },
   sections: {
@@ -129,10 +130,10 @@ export const ja: Messages = {
   },
   buttons: {
     more: "その他",
-    edit: "ボタンを編集",
-    add: "ボタンを追加",
-    addGroup: "検索グループを追加",
     none: "自分のボタンはまだありません。組み込みのボタンだけを表示しています。",
+    counts: (buttons, groups) => `自分のボタン ${buttons} 個、検索グループ ${groups} 個`,
+    how: "/review-inbox add-button または /review-inbox add-search で、Claude と一緒に作成できます。",
+    hint: "詳しくは /review-inbox buttons",
     file: (path: string) => `自分のボタン: ${path}`,
     tooMany: (n: number, scope: string) => `${scope}のカードのボタンが ${n} 個あります。20 個を超えると一目で見渡せません`,
     scopes: { review: "レビュー", pr: "自分の PR", issue: "Issue" },

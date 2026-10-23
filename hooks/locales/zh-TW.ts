@@ -5,6 +5,7 @@ export const zhTW: Messages = {
   command: {
     description: '開啟審查收件匣：等待我審查的 PR、我的 PR 和我的議題',
     opened: '已開啟審查收件匣。',
+    filled: '已放入提示框，按 Enter 送出。',
   },
   band: {
     open: '開啟',
@@ -76,7 +77,7 @@ export const zhTW: Messages = {
     review: '目前沒有等待您審查的 PR。',
     mine: '您目前沒有開啟的 PR。',
     issues: '沒有指派給您或提及您的議題。',
-    searches: "沒有搜尋群組。請在「編輯按鈕」中新增。",
+    searches: "沒有搜尋群組。請用 /review-inbox add-search 新增。",
     activity: "沒有其他通知。審查請求、指派和提及在其他分頁中。",
   },
   sections: {
@@ -129,10 +130,10 @@ export const zhTW: Messages = {
   },
   buttons: {
     more: "更多",
-    edit: "編輯按鈕",
-    add: "新增按鈕",
-    addGroup: "新增搜尋群組",
     none: "還沒有自己的按鈕，目前只顯示內建按鈕。",
+    counts: (buttons, groups) => `我的按鈕 ${buttons} 個，搜尋群組 ${groups} 個`,
+    how: "輸入 /review-inbox add-button 或 /review-inbox add-search，與 Claude 一起撰寫。",
+    hint: "詳情：/review-inbox buttons",
     file: path => `我的按鈕：${path}`,
     tooMany: (n, scope) => `${scope}卡片上有 ${n} 個按鈕；超過 20 個就難以一眼看清`,
     scopes: { review: "審查", pr: "我的 PR", issue: "議題" },

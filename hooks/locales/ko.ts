@@ -5,6 +5,7 @@ export const ko: Messages = {
   command: {
     description: '리뷰 인박스 열기: 내 리뷰를 기다리는 PR, 내 PR, 내 이슈',
     opened: '리뷰 인박스를 열었습니다.',
+    filled: '프롬프트에 넣었습니다. Enter를 누르면 보냅니다.',
   },
   band: {
     open: '열기',
@@ -76,7 +77,7 @@ export const ko: Messages = {
     review: '지금 리뷰를 기다리는 PR이 없습니다.',
     mine: '열려 있는 내 PR이 없습니다.',
     issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
-    searches: "검색 그룹이 없습니다. 버튼 편집에서 추가하세요.",
+    searches: "검색 그룹이 없습니다. /review-inbox add-search로 추가하세요.",
     activity: "다른 알림이 없습니다. 리뷰 요청, 할당, 언급은 다른 탭에 있습니다.",
   },
   sections: {
@@ -129,10 +130,10 @@ export const ko: Messages = {
   },
   buttons: {
     more: "더 보기",
-    edit: "버튼 편집",
-    add: "버튼 추가",
-    addGroup: "검색 그룹 추가",
     none: "아직 내 버튼이 없습니다. 기본 버튼만 보입니다.",
+    counts: (buttons, groups) => `내 버튼 ${buttons}개, 검색 그룹 ${groups}개`,
+    how: "/review-inbox add-button 또는 /review-inbox add-search를 입력하면 Claude와 함께 만듭니다.",
+    hint: "자세히 보기: /review-inbox buttons",
     file: path => `내 버튼: ${path}`,
     tooMany: (n, scope) => `${scope} 카드 버튼이 ${n}개입니다. 20개가 넘으면 한눈에 보기 어렵습니다`,
     scopes: { review: "리뷰", pr: "내 PR", issue: "이슈" },

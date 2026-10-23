@@ -7,6 +7,7 @@ export const es: Messages = {
   command: {
     description: 'Abrir la bandeja de revisiones: PR pendientes de mi revisión, mis PR y mis incidencias',
     opened: 'Bandeja de revisiones abierta.',
+    filled: 'Añadido al prompt; pulsa Enter para enviarlo.',
   },
   band: {
     open: 'Abrir',
@@ -78,7 +79,7 @@ export const es: Messages = {
     review: 'Ningún PR espera tu revisión.',
     mine: 'No tienes PR abiertos.',
     issues: 'No hay incidencias asignadas a ti ni que te mencionen.',
-    searches: "No hay grupos de búsqueda. Añade uno en Editar botones.",
+    searches: "No hay grupos de búsqueda. Añade uno con /review-inbox add-search.",
     activity: "No hay otras notificaciones. Las solicitudes de revisión, asignaciones y menciones están en las otras pestañas.",
   },
   sections: {
@@ -132,10 +133,10 @@ export const es: Messages = {
   },
   buttons: {
     more: "Más",
-    edit: "Editar botones",
-    add: "Añadir botón",
-    addGroup: "Añadir grupo de búsqueda",
     none: "Aún no tienes botones propios; se muestran los integrados.",
+    counts: (buttons, groups) => `Propios: ${buttons} botones, ${groups} grupos de búsqueda`,
+    how: "Con /review-inbox add-button o /review-inbox add-search, Claude escribe uno contigo.",
+    hint: "Detalles: /review-inbox buttons",
     file: (path: string) => `Mis botones: ${path}`,
     tooMany: (n: number, scope: string) => `${n} botones en las tarjetas de ${scope}; con más de 20 la fila cuesta de leer`,
     scopes: { review: "revisión", pr: "mi PR", issue: "incidencia" },

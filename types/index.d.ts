@@ -215,8 +215,6 @@ declare module 'claude-code' {
       settleErrors: Record<string, string>
       // The card whose row of buttons is open, or empty.
       more: string
-      // The Edit buttons panel is open.
-      buttonsOpen: boolean
       // When the drawer was last closed, read as it opens; 0 before the first close marks nothing new.
       seenAt: number
       confirming: Confirming | null

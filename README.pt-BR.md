@@ -18,7 +18,7 @@ A interface e os resumos estão disponíveis em nove idiomas; veja [Idioma](#idi
 
 Cada aba agrupa seus cartões por categoria. Pressione o título de uma categoria para recolhê-la e de novo para abri-la. `N ocultos · mostrar todos`, no topo da aba, mostra de novo apenas os cartões ocultos daquela aba.
 
-`Nota`, em qualquer cartão, escreve uma linha acima do título: o que você conferiu ou o que combinou fazer e quando. `Salvar` mantém o cartão à vista. `Adiar até amanhã` e `Adiar até a próxima semana` tiram o cartão de vista até amanhã ou a próxima segunda-feira, às 9 da manhã, ou antes, se houver novidade: um commit novo num pedido de revisão, uma mudança de estado ou uma revisão nova no seu PR, atividade nova numa issue. Uma notificação avisa quando um cartão adiado volta, com a nota. `Apagar` remove a nota.
+`Nota`, em `▸ Mais` de um cartão, escreve uma linha acima do título: o que você conferiu ou o que combinou fazer e quando. `Salvar` mantém o cartão à vista. `Adiar até amanhã` e `Adiar até a próxima semana` tiram o cartão de vista até amanhã ou a próxima segunda-feira, às 9 da manhã, ou antes, se houver novidade: um commit novo num pedido de revisão, uma mudança de estado ou uma revisão nova no seu PR, atividade nova numa issue. Uma notificação avisa quando um cartão adiado volta, com a nota. `Apagar` remove a nota.
 
 O campo de busca no topo procura em todas as abas de uma vez: repositório, número, título, autor, os primeiros 2.000 caracteres da descrição, o resumo e suas notas. Cartões ocultos e adiados também aparecem, marcados como `oculto`. Esvazie o campo para voltar às abas. O app móvel do Claude ainda não desenha campos de texto, então lá ele mostra as notas, mas não tem busca nem `Nota`.
 
@@ -37,7 +37,7 @@ Quando nada precisa de você (nenhum pedido de revisão, nenhum PR seu com algo 
 Um cartão para cada PR aguardando sua revisão: um resumo de uma frase, o motivo do PR, o que ele afeta, o tamanho e o autor, e há quanto tempo a sua revisão está pendente. Itens de risco, como uma mudança de schema ou uma ordem de deploy obrigatória, são marcados com ⚠️.
 
 - `Revisar` marca o cartão como `Adicionado` e mantém a caixa de revisões aberta, para que você possa escolher vários PRs. Quando você fecha a caixa (Esc ou ×), um pedido de revisão para cada PR adicionado vai para o seu prompt, com os avisos do PR e o que mudou desde a sua última revisão. Nada é enviado até você pressionar Enter. Se o texto que você está escrevendo no prompt já pede a revisão de um PR, ele aparece como `Adicionado` quando a caixa de revisões abre.
-- `Ocultar` oculta o cartão até o PR receber um novo commit.
+- `Ocultar`, em `▸ Mais` ao lado de `Nota`, oculta o cartão até o PR receber um novo commit.
 - `revisão solicitada novamente` marca um PR que você já revisou e que pede a sua revisão de novo, com um breve resumo do que mudou desde a sua última revisão.
 - Os cartões são agrupados em solicitações diretas, solicitações à equipe e rascunhos.
 
@@ -71,7 +71,7 @@ Uma issue atribuída a você tem um botão `Trabalhar nisto` que funciona do mes
 
 Buscas que você mesmo nomeia, cada uma uma seção com a contagem e os 20 resultados atualizados mais recentemente. Um título abre aquele PR ou issue no GitHub, e `Mais N no GitHub` abre lá a busca inteira. Três já vêm prontas, como na caixa de entrada de PRs do GitHub: `Me envolvem` (PRs abertos de que você participa mas não abriu), `Revisados por mim, ainda abertos` e `Minhas issues abertas`. Toque no cabeçalho de uma seção para recolhê-la. As buscas rodam a cada atualização, três por vez; uma que falha mostra o motivo e não afeta as outras. Nenhuma chamada ao modelo.
 
-Adicione as suas em `groups`, no mesmo `actions.json` dos botões dos cartões; `Adicionar grupo de busca`, em `Editar botões`, pede ao Claude que escreva um com você.
+Adicione as suas em `groups`, no mesmo `actions.json` dos botões dos cartões; `/review-inbox add-search` pede ao Claude que escreva um com você.
 
 ```json
 {
@@ -82,7 +82,7 @@ Adicione as suas em `groups`, no mesmo `actions.json` dos botões dos cartões; 
 }
 ```
 
-`query` usa a sintaxe de busca do GitHub. `scope` é `prs` ou `issues`: acrescenta `is:pr` ou `is:issue` a menos que a busca já diga qual, e `sort:updated-desc` é acrescentado a menos que ela tenha seu próprio `sort:`. A configuração `scope` e `Este repositório` não restringem essas buscas; escreva `org:` ou `repo:` na busca quando quiser isso. `"countInBand": true` soma a contagem do grupo à faixa como `Buscas N`. Um grupo com um id pronto o substitui, e `"hidden": true` o remove. Uma entrada com campo faltando ou scope desconhecido fica de fora e aparece em `Editar botões` com o motivo. Só os primeiros 15 grupos são buscados.
+`query` usa a sintaxe de busca do GitHub. `scope` é `prs` ou `issues`: acrescenta `is:pr` ou `is:issue` a menos que a busca já diga qual, e `sort:updated-desc` é acrescentado a menos que ela tenha seu próprio `sort:`. A configuração `scope` e `Este repositório` não restringem essas buscas; escreva `org:` ou `repo:` na busca quando quiser isso. `"countInBand": true` soma a contagem do grupo à faixa como `Buscas N`. Um grupo com um id pronto o substitui, e `"hidden": true` o remove. Uma entrada com campo faltando ou scope desconhecido fica de fora; a caixa avisa no fim, e `/review-inbox buttons` mostra a entrada com o motivo. Só os primeiros 15 grupos são buscados.
 
 ### Atividade
 
@@ -102,9 +102,9 @@ Quando seu PR é aprovado e não há CI rodando, aparece `Pronto para merge` uma
 
 ### Botões dos cartões
 
-`▸ Mais` em um cartão abre uma linha de botões que entregam o cartão ao Claude com um pedido pronto: `Resumir riscos`, `Explicar o diff` e `Rascunhar aprovação` em um pedido de revisão, `Rascunhar resposta ao revisor` e `Investigar falha de CI` no seu PR. Um botão adiciona o cartão do mesmo jeito que `Revisar`, e o pedido entra no seu prompt quando você fecha a caixa. Nada roda e nada é publicado até você apertar Enter.
+`▸ Mais` em um cartão abre `Nota` e `Ocultar` e, depois, botões que entregam o cartão ao Claude com um pedido pronto: `Resumir riscos`, `Explicar o diff` e `Rascunhar aprovação` em um pedido de revisão, `Rascunhar resposta ao revisor` e `Investigar falha de CI` no seu PR. Um botão adiciona o cartão do mesmo jeito que `Revisar`, e o pedido entra no seu prompt quando você fecha a caixa. Nada roda e nada é publicado até você apertar Enter.
 
-Adicione os seus em `actions.json`, na pasta de cache. `▸ Editar botões`, no fim da caixa, mostra o caminho, e `Adicionar botão` pede ao Claude que escreva um com você.
+Adicione os seus em `actions.json`, na pasta de cache. `/review-inbox buttons` mostra o caminho, o conteúdo e as entradas deixadas de fora, e `/review-inbox add-button` pede ao Claude que escreva um com você.
 
 ```json
 {
@@ -115,7 +115,7 @@ Adicione os seus em `actions.json`, na pasta de cache. `▸ Editar botões`, no 
 }
 ```
 
-`scope` é `review`, `pr` ou `issue`. O prompt pode usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como no gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; uma variável sem valor no cartão fica vazia. Um botão com o id de um integrado o substitui, e `"hidden": true` o remove. Uma entrada sem algum campo, ou com scope ou variável desconhecidos, fica de fora e aparece em `Editar botões` com o motivo; o resto continua funcionando. `PrTitle` e `Author` vêm do GitHub como foram escritos, então um prompt que os usa passa ao Claude um texto escrito por outra pessoa.
+`scope` é `review`, `pr` ou `issue`. O prompt pode usar `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, escritas como no gh-dash: `{{.Name}}`, `{{Name}}`, `{{ .Name }}`; uma variável sem valor no cartão fica vazia. Um botão com o id de um integrado o substitui, e `"hidden": true` o remove. Uma entrada sem algum campo, ou com scope ou variável desconhecidos, fica de fora; a caixa avisa no fim, e `/review-inbox buttons` mostra a entrada com o motivo. O resto continua funcionando. `PrTitle` e `Author` vêm do GitHub como foram escritos, então um prompt que os usa passa ao Claude um texto escrito por outra pessoa.
 
 ### Ações diretas no GitHub
 

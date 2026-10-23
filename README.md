@@ -18,7 +18,7 @@ The interface and the summaries come in nine languages; see [Language](#language
 
 Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the top of a tab brings back that tab's hidden cards.
 
-`Note` on any card writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
+`Note`, under a card's `▸ More`, writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
 
 The search field at the top looks through every tab at once: repository, number, title, author, the first 2,000 characters of the description, the summary and your notes. Hidden and snoozed cards are found too, marked `hidden`. Empty the field to go back to the tabs. The Claude mobile app draws no text fields yet, so there it shows notes but has no search and no `Note`.
 
@@ -37,7 +37,7 @@ When nothing needs you (no review request, none of your PRs to act on, no issue 
 One card per PR waiting for your review: a one-sentence summary, why the PR exists, what it touches, its size and author, and how long your review has been pending. Risky items, such as a schema change or a required deploy order, are marked ⚠️.
 
 - `Review` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
-- `Hide` hides the card until the PR gets a new commit.
+- `Hide`, under `▸ More` beside `Note`, hides the card until the PR gets a new commit.
 - `re-requested` marks a PR you already reviewed that asks for you again, with a short summary of what changed since your last review.
 - Cards are grouped into direct requests, team requests and drafts.
 
@@ -71,7 +71,7 @@ An issue assigned to you has a `Work on this` button that works the same way: Cl
 
 Searches you name yourself, each a section with its count and the 20 most recently updated matches. A title opens that PR or issue on GitHub, and `N more on GitHub` opens the whole search there. Three come built in, as in GitHub's own pull request inbox: `Involves me` (open PRs you take part in but did not open), `Reviewed by me, still open` and `My open issues`. Press a section's header to fold it. The searches run with every refresh, three at a time; one that fails shows why and leaves the others alone. No model calls.
 
-Add your own under `groups` in the same `actions.json` as the card buttons; `Add search group` under `Edit buttons` asks Claude to write one with you.
+Add your own under `groups` in the same `actions.json` as the card buttons; `/review-inbox add-search` asks Claude to write one with you.
 
 ```json
 {
@@ -82,7 +82,7 @@ Add your own under `groups` in the same `actions.json` as the card buttons; `Add
 }
 ```
 
-`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the group's count to the band as `Searches N`. A group with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out and listed under `Edit buttons` with the reason. Only the first 15 groups are searched.
+`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the group's count to the band as `Searches N`. A group with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. Only the first 15 groups are searched.
 
 ### Activity
 
@@ -102,9 +102,9 @@ Your PR turning approved with no CI running shows `Ready to merge` once.
 
 ### Card buttons
 
-`▸ More` on a card opens a row of buttons that each hand the card to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on a review request, `Draft reply to reviewer` and `Investigate CI failure` on your PR. A button adds the card the way `Review` does, and the request goes into your prompt when you close the drawer. Nothing runs and nothing is posted until you press Enter.
+`▸ More` on a card opens `Note` and `Hide`, then buttons that each hand the card to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on a review request, `Draft reply to reviewer` and `Investigate CI failure` on your PR. A button adds the card the way `Review` does, and the request goes into your prompt when you close the drawer. Nothing runs and nothing is posted until you press Enter.
 
-Add your own in `actions.json` in the cache folder. `▸ Edit buttons` at the bottom of the drawer shows its path, and `Add button` asks Claude to write one with you.
+Add your own in `actions.json` in the cache folder. `/review-inbox buttons` shows its path, what it holds and any entry left out, and `/review-inbox add-button` asks Claude to write one with you.
 
 ```json
 {
@@ -115,7 +115,7 @@ Add your own in `actions.json` in the cache folder. `▸ Edit buttons` at the bo
 }
 ```
 
-`scope` is `review`, `pr` or `issue`. The prompt can use `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, written `{{.Name}}`, `{{Name}}`, `{{ .Name }}` as in gh-dash; one the card has no value for is left empty. A button with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field, an unknown scope or an unknown variable is left out and listed under `Edit buttons` with the reason; the rest keep working. `PrTitle` and `Author` come from GitHub as written, so a prompt that uses them passes someone else's text to Claude.
+`scope` is `review`, `pr` or `issue`. The prompt can use `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, written `{{.Name}}`, `{{Name}}`, `{{ .Name }}` as in gh-dash; one the card has no value for is left empty. A button with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field, an unknown scope or an unknown variable is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. The rest keep working. `PrTitle` and `Author` come from GitHub as written, so a prompt that uses them passes someone else's text to Claude.
 
 ### Direct GitHub actions
 

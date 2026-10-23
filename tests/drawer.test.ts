@@ -92,6 +92,7 @@ test('my PRs are grouped by state, and a group folds shut and opens again', asyn
 test('a hidden PR of mine leaves its tab, and show all brings it back', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes'), pr(2, 'waiting')], [], 'mine')
 
+  await ui.press({ key: 'more-pr:u1' })
   await ui.press({ key: 'hide-u1' })
   expect(await shown(ui, /#1/)).toBe(false)
   await ui.press({ key: 'unhide' })
@@ -105,6 +106,7 @@ test('my issues are split into assigned, mentions and references, and an issue c
   for (const key of ['fold-issues:assigned', 'fold-issues:mention', 'fold-issues:reference']) {
     expect(await ui.find({ key })).toBeDefined()
   }
+  await ui.press({ key: 'more-issue:mention:i1:' })
   await ui.press({ key: 'hide-mention:i1:' })
   expect(await shown(ui, /#1/)).toBe(false)
   expect(await shown(ui, /#2/)).toBe(true)
@@ -114,6 +116,7 @@ test('my issues are split into assigned, mentions and references, and an issue c
 test('a note shows above the title and stays after the drawer redraws', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
 
+  await ui.press({ key: 'more-pr:u1' })
   await ui.press({ key: 'note-pr:u1' })
   await ui.input({ key: 'note-input-pr:u1', text: 'Friday with Kim', kind: 'change' })
   await ui.press({ key: 'note-save-pr:u1' })
@@ -128,6 +131,7 @@ test('a note shows above the title and stays after the drawer redraws', async ($
 test('a snoozed card leaves its tab with its note, and search still finds it, marked hidden', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes'), pr(2, 'waiting', 'The callback URL lost its query string')], [issue(3, 'assigned')], 'mine')
 
+  await ui.press({ key: 'more-pr:u1' })
   await ui.press({ key: 'note-pr:u1' })
   await ui.input({ key: 'note-input-pr:u1', text: 'after the release', kind: 'change' })
   await ui.press({ key: 'note-tomorrow-pr:u1' })
@@ -292,17 +296,43 @@ test('More opens a card\'s own buttons, one card at a time, and a press adds the
   await ui.unmount()
 })
 
-test('Edit buttons names the file and lists an entry left out with its reason, and Add button adds a request', async ($, on) => {
-  const label = async (key: string) => (await ui.find({ key }))?.props.label
+test('Note and Hide sit in a card\'s More row, not on the card itself', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
+
+  expect(await ui.find({ key: 'note-pr:u1' })).toBe(undefined)
+  expect(await ui.find({ key: 'hide-u1' })).toBe(undefined)
+  await ui.press({ key: 'more-pr:u1' })
+  expect(await ui.find({ key: 'note-pr:u1' })).toBeDefined()
+  expect(await ui.find({ key: 'hide-u1' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('/review-inbox buttons names the file and each entry left out with its reason, which the drawer also warns about', async ($, on) => {
   const own = { buttons: [{ id: 'typo', name: 'Typo', scope: 'pr', prompt: 'Look at {{.PrLink}}' }] }
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine', { files: { [ACTIONS]: JSON.stringify(own) } })
 
-  expect(await shown(ui, /typo:/)).toBe(false)
-  await ui.press({ key: 'edit-buttons' })
-  expect(await shown(ui, /~\/\.claude\/plugins\/data\/review-inbox\/actions\.json/)).toBe(true)
   expect(await shown(ui, /typo: unknown variable PrLink/)).toBe(true)
-  await ui.press({ key: 'add-button' })
-  expect(await label('add-button')).toBe('Added')
+  expect(await shown(ui, /See \/review-inbox buttons/)).toBe(true)
+  const { text } = await $.command.run({ command: 'review-inbox', args: 'buttons' })
+  expect(text).toContain('My buttons: ~/.claude/plugins/data/review-inbox/actions.json')
+  expect(text).toContain('Of my own: 0 buttons, 0 search groups')
+  expect(text).toContain('typo: unknown variable PrLink')
+  await ui.unmount()
+})
+
+test('a clean actions.json leaves the drawer quiet, and add-button and add-search put their requests into the prompt', async ($, on) => {
+  const fills: string[] = []
+  on('prompt.fill', async ($, e) => {
+    fills.push(e.text)
+    return { isFilled: true }
+  })
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
+
+  expect(await shown(ui, /review-inbox buttons/)).toBe(false)
+  expect((await $.command.run({ command: 'review-inbox', args: 'add-button' })).text).toBe('Added to your prompt; press Enter to send it.')
+  await $.command.run({ command: 'review-inbox', args: ' add-search ' })
+  expect(fills[0]).toStartWith('Add a button to my review inbox by editing /home/me/.claude/plugins/data/review-inbox/actions.json')
+  expect(fills[1]).toStartWith('Add a search group to my review inbox')
   await ui.unmount()
 })
 
@@ -329,9 +359,6 @@ test('the Searches tab shows each group with its newest results, a failed one wi
   expect(await label('fold-searches:bugs')).toBe('▾ Bugs …')
   await ui.press({ key: 'fold-searches:team' })
   expect(await shown(ui, /acme\/app #7/)).toBe(false)
-  await ui.press({ key: 'edit-buttons' })
-  await ui.press({ key: 'add-group' })
-  expect(await label('add-group')).toBe('Added')
   await ui.unmount()
 })
 

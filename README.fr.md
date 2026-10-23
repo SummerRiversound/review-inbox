@@ -18,7 +18,7 @@ L'interface et les résumés existent en neuf langues ; voir [Langue](#langue).
 
 Chaque onglet regroupe ses cartes par catégorie. Appuyez sur l'en-tête d'une catégorie pour la replier, et de nouveau pour la déplier. `N masquées · tout afficher`, en haut de l'onglet, ne réaffiche que les cartes masquées de cet onglet.
 
-`Note`, sur une carte, écrit une ligne au-dessus de son titre : ce que vous avez vérifié, ou ce que vous avez prévu de faire et quand. `Enregistrer` laisse la carte visible. `Reporter à demain` et `Reporter à la semaine prochaine` la mettent de côté jusqu'à demain ou lundi prochain, 9 h, ou plus tôt s'il y a du nouveau : un nouveau commit sur une demande de revue, un nouvel état ou une nouvelle revue sur votre PR, une nouvelle activité sur une issue. Une notification signale le retour d'une carte reportée, avec sa note. `Effacer` supprime la note.
+`Note`, sous `▸ Plus` d'une carte, écrit une ligne au-dessus de son titre : ce que vous avez vérifié, ou ce que vous avez prévu de faire et quand. `Enregistrer` laisse la carte visible. `Reporter à demain` et `Reporter à la semaine prochaine` la mettent de côté jusqu'à demain ou lundi prochain, 9 h, ou plus tôt s'il y a du nouveau : un nouveau commit sur une demande de revue, un nouvel état ou une nouvelle revue sur votre PR, une nouvelle activité sur une issue. Une notification signale le retour d'une carte reportée, avec sa note. `Effacer` supprime la note.
 
 Le champ de recherche, en haut, cherche dans tous les onglets à la fois : dépôt, numéro, titre, auteur, les 2 000 premiers caractères de la description, le résumé et vos notes. Les cartes masquées ou reportées sont trouvées aussi, marquées `masquée`. Videz le champ pour revenir aux onglets. L'application mobile Claude n'affiche pas encore de champ de saisie : elle y montre les notes, sans recherche ni `Note`.
 
@@ -37,7 +37,7 @@ Quand rien n'attend votre action (aucune demande de revue, aucune de vos PR à t
 Une carte par PR en attente de votre revue : un résumé en une phrase, la raison d'être de la PR, ce qu'elle touche, sa taille et son auteur, et depuis combien de temps votre revue est attendue. Les points à risque, comme un changement de schéma ou un ordre de déploiement imposé, sont signalés par ⚠️.
 
 - `Faire la revue` marque la carte comme `Ajouté` et laisse la boîte de réception ouverte : vous pouvez ainsi choisir plusieurs PR. Quand vous fermez la boîte de réception (Échap ou ×), une demande de revue est insérée dans votre prompt pour chaque PR ajoutée, avec ses avertissements et ce qui a changé depuis votre dernière revue. Rien n'est envoyé tant que vous n'appuyez pas sur Entrée. Une PR que le texte de votre prompt demande déjà apparaît comme `Ajouté` à l'ouverture de la boîte de réception.
-- `Masquer` masque la carte jusqu'à ce que la PR reçoive un nouveau commit.
+- `Masquer`, sous `▸ Plus` à côté de `Note`, masque la carte jusqu'à ce que la PR reçoive un nouveau commit.
 - `revue redemandée` signale une PR dont vous avez déjà fait la revue et qui vous sollicite à nouveau, avec un court résumé de ce qui a changé depuis votre dernière revue.
 - Les cartes sont regroupées en demandes directes, demandes via l'équipe et brouillons.
 
@@ -71,7 +71,7 @@ Une issue qui vous est assignée a un bouton `Travailler dessus` qui fonctionne 
 
 Des recherches que vous nommez vous-même, chacune une section avec son nombre de résultats et les 20 plus récemment mis à jour. Un titre ouvre cette PR ou cette issue sur GitHub, et `N de plus sur GitHub` y ouvre la recherche complète. Trois sont fournies, comme dans la boîte de réception des PR de GitHub : `Me concernent` (PR ouvertes auxquelles vous participez sans les avoir ouvertes), `Revues par moi, encore ouvertes` et `Mes issues ouvertes`. Appuyez sur l'en-tête d'une section pour la replier. Les recherches s'exécutent à chaque actualisation, trois à la fois ; celle qui échoue affiche la raison sans toucher aux autres. Aucun appel au modèle.
 
-Ajoutez les vôtres sous `groups`, dans le même `actions.json` que les boutons des cartes ; `Ajouter un groupe de recherche`, sous `Modifier les boutons`, demande à Claude d'en écrire un avec vous.
+Ajoutez les vôtres sous `groups`, dans le même `actions.json` que les boutons des cartes ; `/review-inbox add-search` demande à Claude d'en écrire un avec vous.
 
 ```json
 {
@@ -82,7 +82,7 @@ Ajoutez les vôtres sous `groups`, dans le même `actions.json` que les boutons 
 }
 ```
 
-`query` suit la syntaxe de recherche de GitHub. `scope` vaut `prs` ou `issues` : il ajoute `is:pr` ou `is:issue` sauf si la requête le précise déjà, et `sort:updated-desc` est ajouté sauf si elle a son propre `sort:`. Le réglage `scope` et `Ce dépôt` ne restreignent pas ces recherches ; écrivez `org:` ou `repo:` dans la requête pour cela. `"countInBand": true` ajoute le nombre du groupe à la barre sous la forme `Recherches N`. Un groupe avec un id fourni le remplace, et `"hidden": true` le retire. Une entrée avec un champ manquant ou un scope inconnu est écartée et listée sous `Modifier les boutons` avec la raison. Seuls les 15 premiers groupes sont recherchés.
+`query` suit la syntaxe de recherche de GitHub. `scope` vaut `prs` ou `issues` : il ajoute `is:pr` ou `is:issue` sauf si la requête le précise déjà, et `sort:updated-desc` est ajouté sauf si elle a son propre `sort:`. Le réglage `scope` et `Ce dépôt` ne restreignent pas ces recherches ; écrivez `org:` ou `repo:` dans la requête pour cela. `"countInBand": true` ajoute le nombre du groupe à la barre sous la forme `Recherches N`. Un groupe avec un id fourni le remplace, et `"hidden": true` le retire. Une entrée avec un champ manquant ou un scope inconnu est écartée ; la boîte de réception le signale en bas, et `/review-inbox buttons` la liste avec la raison. Seuls les 15 premiers groupes sont recherchés.
 
 ### Activité
 
@@ -102,9 +102,9 @@ Quand votre PR est approuvée sans CI en cours, `Prête à merger` s'affiche une
 
 ### Boutons des cartes
 
-`▸ Plus` sur une carte ouvre une rangée de boutons qui confient chacun la carte à Claude avec une demande toute prête : `Résumer les risques`, `Expliquer le diff` et `Rédiger un commentaire d'approbation` sur une demande de revue, `Rédiger une réponse au relecteur` et `Enquêter sur l'échec de la CI` sur votre PR. Un bouton ajoute la carte comme `Faire la revue`, et la demande arrive dans votre prompt quand vous fermez la boîte de réception. Rien ne s'exécute et rien n'est publié avant que vous appuyiez sur Entrée.
+`▸ Plus` sur une carte ouvre `Note` et `Masquer`, puis des boutons qui confient chacun la carte à Claude avec une demande toute prête : `Résumer les risques`, `Expliquer le diff` et `Rédiger un commentaire d'approbation` sur une demande de revue, `Rédiger une réponse au relecteur` et `Enquêter sur l'échec de la CI` sur votre PR. Un bouton ajoute la carte comme `Faire la revue`, et la demande arrive dans votre prompt quand vous fermez la boîte de réception. Rien ne s'exécute et rien n'est publié avant que vous appuyiez sur Entrée.
 
-Ajoutez les vôtres dans `actions.json`, dans le dossier de cache. `▸ Modifier les boutons`, en bas de la boîte de réception, affiche son chemin, et `Ajouter un bouton` demande à Claude d'en écrire un avec vous.
+Ajoutez les vôtres dans `actions.json`, dans le dossier de cache. `/review-inbox buttons` affiche son chemin, son contenu et les entrées écartées, et `/review-inbox add-button` demande à Claude d'en écrire un avec vous.
 
 ```json
 {
@@ -115,7 +115,7 @@ Ajoutez les vôtres dans `actions.json`, dans le dossier de cache. `▸ Modifier
 }
 ```
 
-`scope` vaut `review`, `pr` ou `issue`. Le prompt peut utiliser `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, écrites comme dans gh-dash : `{{.Name}}`, `{{Name}}`, `{{ .Name }}` ; une variable sans valeur pour la carte reste vide. Un bouton qui reprend l'id d'un bouton intégré le remplace, et `"hidden": true` le retire. Une entrée à laquelle il manque un champ, ou dont le scope ou une variable est inconnu, est laissée de côté et listée sous `Modifier les boutons` avec la raison ; les autres continuent de fonctionner. `PrTitle` et `Author` viennent de GitHub tels qu'ils sont écrits : un prompt qui les utilise transmet donc à Claude un texte écrit par quelqu'un d'autre.
+`scope` vaut `review`, `pr` ou `issue`. Le prompt peut utiliser `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, écrites comme dans gh-dash : `{{.Name}}`, `{{Name}}`, `{{ .Name }}` ; une variable sans valeur pour la carte reste vide. Un bouton qui reprend l'id d'un bouton intégré le remplace, et `"hidden": true` le retire. Une entrée à laquelle il manque un champ, ou dont le scope ou une variable est inconnu, est laissée de côté ; la boîte de réception le signale en bas, et `/review-inbox buttons` la liste avec la raison. Les autres continuent de fonctionner. `PrTitle` et `Author` viennent de GitHub tels qu'ils sont écrits : un prompt qui les utilise transmet donc à Claude un texte écrit par quelqu'un d'autre.
 
 ### Actions GitHub directes
 
