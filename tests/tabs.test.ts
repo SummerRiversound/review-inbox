@@ -103,16 +103,16 @@ test('the band counts only what needs me and leaves out zeros', async () => {
   expect(quiet).toEqual({ reviews: 0, prTodo: 0, issues: 0, searches: 0 })
   expect(bandLabels(quiet, MESSAGES.en)).toEqual([])
   const busy = bandCounts(2, [myPr('changes'), myPr('waiting')], [{ ...ref, kind: 'mention' }, ref])
-  expect(bandLabels(busy, MESSAGES.ko)).toEqual(['리뷰 2', '내 PR 할 일 1', '내 이슈 1'])
-  expect(bandLabels(busy, MESSAGES.en)).toEqual(['To review 2', 'My PRs to act on 1', 'My issues 1'])
+  expect(bandLabels(busy, MESSAGES.ko)).toEqual(['리뷰 대기 2', '내 PR 할 일 1', '할당·언급 1'])
+  expect(bandLabels(busy, MESSAGES.en)).toEqual(['To review 2', 'My PRs to act on 1', 'Assigned & mentioned 1'])
   expect(bandLabels({ reviews: 0, prTodo: 3, issues: 0, searches: 0 }, MESSAGES.en)).toEqual(['My PRs to act on 3'])
-  expect(bandLabels(bandCounts(1, [], [], 4), MESSAGES.en)).toEqual(['To review 1', 'Searches 4'])
+  expect(bandLabels(bandCounts(1, [], [], 4), MESSAGES.en)).toEqual(['To review 1', 'Saved searches 4'])
 })
 
 test('a count from a search that had more than one page reads as at least that many', async () => {
   const counts = { reviews: 100, prTodo: 2, issues: 97, searches: 0 }
-  expect(bandLabels(counts, MESSAGES.ko, { review: true, issues: true })).toEqual(['리뷰 100+', '내 PR 할 일 2', '내 이슈 97+'])
-  expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'My issues 97'])
+  expect(bandLabels(counts, MESSAGES.ko, { review: true, issues: true })).toEqual(['리뷰 대기 100+', '내 PR 할 일 2', '할당·언급 97+'])
+  expect(bandLabels(counts, MESSAGES.en)).toEqual(['To review 100', 'My PRs to act on 2', 'Assigned & mentioned 97'])
 })
 
 test('every search is paged by the same two variables and asks for its cursor', async () => {

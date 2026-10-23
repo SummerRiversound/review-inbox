@@ -19,7 +19,7 @@ export const zhTW: Messages = {
     review: n => `待審查 ${n}`,
     mine: n => `我的 PR ${n}`,
     issues: n => `我的議題 ${n}`,
-    searches: n => `搜尋 ${n}`,
+    searches: '已儲存的搜尋',
     activity: n => `動態 ${n}`,
   },
   card: {

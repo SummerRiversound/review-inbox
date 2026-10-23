@@ -19,7 +19,7 @@ export const ja: Messages = {
     review: (n: string) => `要レビュー ${n}`,
     mine: (n: string) => `自分の PR ${n}`,
     issues: (n: string) => `自分の Issue ${n}`,
-    searches: (n: string) => `検索 ${n}`,
+    searches: '保存した検索',
     activity: (n: string) => `アクティビティ ${n}`,
   },
   card: {

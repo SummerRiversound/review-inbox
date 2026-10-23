@@ -22,7 +22,7 @@ export const de: Messages = {
     review: n => `Zu reviewen ${n}`,
     mine: n => `Meine PRs ${n}`,
     issues: n => `Meine Issues ${n}`,
-    searches: n => `Suchen ${n}`,
+    searches: 'Gespeicherte Suchen',
     activity: n => `Aktivität ${n}`,
   },
   card: {

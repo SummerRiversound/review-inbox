@@ -19,7 +19,7 @@ export const zhCN: Messages = {
     review: n => `待审查 ${n}`,
     mine: n => `我的 PR ${n}`,
     issues: n => `我的议题 ${n}`,
-    searches: n => `搜索 ${n}`,
+    searches: '已保存的搜索',
     activity: n => `动态 ${n}`,
   },
   card: {

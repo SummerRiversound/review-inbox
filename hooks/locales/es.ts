@@ -21,7 +21,7 @@ export const es: Messages = {
     review: (n: string) => `Por revisar ${n}`,
     mine: (n: string) => `Mis PR ${n}`,
     issues: (n: string) => `Mis incidencias ${n}`,
-    searches: (n: string) => `Búsquedas ${n}`,
+    searches: 'Búsquedas guardadas',
     activity: (n: string) => `Actividad ${n}`,
   },
   card: {

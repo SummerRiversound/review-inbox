@@ -22,7 +22,7 @@ export const ptBR: Messages = {
     review: (n: string) => `Para revisar ${n}`,
     mine: (n: string) => `Meus PRs ${n}`,
     issues: (n: string) => `Minhas issues ${n}`,
-    searches: (n: string) => `Buscas ${n}`,
+    searches: 'Buscas salvas',
     activity: (n: string) => `Atividade ${n}`,
   },
   card: {

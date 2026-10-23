@@ -53,7 +53,7 @@ test('every built-in prompt in every language names only known variables', () =>
   }
 })
 
-test('search groups are read beside buttons, a broken one listed and the rest kept', () => {
+test('saved searches are read beside buttons, a broken one listed and the rest kept', () => {
   const { buttons, groups, errors } = parseActions(
     JSON.stringify({
       buttons: [{ id: 'ok', name: 'Ok', scope: 'pr', prompt: 'x' }],
@@ -72,8 +72,8 @@ test('search groups are read beside buttons, a broken one listed and the rest ke
     { id: 'involves-me', name: '', query: '', scope: 'prs', hidden: true },
   ])
   expect(errors.map(e => errorText(e, m))).toEqual([
-    'where: search group scope "review" is not prs or issues',
-    'blank: a search group needs an id, a name and a query',
-    'groups #4: a search group needs an id, a name and a query',
+    'where: saved search scope "review" is not prs or issues',
+    'blank: a saved search needs an id, a name and a query',
+    'groups #4: a saved search needs an id, a name and a query',
   ])
 })

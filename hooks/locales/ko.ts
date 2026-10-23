@@ -3,24 +3,24 @@ import type { Messages } from '../i18n'
 export const ko: Messages = {
   title: '리뷰 인박스',
   command: {
-    description: '리뷰 인박스 열기: 내 리뷰를 기다리는 PR, 내 PR, 내 이슈',
+    description: '리뷰 인박스 열기: 내 리뷰를 기다리는 PR, 내 PR, 나에게 할당되거나 나를 언급한 이슈',
     opened: '리뷰 인박스를 열었습니다.',
     filled: '프롬프트에 넣었습니다. Enter를 누르면 보냅니다.',
   },
   band: {
     open: '열기',
-    reviews: n => `리뷰 ${n}`,
+    reviews: n => `리뷰 대기 ${n}`,
     prTodo: n => `내 PR 할 일 ${n}`,
-    issues: n => `내 이슈 ${n}`,
-    searches: n => `검색 ${n}`,
+    issues: n => `할당·언급 ${n}`,
+    searches: n => `저장한 검색 ${n}`,
     oldest: days => ` · 가장 오래된 리뷰 ${days}일째`,
   },
   tabs: {
     review: n => `리뷰 대기 ${n}`,
     mine: n => `내 PR ${n}`,
-    issues: n => `내 이슈 ${n}`,
-    searches: n => `검색 ${n}`,
-    activity: n => `활동 ${n}`,
+    issues: n => `할당·언급 ${n}`,
+    searches: '저장한 검색',
+    activity: n => `GitHub 알림 ${n}`,
   },
   card: {
     rerequest: '재요청',
@@ -34,7 +34,7 @@ export const ko: Messages = {
     impact: '영향 범위',
     size: (files, added, removed) => `파일 ${files}개 (+${added} −${removed})`,
     hide: '숨기기',
-    review: '리뷰하기',
+    review: 'Claude에게 리뷰',
     added: '추가됨',
     task: {
       changes: '코멘트 반영',
@@ -78,7 +78,7 @@ export const ko: Messages = {
     review: '지금 리뷰를 기다리는 PR이 없습니다.',
     mine: '열려 있는 내 PR이 없습니다.',
     issues: '나에게 할당되거나 나를 언급한 이슈가 없습니다.',
-    searches: "검색 그룹이 없습니다. /review-inbox add-search로 추가하세요.",
+    searches: "저장한 검색이 없습니다. /review-inbox add-search로 추가하세요.",
     activity: "다른 알림이 없습니다. 리뷰 요청, 할당, 언급은 다른 탭에 있습니다.",
   },
   sections: {
@@ -131,9 +131,9 @@ export const ko: Messages = {
     by: who => `새 리뷰 ${who}`,
   },
   buttons: {
-    more: "더 보기",
+    more: "작업",
     none: "아직 내 버튼이 없습니다. 기본 버튼만 보입니다.",
-    counts: (buttons, groups) => `내 버튼 ${buttons}개, 검색 그룹 ${groups}개`,
+    counts: (buttons, groups) => `내 버튼 ${buttons}개, 저장한 검색 ${groups}개`,
     how: "/review-inbox add-button 또는 /review-inbox add-search를 입력하면 Claude와 함께 만듭니다.",
     hint: "자세히 보기: /review-inbox buttons",
     file: path => `내 버튼: ${path}`,
@@ -144,8 +144,8 @@ export const ko: Messages = {
       fields: "id, name, prompt가 필요합니다",
       scope: scope => `scope "${scope}"는 review, pr, issue 중 하나가 아닙니다`,
       variables: names => `알 수 없는 변수 ${names}`,
-      groupFields: "검색 그룹에는 id, name, query가 있어야 합니다",
-      groupScope: scope => `검색 그룹 scope "${scope}"는 prs나 issues가 아닙니다`,
+      groupFields: "저장한 검색에는 id, name, query가 있어야 합니다",
+      groupScope: scope => `저장한 검색 scope "${scope}"는 prs나 issues가 아닙니다`,
     },
     builtIn: {
       "summarize-risks": { name: "위험 요약", prompt: "{{.PrUrl}}의 위험을 정리해 줘. `gh pr diff {{.PrUrl}}`로 diff를 읽고, 무엇이 누구에게 깨질 수 있는지와 먼저 테스트할 것을 적어 줘. 아무것도 바꾸지 마." },
@@ -160,7 +160,7 @@ export const ko: Messages = {
     none: "찾은 항목이 없습니다.",
     failed: message => `검색 실패: ${message}`,
     more: n => `GitHub에서 ${n}개 더 보기`,
-    tooMany: n => `처음 15개를 넘는 검색 그룹 ${n}개는 빠졌습니다`,
+    tooMany: n => `처음 15개를 넘는 저장한 검색 ${n}개는 빠졌습니다`,
   },
   activity: {
     reasons: { comment: "댓글", state_change: "상태 변경", author: "내가 연 항목", team_mention: "팀 언급", security_alert: "보안 경고", ci_activity: "CI 실행" },
@@ -187,7 +187,7 @@ export const ko: Messages = {
   },
   prompt: {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,
-    addGroup: path => `리뷰 인박스에 검색 그룹을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,
+    addGroup: path => `리뷰 인박스에 저장한 검색을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,
     review: url => `${url} 리뷰해 줘.`,
     check: '특히 확인할 점: ',
     since: '지난 내 리뷰 이후 바뀐 점: ',
