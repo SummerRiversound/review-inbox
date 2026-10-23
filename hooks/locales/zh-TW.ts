@@ -19,6 +19,7 @@ export const zhTW: Messages = {
     mine: n => `我的 PR ${n}`,
     issues: n => `我的議題 ${n}`,
     searches: n => `搜尋 ${n}`,
+    activity: n => `動態 ${n}`,
   },
   card: {
     rerequest: '已重新請求',
@@ -75,6 +76,7 @@ export const zhTW: Messages = {
     mine: '您目前沒有開啟的 PR。',
     issues: '沒有指派給您或提及您的議題。',
     searches: "沒有搜尋群組。請在「編輯按鈕」中新增。",
+    activity: "沒有其他通知。審查請求、指派和提及在其他分頁中。",
   },
   sections: {
     here: n => `這個儲存庫 ${n}`,
@@ -155,6 +157,16 @@ export const zhTW: Messages = {
     failed: message => `搜尋失敗：${message}`,
     more: n => `在 GitHub 上還有 ${n} 個`,
     tooMany: n => `超出前 15 個的 ${n} 個搜尋群組未顯示`,
+  },
+  activity: {
+    reasons: { comment: "留言", state_change: "狀態變更", author: "我建立的", team_mention: "團隊被提及", security_alert: "安全性警示" },
+    done: "完成",
+    unsubscribe: "取消訂閱",
+    wasDone: "已完成",
+    wasUnsubscribed: "已取消訂閱",
+    undo: "復原",
+    failed: message => `無法更新通知：${message}`,
+    noAccess: "沒有讀取通知的權限。GitHub 只向 gh 本身的登入或傳統權杖提供通知：請執行 gh auth login 或 gh auth refresh -s notifications。",
   },
   prompt: {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,

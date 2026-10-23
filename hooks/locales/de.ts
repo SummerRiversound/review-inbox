@@ -22,6 +22,7 @@ export const de: Messages = {
     mine: n => `Meine PRs ${n}`,
     issues: n => `Meine Issues ${n}`,
     searches: n => `Suchen ${n}`,
+    activity: n => `Aktivität ${n}`,
   },
   card: {
     rerequest: 'erneut angefragt',
@@ -78,6 +79,7 @@ export const de: Messages = {
     mine: 'Derzeit ist keiner meiner PRs offen.',
     issues: 'Es gibt keine Issues, die mir zugewiesen sind oder mich erwähnen.',
     searches: "Keine Suchgruppen. Unter „Schaltflächen bearbeiten“ eine hinzufügen.",
+    activity: "Keine weiteren Benachrichtigungen. Review-Anfragen, Zuweisungen und Erwähnungen stehen in den anderen Tabs.",
   },
   sections: {
     here: n => `Dieses Repository ${n}`,
@@ -159,6 +161,16 @@ export const de: Messages = {
     failed: message => `Suche fehlgeschlagen: ${message}`,
     more: n => `${n} weitere auf GitHub`,
     tooMany: n => `${n} Suchgruppen nach den ersten 15 werden ausgelassen`,
+  },
+  activity: {
+    reasons: { comment: "Kommentar", state_change: "Status geändert", author: "Von Ihnen eröffnet", team_mention: "Team erwähnt", security_alert: "Sicherheitswarnung" },
+    done: "Erledigt",
+    unsubscribe: "Abbestellen",
+    wasDone: "Erledigt",
+    wasUnsubscribed: "Abbestellt",
+    undo: "Rückgängig",
+    failed: message => `Benachrichtigung nicht geändert: ${message}`,
+    noAccess: "Kein Zugriff auf Benachrichtigungen. GitHub gibt sie nur an die Anmeldung von gh oder ein klassisches Token: führen Sie gh auth login oder gh auth refresh -s notifications aus.",
   },
   prompt: {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,

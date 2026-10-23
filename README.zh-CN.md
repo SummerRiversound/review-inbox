@@ -7,7 +7,7 @@
 一个 [Claude Code](https://claude.com/claude-code) mod，让你在写代码时随时看到自己在 GitHub 上的工作：等待你审查的 pull request（每个都会在你打开之前先用通俗的语言做好摘要）、你自己处于打开状态的 PR 及其收到的审查，以及需要你参与的议题。
 
 - **输入框上方的横条**：只用一行统计需要你处理的内容，包括等待你审查的 PR、你的 PR 中有待处理事项的，以及分配给你或提及你的议题。横条的颜色表示最早的审查请求已经等了多久（满 3 天变黄，满 14 天变红）。点击 `打开` 可打开抽屉。 数字减少时会短暂变成绿色。
-- **抽屉**：使用 `/review-inbox` 打开，有三个标签页：待审查、我的 PR 和我的议题。
+- **抽屉**：使用 `/review-inbox` 打开，有五个标签页：待审查、我的 PR、我的议题、搜索和动态。
 - **通知**：工作时有新内容到达，会弹出一条简短的提示。
 
 ![输入框上方的横条，随后是抽屉的三个标签页：待审查、我的 PR 和我的议题](docs/images/en/overview.gif)
@@ -81,6 +81,14 @@
 ```
 
 `query` 使用 GitHub 搜索语法。`scope` 为 `prs` 或 `issues`：查询没有写明类型时会加上 `is:pr` 或 `is:issue`；查询没有自己的 `sort:` 时会加上 `sort:updated-desc`。`scope` 设置和 `此仓库` 按钮不会缩小这些搜索，需要时请直接在查询里写 `org:` 或 `repo:`。`"countInBand": true` 会把该组的数量以 `搜索 N` 加到提示栏上方的那一行。与内置组 id 相同的组会替换它，`"hidden": true` 会移除它。缺少字段或 scope 不正确的条目会被跳过，并连同原因列在 `编辑按钮` 下。只搜索前 15 个组。
+
+### 动态
+
+按从新到旧显示其他标签页尚未显示的 GitHub 通知：你创建或参与的会话中的评论、状态变更和新动态，团队提及以及安全警报。审查请求、分配和提及不在这里，PR 或议题已经是卡片的会话也不在这里。未读会话标有 `●`，只要有一个未读，标签页名称上也会显示 `●`。读取最近 30 天的通知，最多 100 条。
+
+按下 `完成` 或 `取消订阅` 后，该行立即消失，原处显示 `已完成 · 撤销` 或 `已取消订阅 · 撤销` 10 秒；在此之前关闭抽屉会立即发送。之后 `完成` 会像 GitHub 收件箱一样把会话标记为完成，`取消订阅` 还会停止该会话的通知，直到有人提及你或你发表评论。标记为完成的会话有新动态时会再次出现。如果失败，该行会带着原因回来。不调用模型。
+
+GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，标签页会说明这一点并给出方法（`gh auth login` 或 `gh auth refresh -s notifications`）。
 
 ### 通知
 
@@ -195,7 +203,7 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。除此之外，mod 自身不发起任何网络调用。
+- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。动态标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。除此之外，mod 自身不发起任何网络调用。
 - **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
 - **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。
@@ -217,6 +225,7 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 
 - 等待你审查的 PR 最多 100 个，按 GitHub 的最佳匹配顺序排列。其他标签页最多读取你的 100 个打开状态的 PR、100 个分配给你的议题和 100 个提及你的议题，以及最多 500 个最近有更新的条目中的引用，均按最新活动在前排序。 超出这些数量时，计数显示为 `100+`。 每个列表每次读取 25 个；GitHub 超时的那一页会以一半的大小重新请求，因此 PR 很多的账号也不会超出 GitHub 的时间限制。
 - 搜索组只显示最近更新的 20 项；数量是 GitHub 给出的该搜索的总数。
+- 动态标签页读取最近 30 天的通知，最多 100 条，并且不会比 GitHub 规定的轮询间隔更频繁地查询。
 - 如果被引用的条目你已有 60 天没有动过，这条引用会被漏掉。
 - PR 有任何新提交时，`新审查` 都会消失，包括通过 GitHub 的“Update branch”按钮或由机器人产生的提交。
 - 如果强制推送改写了你审查过的提交，已重新请求的 PR 不会显示“我上次审查后的变更”这一行。

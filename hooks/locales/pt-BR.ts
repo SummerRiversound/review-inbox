@@ -22,6 +22,7 @@ export const ptBR: Messages = {
     mine: (n: string) => `Meus PRs ${n}`,
     issues: (n: string) => `Minhas issues ${n}`,
     searches: (n: string) => `Buscas ${n}`,
+    activity: (n: string) => `Atividade ${n}`,
   },
   card: {
     rerequest: 'revisão solicitada novamente',
@@ -78,6 +79,7 @@ export const ptBR: Messages = {
     mine: 'Você não tem PRs abertos.',
     issues: 'Não há issues atribuídas a você ou que mencionem você.',
     searches: "Nenhum grupo de busca. Adicione um em Editar botões.",
+    activity: "Nenhuma outra notificação. Pedidos de revisão, atribuições e menções estão nas outras abas.",
   },
   sections: {
     here: (n: number) => `Este repositório ${n}`,
@@ -159,6 +161,16 @@ export const ptBR: Messages = {
     failed: (message: string) => `A busca falhou: ${message}`,
     more: (n: number) => `Mais ${n} no GitHub`,
     tooMany: (n: number) => `${n} grupos de busca além dos 15 primeiros ficaram de fora`,
+  },
+  activity: {
+    reasons: { comment: "Comentário", state_change: "Mudança de estado", author: "Aberto por você", team_mention: "Time mencionado", security_alert: "Alerta de segurança" },
+    done: "Concluir",
+    unsubscribe: "Cancelar inscrição",
+    wasDone: "Concluído",
+    wasUnsubscribed: "Inscrição cancelada",
+    undo: "Desfazer",
+    failed: (message: string) => `Não foi possível atualizar a notificação: ${message}`,
+    noAccess: "Sem acesso às notificações. O GitHub só as entrega ao login do gh ou a um token clássico: rode gh auth login ou gh auth refresh -s notifications.",
   },
   prompt: {
     addButton: (path: string, names: string) => `Adicione um botão à minha caixa de revisões editando ${path}; crie como {"buttons": []} se não existir. Cada entrada é {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, e o prompt pode usar ${names} como {{.Name}}. Primeiro me pergunte o que o botão deve fazer.`,

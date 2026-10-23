@@ -19,6 +19,7 @@ export const zhCN: Messages = {
     mine: n => `我的 PR ${n}`,
     issues: n => `我的议题 ${n}`,
     searches: n => `搜索 ${n}`,
+    activity: n => `动态 ${n}`,
   },
   card: {
     rerequest: '已重新请求',
@@ -75,6 +76,7 @@ export const zhCN: Messages = {
     mine: '你目前没有打开的 PR。',
     issues: '没有分配给你或提及你的议题。',
     searches: "没有搜索组。请在“编辑按钮”中添加。",
+    activity: "没有其他通知。审查请求、分配和提及在其他标签页中。",
   },
   sections: {
     here: n => `此仓库 ${n}`,
@@ -155,6 +157,16 @@ export const zhCN: Messages = {
     failed: message => `搜索失败：${message}`,
     more: n => `在 GitHub 上还有 ${n} 个`,
     tooMany: n => `超出前 15 个的 ${n} 个搜索组未显示`,
+  },
+  activity: {
+    reasons: { comment: "评论", state_change: "状态变更", author: "我创建的", team_mention: "团队被提及", security_alert: "安全警报" },
+    done: "完成",
+    unsubscribe: "取消订阅",
+    wasDone: "已完成",
+    wasUnsubscribed: "已取消订阅",
+    undo: "撤销",
+    failed: message => `无法更新通知：${message}`,
+    noAccess: "无权读取通知。GitHub 只向 gh 自己的登录或经典令牌提供通知：请运行 gh auth login 或 gh auth refresh -s notifications。",
   },
   prompt: {
     addButton: (path, names) => `给我的审查收件箱添加一个按钮：编辑 ${path}，如果不存在就创建为 {"buttons": []}。每一项是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 里可以用 {{.Name}} 的形式使用 ${names}。先问我这个按钮要做什么。`,

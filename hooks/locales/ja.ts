@@ -19,6 +19,7 @@ export const ja: Messages = {
     mine: (n: string) => `自分の PR ${n}`,
     issues: (n: string) => `自分の Issue ${n}`,
     searches: (n: string) => `検索 ${n}`,
+    activity: (n: string) => `アクティビティ ${n}`,
   },
   card: {
     rerequest: '再リクエスト',
@@ -75,6 +76,7 @@ export const ja: Messages = {
     mine: 'オープン中の自分の PR はありません。',
     issues: '自分に割り当てられた Issue や、自分がメンションされた Issue はありません。',
     searches: "検索グループはありません。「ボタンを編集」から追加してください。",
+    activity: "ほかの通知はありません。レビュー依頼、割り当て、メンションはほかのタブにあります。",
   },
   sections: {
     here: (n: number) => `このリポジトリ ${n}`,
@@ -155,6 +157,16 @@ export const ja: Messages = {
     failed: (message: string) => `検索に失敗しました: ${message}`,
     more: (n: number) => `GitHub でさらに ${n} 件`,
     tooMany: (n: number) => `最初の15個を超える検索グループ ${n} 個は省かれています`,
+  },
+  activity: {
+    reasons: { comment: "コメント", state_change: "状態の変更", author: "自分が作成", team_mention: "チームへのメンション", security_alert: "セキュリティアラート" },
+    done: "完了",
+    unsubscribe: "購読解除",
+    wasDone: "完了しました",
+    wasUnsubscribed: "購読を解除しました",
+    undo: "元に戻す",
+    failed: (message: string) => `通知を更新できませんでした: ${message}`,
+    noAccess: "通知を読む権限がありません。GitHub は gh のサインインかクラシックトークンにだけ通知を渡します。gh auth login か gh auth refresh -s notifications を実行してください。",
   },
   prompt: {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,

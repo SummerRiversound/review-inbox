@@ -81,7 +81,7 @@ export type IssueItem = CardDetails & {
   body?: string
 }
 
-export type Tab = 'review' | 'mine' | 'issues' | 'searches'
+export type Tab = 'review' | 'mine' | 'issues' | 'searches' | 'activity'
 
 // A button of my own from actions.json, or a built-in one of the same shape; its prompt is a template filled from the card.
 export type ButtonScope = 'review' | 'pr' | 'issue'
@@ -106,6 +106,21 @@ export type SearchGroup = {
 export type GroupHit = { repo: string; number: number; title: string; url: string; author: string; updatedAt: string }
 // A group's last results, with the query they answer, so an edited group is fetched again rather than shown stale.
 export type GroupResult = { query: string; count: number; hits: GroupHit[]; error?: string }
+
+// A GitHub notification thread, its subject's page as `url`.
+export type Thread = { id: string; repo: string; title: string; url: string; reason: string; updatedAt: string; unread: boolean }
+export type Activity = {
+  threads: Thread[]
+  // Sent back as If-Modified-Since, so an unchanged list costs a 304.
+  lastModified?: string
+  // GitHub's X-Poll-Interval: no look before this.
+  pollAfter?: number
+  error?: string
+  // GitHub refused the notifications (403 or 404).
+  noAccess?: boolean
+}
+// Done or Unsubscribe pressed and not yet sent; `at` tells a later press from an undone one.
+export type Settling = { kind: 'done' | 'unsubscribe'; at: number }
 
 // An entry of actions.json left out, by its id or position, or the whole file.
 export type ButtonError = { at: string; reason: 'file' | 'fields' | 'scope' | 'variables' | 'groupFields' | 'groupScope'; detail?: string }
@@ -135,6 +150,7 @@ export type InboxFile = {
   capped?: Capped
   // Search group results by group id.
   groups?: Record<string, GroupResult>
+  activity?: Activity
   fetchedAt?: number
   // The claim of the session fetching right now, renewed while it works.
   fetchingSince?: number
@@ -177,6 +193,10 @@ declare module 'claude-code' {
       // actions.json as last read: my buttons and search groups, and the entries left out.
       actions: Actions
       groups: Record<string, GroupResult>
+      activity: Activity
+      // Threads waiting out their Undo, by thread id, and the threads whose Done or Unsubscribe failed.
+      settling: Record<string, Settling>
+      settleErrors: Record<string, string>
       // The card whose row of buttons is open, or empty.
       more: string
       // The Edit buttons panel is open.

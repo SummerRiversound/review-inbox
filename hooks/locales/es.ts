@@ -21,6 +21,7 @@ export const es: Messages = {
     mine: (n: string) => `Mis PR ${n}`,
     issues: (n: string) => `Mis incidencias ${n}`,
     searches: (n: string) => `Búsquedas ${n}`,
+    activity: (n: string) => `Actividad ${n}`,
   },
   card: {
     rerequest: 'revisión solicitada de nuevo',
@@ -77,6 +78,7 @@ export const es: Messages = {
     mine: 'No tienes PR abiertos.',
     issues: 'No hay incidencias asignadas a ti ni que te mencionen.',
     searches: "No hay grupos de búsqueda. Añade uno en Editar botones.",
+    activity: "No hay otras notificaciones. Las solicitudes de revisión, asignaciones y menciones están en las otras pestañas.",
   },
   sections: {
     here: (n: number) => `Este repositorio ${n}`,
@@ -158,6 +160,16 @@ export const es: Messages = {
     failed: (message: string) => `La búsqueda falló: ${message}`,
     more: (n: number) => `${n} más en GitHub`,
     tooMany: (n: number) => `Se omiten ${n} grupos de búsqueda después de los primeros 15`,
+  },
+  activity: {
+    reasons: { comment: "Comentario", state_change: "Cambio de estado", author: "Lo abriste tú", team_mention: "Mención al equipo", security_alert: "Alerta de seguridad" },
+    done: "Hecho",
+    unsubscribe: "Cancelar suscripción",
+    wasDone: "Hecho",
+    wasUnsubscribed: "Suscripción cancelada",
+    undo: "Deshacer",
+    failed: (message: string) => `No se pudo actualizar la notificación: ${message}`,
+    noAccess: "Sin acceso a las notificaciones. GitHub solo las da al inicio de sesión de gh o a un token clásico: ejecuta gh auth login o gh auth refresh -s notifications.",
   },
   prompt: {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,

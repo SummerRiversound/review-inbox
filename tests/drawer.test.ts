@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
-import type { GroupResult, InboxItem, IssueItem, MyPr, Presence } from '../types'
+import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
 import { cacheKey } from '../hooks/inbox'
 
 const PANE = {
@@ -22,8 +22,9 @@ const pr = (number: number, state: MyPr['state'], body?: string): MyPr =>
 const issue = (number: number, kind: IssueItem['kind']): IssueItem =>
   ({ kind, repo: 'o/i', number, title: `i${number}`, url: `i${number}`, at: '2026-10-01T00:00:00Z' })
 
-// The last opened session's files, as it wrote them.
+// The last opened session's files, as it wrote them, and its clock.
 let files = new Map<string, string>()
+let clock: ReturnType<typeof mock.clock>
 
 // A session whose shared file was just fetched, so it shows the lists without going to GitHub; mv is missing, so files are written in place.
 async function opened(
@@ -32,9 +33,18 @@ async function opened(
   mine: MyPr[],
   issues: IssueItem[],
   tab: string,
-  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string>; env?: Record<string, string>; groups?: Record<string, GroupResult> } = {},
+  more: {
+    items?: InboxItem[]
+    sessions?: Record<string, Presence>
+    files?: Record<string, string>
+    env?: Record<string, string>
+    groups?: Record<string, GroupResult>
+    activity?: Activity
+    // Answers a command, joined by spaces; anything it leaves fails as if missing.
+    run?: (args: string) => { exitCode: number; stderr?: string } | undefined
+  } = {},
 ) {
-  const clock = mock.clock(on)
+  clock = mock.clock(on)
   mock.env(on, { HOME: '/home/me', ...more.env })
   on('settings.read', async () => ({ value: {} }))
   on('session.start', async () => ({ cwd: '/work' }))
@@ -42,7 +52,7 @@ async function opened(
   on('session.cwd', async () => ({ value: '/work/review-inbox' }))
   on('ui.panes', async () => ({ value: [] }))
   on('command.register', async () => ({ value: { command: 'review-inbox' } }))
-  const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, groups: more.groups ?? {}, fetchedAt: Date.now() })]])
+  const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, groups: more.groups ?? {}, activity: more.activity, fetchedAt: Date.now() })]])
   if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
   for (const [path, text] of Object.entries(more.files ?? {})) store.set(path, text)
   on('fs.exists', async ($, e) => ({ value: store.has(e.path) }))
@@ -51,8 +61,10 @@ async function opened(
     store.set(e.path, e.text)
     return { value: undefined }
   })
-  on('process.run', async () => {
-    throw new Error('mv: command not found')
+  on('process.run', async ($, e) => {
+    const answer = more.run?.(e.argv.join(' '))
+    if (!answer) throw new Error('mv: command not found')
+    return { value: { exitCode: answer.exitCode, stdout: '', stderr: answer.stderr ?? '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
   for (let i = 0; i < 6; i++) await clock.advance(1_000)
@@ -336,4 +348,56 @@ test('a search group counted in the band adds Searches N to it; the others do no
   expect(await shown(band, /My PRs to act on 1/)).toBe(true)
   expect(await shown(band, /Searches 3/)).toBe(true)
   await band.unmount()
+})
+
+const thread = (id: string, over: Partial<Thread> = {}): Thread =>
+  ({ id, repo: 'o/n', title: `n${id}`, url: `https://github.com/o/n/issues/${id}`, reason: 'comment', updatedAt: '2026-10-22T00:00:00Z', unread: false, ...over })
+
+test('the Activity tab lists the notifications no other tab covers, and Done waits out its Undo before it is sent', async ($, on) => {
+  const sent: string[] = []
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const activity = { threads: [thread('1', { unread: true }), thread('2', { reason: 'state_change' }), thread('3', { url: 'u1' }), thread('4', { reason: 'mention' })] }
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'activity', {
+    activity,
+    run: args => {
+      if (!args.startsWith('gh api -X DELETE ')) return undefined
+      sent.push(args.slice('gh api -X DELETE '.length))
+      return args.endsWith('threads/2/subscription') ? { exitCode: 1, stderr: 'gh: Not Found (HTTP 404)' } : { exitCode: 0 }
+    },
+  })
+
+  expect(await label('tab-activity')).toBe('Activity 2 ●')
+  expect(await shown(ui, /● o\/n/)).toBe(true)
+  expect(await shown(ui, /State changed · /)).toBe(true)
+  // #3 is a card on My PRs, and a mention is on My issues.
+  expect(await ui.find({ key: 'done-3' })).toBeUndefined()
+  expect(await ui.find({ key: 'done-4' })).toBeUndefined()
+
+  await ui.press({ key: 'done-1' })
+  expect(await shown(ui, /Done · o\/n/)).toBe(true)
+  await ui.press({ key: 'undo-1' })
+  expect(await ui.find({ key: 'done-1' })).toBeDefined()
+  await clock.advance(10_000)
+  expect(sent).toEqual([])
+
+  await ui.press({ key: 'done-1' })
+  await clock.advance(10_000)
+  expect(sent).toEqual(['notifications/threads/1'])
+  expect(await ui.find({ key: 'done-1' })).toBeUndefined()
+  expect(await label('tab-activity')).toBe('Activity 1')
+
+  await ui.press({ key: 'unsubscribe-2' })
+  await clock.advance(10_000)
+  expect(sent).toEqual(['notifications/threads/1', 'notifications/threads/2/subscription'])
+  expect(await shown(ui, /Could not update the notification: gh: Not Found \(HTTP 404\)/)).toBe(true)
+  expect(await ui.find({ key: 'done-2' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('without access to notifications the Activity tab says how to get it', async ($, on) => {
+  const ui = await opened($, on, [], [], 'activity', { activity: { threads: [], noAccess: true } })
+
+  expect(await shown(ui, /No access to notifications/)).toBe(true)
+  expect(await shown(ui, /No other notifications/)).toBe(false)
+  await ui.unmount()
 })

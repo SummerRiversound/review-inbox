@@ -3,6 +3,7 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type {
   Actions,
+  Activity,
   ButtonScope,
   Capped,
   GroupHit,
@@ -16,10 +17,14 @@ import type {
   Presence,
   RepoPaths,
   SearchGroup,
+  Settling,
   Tab,
+  Thread,
 } from '../types'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
+import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
+import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
 import type { GqlHit } from './searches'
 import {
@@ -128,6 +133,9 @@ const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, fals
 const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
 const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], groups: [], errors: [] } as Actions)
 const groupResults = atom({ plugin: 'review-inbox', key: 'groups' } as const, {} as Record<string, GroupResult>)
+const activity = atom({ plugin: 'review-inbox', key: 'activity' } as const, { threads: [] } as Activity)
+const settling = atom({ plugin: 'review-inbox', key: 'settling' } as const, {} as Record<string, Settling>)
+const settleErrors = atom({ plugin: 'review-inbox', key: 'settleErrors' } as const, {} as Record<string, string>)
 const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const buttonsOpen = atom({ plugin: 'review-inbox', key: 'buttonsOpen' } as const, false)
 
@@ -427,6 +435,63 @@ async function fetchGroups($: EngineInterface, env: Record<string, string>): Pro
   return results
 }
 
+// The notifications, newest first; GitHub's poll interval or an unchanged list (a 304) keeps the last ones.
+async function fetchActivity($: EngineInterface, env: Record<string, string>, prev: Activity | undefined): Promise<Activity> {
+  const now = Date.now()
+  if (prev?.pollAfter !== undefined && now < prev.pollAfter) return prev
+  const threads: Thread[] = []
+  let first: Record<string, string> = {}
+  const unchanged = prev?.lastModified && !prev.error && !prev.noAccess ? ['-H', `If-Modified-Since: ${prev.lastModified}`] : []
+  try {
+    for (let page = 1; threads.length < ACTIVITY_LIMIT; page++) {
+      const { headers, body } = splitResponse(await gh($, ['api', '-i', ...(page === 1 ? unchanged : []), notificationsPath(page, now), '--jq', THREAD_JQ], env))
+      if (page === 1) first = headers
+      threads.push(...(JSON.parse(body || '[]') as RawThread[]).map(toThread))
+      if (!hasNextPage(headers)) break
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    // A 304 has no body, so gh's --jq fails on it before gh reports the status.
+    if (prev && unchanged.length > 0 && /HTTP 304|unexpected end of JSON input/.test(message)) return prev
+    if (/HTTP 40[34]/.test(message)) return { threads: [], noAccess: true }
+    return { threads: prev?.threads ?? [], error: isGatewayTimeout(message) ? m.status.timeout : message }
+  }
+  const lastModified = first['last-modified']
+  const after = pollAfter(first, now)
+  return { threads: threads.slice(0, ACTIVITY_LIMIT), ...(lastModified ? { lastModified } : {}), ...(after ? { pollAfter: after } : {}) }
+}
+
+const without = <T,>(record: Record<string, T>, key: string) => Object.fromEntries(Object.entries(record).filter(([k]) => k !== key))
+
+// Done or Unsubscribe pressed: the row waits out its Undo, then this sends it.
+async function settleLater($: EngineInterface, thread: Thread, kind: Settling['kind']) {
+  const at = Date.now()
+  await update($, settleErrors, errors => without(errors, thread.id))
+  await update($, settling, s => ({ ...s, [thread.id]: { kind, at } }))
+  $.clock.after(UNDO_MS, () => void settle($, thread.id, at))
+}
+
+const sending = new Set<string>()
+
+// `at` is the press the timer belongs to; the drawer's close sends every pending one without it. A failure brings the row back with the error.
+async function settle($: EngineInterface, id: string, at?: number) {
+  const pending = (await read($, settling))[id]
+  if (!pending || (at !== undefined && pending.at !== at) || sending.has(id)) return
+  sending.add(id)
+  try {
+    const env = await ghEnv($)
+    if (pending.kind === 'unsubscribe') await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}/subscription`], env)
+    await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}`], env)
+    const thread = (await read($, activity)).threads.find(t => t.id === id)
+    if (thread) await setHidden($, h => ({ ...h, [threadKey(thread)]: thread.updatedAt }))
+  } catch (error) {
+    await update($, settleErrors, errors => ({ ...errors, [id]: error instanceof Error ? error.message : String(error) }))
+  } finally {
+    sending.delete(id)
+    await update($, settling, s => without(s, id))
+  }
+}
+
 function toast($: EngineInterface, text: string) {
   const now = Date.now()
   const at = Math.max(now, toastFreeAt)
@@ -476,16 +541,16 @@ async function sync($: EngineInterface, force = false) {
     let env: Record<string, string> | undefined
     try {
       env = await ghEnv($)
-      const [tabs, groups] = await Promise.all([fetchTabs($, env, file.issues ?? []), fetchGroups($, env)])
+      const [tabs, groups, notifications] = await Promise.all([fetchTabs($, env, file.issues ?? []), fetchGroups($, env), fetchActivity($, env, file.activity)])
       const fetched = await fetchInbox($, env, file.items, () =>
         writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
       )
-      result = { items: fetched.items, ...tabs, groups, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
+      result = { items: fetched.items, ...tabs, groups, activity: notifications, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
       const raw = error instanceof Error ? error.message : String(error)
       const message = isGatewayTimeout(raw) ? m.status.timeout : raw
       // Keep the last good list and try again in a minute, not after a full refresh interval.
-      result = { items: file.items, mine: file.mine, issues: file.issues, groups: file.groups, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
+      result = { items: file.items, mine: file.mine, issues: file.issues, groups: file.groups, activity: file.activity, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }
     await writeJson($, inboxFile(), result)
     await show($, result)
@@ -507,6 +572,8 @@ async function show($: EngineInterface, file: InboxFile) {
   await update($, capped, () => file.capped ?? {})
   const groupList = file.groups
   if (groupList) await update($, groupResults, () => groupList)
+  const notifications = file.activity
+  if (notifications) await update($, activity, () => notifications)
   await update($, status, () =>
     claimed
       ? { kind: 'loading' as const, updatedAt: file.fetchedAt }
@@ -709,6 +776,7 @@ async function liveKeys($: EngineInterface) {
     ...(await read($, items)).map(itemKey),
     ...(await read($, mine)).map(prHideKey),
     ...(await read($, issues)).map(issueHideKey),
+    ...(await read($, activity)).threads.map(threadKey),
   ])
 }
 
@@ -863,6 +931,7 @@ export const register: Register = (on, options) => {
   // Fill before the drawer goes, so a fill a dialog refuses keeps it open; answering without next keeps a pane.
   on('ui.close', { id: PANE }, async ($, e, next) => {
     if (e.origin.kind === 'unload') return next(e)
+    await Promise.all(Object.keys(await read($, settling)).map(id => settle($, id)))
     const isFilled = await fillAdded($).catch(() => {
       $.ui.toast(m.toast.retry)
       return true
@@ -979,6 +1048,13 @@ export const register: Register = (on, options) => {
     const buttons = mergeById(builtInButtons(m), own.buttons)
     const { groups, extra: extraGroups } = searchGroups(m, own.groups)
     const results = await read($, groupResults)
+    const notified = await read($, activity)
+    const pendingThreads = await read($, settling)
+    const settleFailures = await read($, settleErrors)
+    const hiddenMap = await read($, hidden)
+    const cardUrls = new Set([...everything, ...allPrs, ...allIssues].map(c => c.url))
+    const threads = shownThreads(notified.threads, cardUrls).filter(t => !isThreadHidden(hiddenMap, t))
+    const openThreads = threads.filter(t => !pendingThreads[t.id])
     const moreKey = await read($, more)
     const isEditing = await read($, buttonsOpen)
     const moreButton = (key: string) => (
@@ -1291,6 +1367,7 @@ export const register: Register = (on, options) => {
       { id: 'mine', label: m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)) },
       { id: 'issues', label: m.tabs.issues(atLeast(direct.length, cappedTabs.issues)) },
       { id: 'searches', label: m.tabs.searches(`${searchTotal}`) },
+      { id: 'activity', label: `${m.tabs.activity(`${openThreads.length}`)}${openThreads.some(t => t.unread) ? ' ●' : ''}` },
     ]
     const empty = (text: string) =>
       state.kind === 'loading' && everything.length + allPrs.length + allIssues.length === 0 ? (
@@ -1370,6 +1447,39 @@ export const register: Register = (on, options) => {
         </Text>
       </Box>
     )
+    const reasonText = (reason: string) => (m.activity.reasons as Record<string, string>)[reason] ?? reason.replace(/_/g, ' ')
+    // A thread sent off shows its Undo in its place until the call goes.
+    const threadRow = (t: Thread) => {
+      const pending = pendingThreads[t.id]
+      const failure = settleFailures[t.id]
+      if (pending)
+        return (
+          <Box key={`thread-${t.id}`} flexDirection="row" gap={1} marginBottom={1}>
+            <Text dimColor>
+              {pending.kind === 'done' ? m.activity.wasDone : m.activity.wasUnsubscribed} · {t.repo}
+            </Text>
+            <Button key={`undo-${t.id}`} label={m.activity.undo} onPress={() => void update($, settling, s => without(s, t.id))} />
+          </Box>
+        )
+      return (
+        <Box key={`thread-${t.id}`} flexDirection="column" marginBottom={1}>
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text bold>
+              {t.unread ? '● ' : ''}
+              {t.repo}
+            </Text>
+            <Text dimColor>
+              {reasonText(t.reason)} · {m.card.ago(waitingDays(t.updatedAt, now))}
+            </Text>
+          </Box>
+          {titleRow(t.url, t.title, [
+            <Button key={`done-${t.id}`} label={m.activity.done} dimColor onPress={() => void settleLater($, t, 'done')} />,
+            <Button key={`unsubscribe-${t.id}`} label={m.activity.unsubscribe} dimColor onPress={() => void settleLater($, t, 'unsubscribe')} />,
+          ])}
+          {failure !== undefined && <Text color="warning">{m.activity.failed(failure)}</Text>}
+        </Box>
+      )
+    }
     // One folding section per group, shown even when empty so a group never seems lost.
     const groupSection = (group: SearchGroup) => {
       const id = `searches:${group.id}`
@@ -1464,7 +1574,7 @@ export const register: Register = (on, options) => {
                 <Text color="success">{m.empty.zero}</Text>
               </Box>
             )}
-            {isMixed && active !== 'searches' && (
+            {isMixed && active !== 'searches' && active !== 'activity' && (
               <Box flexDirection="row" gap={1} marginTop={1}>
                 {[
                   { id: 'here', isOn: narrow, label: m.sections.here(tabCards.filter(c => isHere(c.repo, here)).length) },
@@ -1530,6 +1640,15 @@ export const register: Register = (on, options) => {
                 {groups.length === 0 && empty(m.empty.searches)}
                 {groups.map(groupSection)}
                 {extraGroups > 0 && <Text color="warning">{m.searches.tooMany(extraGroups)}</Text>}
+              </Box>
+            )}
+
+            {active === 'activity' && (
+              <Box flexDirection="column">
+                {notified.noAccess && <Text color="warning">{m.activity.noAccess}</Text>}
+                {notified.error !== undefined && <Text color="warning">{m.status.error(notified.error)}</Text>}
+                {!notified.noAccess && threads.length === 0 && empty(m.empty.activity)}
+                {threads.map(threadRow)}
               </Box>
             )}
 

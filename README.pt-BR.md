@@ -7,7 +7,7 @@
 Um mod para o [Claude Code](https://claude.com/claude-code) que mantém o seu trabalho no GitHub à vista enquanto você programa: os pull requests aguardando sua revisão, cada um resumido em linguagem simples antes de você abri-lo, os seus próprios PRs abertos e as revisões que eles recebem, e as issues que envolvem você.
 
 - **Barra acima do prompt** — uma linha que conta só o que depende de você: PRs aguardando sua revisão, seus PRs com algo a resolver e issues atribuídas a você ou que mencionam você. A cor indica há quanto tempo a solicitação de revisão mais antiga está esperando (amarelo a partir de 3 dias, vermelho a partir de 14). `Abrir` abre a caixa de revisões. Quando um número cai, ele fica verde por um instante.
-- **Caixa de revisões** — `/review-inbox`, com três abas: Para revisar, Meus PRs e Minhas issues.
+- **Caixa de revisões** — `/review-inbox`, com cinco abas: Para revisar, Meus PRs, Minhas issues, Buscas e Atividade.
 - **Notificações** — um aviso curto quando algo novo chega enquanto você trabalha.
 
 ![A barra acima do prompt e, em seguida, as três abas da caixa de revisões: Para revisar, Meus PRs e Minhas issues](docs/images/en/overview.gif)
@@ -81,6 +81,14 @@ Adicione as suas em `groups`, no mesmo `actions.json` dos botões dos cartões; 
 ```
 
 `query` usa a sintaxe de busca do GitHub. `scope` é `prs` ou `issues`: acrescenta `is:pr` ou `is:issue` a menos que a busca já diga qual, e `sort:updated-desc` é acrescentado a menos que ela tenha seu próprio `sort:`. A configuração `scope` e `Este repositório` não restringem essas buscas; escreva `org:` ou `repo:` na busca quando quiser isso. `"countInBand": true` soma a contagem do grupo à faixa como `Buscas N`. Um grupo com um id pronto o substitui, e `"hidden": true` o remove. Uma entrada com campo faltando ou scope desconhecido fica de fora e aparece em `Editar botões` com o motivo. Só os primeiros 15 grupos são buscados.
+
+### Atividade
+
+Suas notificações do GitHub que nenhuma outra aba já mostra, as mais recentes primeiro: comentários, mudanças de estado e atividade nova em threads que você abriu ou de que participa, menções ao time e alertas de segurança. Pedidos de revisão, atribuições e menções ficam de fora, assim como threads cujo PR ou issue já é um cartão. Uma thread não lida leva `●`, e a aba também enquanto houver alguma. São lidas até 100 notificações dos últimos 30 dias.
+
+`Concluir` e `Cancelar inscrição` tiram a linha na hora e deixam `Concluído · Desfazer` ou `Inscrição cancelada · Desfazer` no lugar por 10 segundos; fechar a caixa antes disso envia na hora. Então `Concluir` marca a thread como concluída no GitHub, como a própria caixa de entrada do GitHub, e `Cancelar inscrição` também para as notificações dela até alguém mencionar você ou você comentar. Uma thread concluída volta quando tem atividade nova. Se algo falhar, a linha volta com o motivo. Nenhuma chamada ao modelo.
+
+O GitHub só entrega notificações ao login do gh e a tokens clássicos. Sem acesso, a aba avisa e diz como conseguir (`gh auth login` ou `gh auth refresh -s notifications`).
 
 ### Notificações
 
@@ -195,7 +203,7 @@ O mod acessa o GitHub só pelo seu próprio `gh`, envia o texto dos PRs ao Claud
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Executa o `gh`**: `gh api graphql` para as listas e, uma vez por semana, para os seus comentários de revisão recentes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para um PR com revisão solicitada novamente; e `gh auth token -u <githubUser>` quando `githubUser` está definido. O mod não faz nenhuma outra chamada de rede por conta própria.
+- **Executa o `gh`**: `gh api graphql` para as listas e, uma vez por semana, para os seus comentários de revisão recentes; `gh api repos/<owner>/<repo>/compare/<from>...<to>` para um PR com revisão solicitada novamente; e `gh auth token -u <githubUser>` quando `githubUser` está definido. Para a aba Atividade, roda `gh api notifications` e, ao tocar em `Concluir` ou `Cancelar inscrição`, `gh api -X DELETE notifications/threads/<id>` (antes também `/subscription` ao cancelar a inscrição). O mod não faz nenhuma outra chamada de rede por conta própria.
 - **Executa o `git`** na pasta da sessão a cada 30 segundos: `git branch --show-current` e `git remote -v`, para achar uma sessão no branch do seu PR, e `git rev-parse --path-format=absolute --git-common-dir`, para lembrar a pasta principal desse repositório.
 - **Consulta o Claude** (o modelo `sonnet`) para cada resumo, enviando o nome do repositório do PR, o título, a descrição (os primeiros 12.000 caracteres), os caminhos dos arquivos alterados (até 80) e o tamanho; para um PR com revisão solicitada novamente, também a primeira linha de cada mensagem de commit e até 60 caminhos de arquivo desde a sua última revisão. Isso conta no seu uso do Claude Code. Cada PR é resumido uma vez por commit de head e por idioma; um resumo que falha é tentado no máximo três vezes por commit. Uma vez por semana, ele também envia os seus próprios comentários de revisão em até 30 PRs que você revisou recentemente, cada um cortado em 500 caracteres, no máximo 60 comentários e 12.000 caracteres no total, para descrever o seu estilo de revisão; com menos de cinco, nada é enviado.
 - **Grava arquivos** apenas na própria pasta de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` substitui `~/.claude` quando está definido). `inbox-<hash>.json` guarda as listas e os resumos; `hidden-<hash>.json` guarda os PRs ocultos; `notes-<hash>.json` guarda suas notas e adiamentos, um arquivo por conta e escopo, qualquer que seja o idioma; `sessions.json` guarda a pasta, o branch, os remotos do GitHub e os links de PR dos prompts de cada sessão ativa, um para todas as contas; `repos.json` guarda a pasta principal de cada repositório do GitHub em que uma sessão foi aberta, para os botões de próximo passo; `style-<hash>.json` guarda a descrição do seu estilo de revisão. Cada arquivo é gravado primeiro em um temporário ao lado e movido para o lugar com `mv`, assim nenhuma sessão lê um arquivo pela metade; onde não há `mv`, como no Windows, ele é gravado diretamente. Lê `actions.json` ali, se você criou um, e nunca o escreve.
@@ -217,6 +225,7 @@ Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cart
 
 - No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 100 issues atribuídas e 100 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro. Quando uma lista tem mais que isso, a contagem aparece como `100+`. Cada lista é lida de 25 em 25, e uma página em que o GitHub estoura o tempo é pedida de novo com metade do tamanho, então uma conta com muitos PRs fica dentro do limite de tempo do GitHub.
 - Um grupo de busca mostra os 20 resultados atualizados mais recentemente; a contagem é o total que o GitHub dá para a busca.
+- A aba Atividade lê até 100 notificações dos últimos 30 dias e não consulta com mais frequência do que o intervalo do GitHub permite.
 - Uma referência a um item em que você não mexe há 60 dias passa despercebida.
 - `Nova revisão` some com qualquer novo commit no PR, inclusive um feito pelo botão "Update branch" do GitHub ou por um bot.
 - Depois de um force-push que reescreveu o commit que você revisou, um PR com revisão solicitada novamente não mostra a linha "Desde a minha última revisão".
