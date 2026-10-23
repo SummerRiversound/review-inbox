@@ -36,8 +36,41 @@ export function remember(repos: RepoPaths, remotes: string[], path: string, now:
   return { ...repos, ...Object.fromEntries(remotes.map(repo => [repo, { path, at: now }])) }
 }
 
-export function placeOf(repo: string, self: Presence | undefined, repos: RepoPaths): Place {
+// A folder the repoPaths option names comes first, as the person set it on purpose.
+export function placeOf(repo: string, self: Presence | undefined, repos: RepoPaths, mapped?: string): Place {
+  if (mapped) return { kind: 'folder', path: mapped }
   if (self?.remotes.includes(repo)) return { kind: 'here' }
   const known = repos[repo]
   return known ? { kind: 'folder', path: known.path } : { kind: 'unknown' }
 }
+
+// The repoPaths option: `owner/repo=path` or `owner/*=path/*`, comma-separated, as gh-dash's repoPaths.
+export function parseRepoPaths(text: string): Record<string, string> {
+  return Object.fromEntries(
+    text.split(',').flatMap(entry => {
+      const at = entry.indexOf('=')
+      const [repo, path] = [entry.slice(0, at).trim(), entry.slice(at + 1).trim()]
+      return at > 0 && path && /^[^/\s]+\/[^/\s]+$/.test(repo) ? [[repo.toLowerCase(), path]] : []
+    }),
+  )
+}
+
+// An exact name wins over its owner's wildcard; `*` in the path is the repository's name and a leading ~ is home.
+export function mappedPath(repo: string, paths: Record<string, string>, home: string): string | undefined {
+  const [owner = '', name = ''] = repo.toLowerCase().split('/')
+  const path = paths[repo.toLowerCase()] ?? paths[`${owner}/*`]?.replaceAll('*', repo.split('/')[1] ?? name)
+  return path?.replace(/^~(?=$|[\\/])/, home)
+}
+
+// What gh itself treats as the current repository: GH_REPO ([HOST/]OWNER/REPO) when set, else the folder's remotes.
+export function thisRepos(self: Presence | undefined, ghRepo: string | undefined): string[] {
+  const parts = (ghRepo ?? '').trim().split('/').filter(Boolean)
+  return parts.length >= 2 ? [parts.slice(-2).join('/')] : (self?.remotes ?? [])
+}
+
+export const isHere = (repo: string, here: string[]) => here.some(r => r.toLowerCase() === repo.toLowerCase())
+
+export const hereFirst = <T extends { repo: string }>(cards: T[], here: string[]) => [
+  ...cards.filter(c => isHere(c.repo, here)),
+  ...cards.filter(c => !isHere(c.repo, here)),
+]

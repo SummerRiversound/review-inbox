@@ -6,7 +6,7 @@
 
 Eine Mod für [Claude Code](https://claude.com/claude-code), die Ihre GitHub-Arbeit beim Programmieren sichtbar hält: Pull Requests, die auf Ihr Review warten – jeder in verständlicher Sprache zusammengefasst, bevor Sie ihn öffnen –, Ihre eigenen offenen PRs mit den Reviews, die sie erhalten, und die Issues, in die Sie einbezogen werden.
 
-- **Leiste über dem Prompt** – eine Zeile, die nur zählt, was Ihr Zutun erfordert: PRs, die auf Ihr Review warten, Ihre PRs, bei denen etwas zu tun ist, und Issues, die Ihnen zugewiesen sind oder Sie erwähnen. Ihre Farbe zeigt, wie lange die älteste Review-Anfrage schon wartet (gelb ab 3 Tagen, rot ab 14). `Öffnen` öffnet das Panel.
+- **Leiste über dem Prompt** – eine Zeile, die nur zählt, was Ihr Zutun erfordert: PRs, die auf Ihr Review warten, Ihre PRs, bei denen etwas zu tun ist, und Issues, die Ihnen zugewiesen sind oder Sie erwähnen. Ihre Farbe zeigt, wie lange die älteste Review-Anfrage schon wartet (gelb ab 3 Tagen, rot ab 14). `Öffnen` öffnet das Panel. Sinkt eine Zahl, wird sie kurz grün.
 - **Panel „Review-Posteingang“** – `/review-inbox`, mit drei Tabs: Zu reviewen, Meine PRs und Meine Issues.
 - **Benachrichtigungen** – ein kurzer Hinweis, wenn während der Arbeit etwas Neues eintrifft.
 
@@ -23,6 +23,12 @@ Jeder Tab fasst seine Karten nach Kategorien zusammen. Ein Druck auf die Übersc
 Das Suchfeld oben durchsucht alle Tabs auf einmal: Repository, Nummer, Titel, Autor, die ersten 2.000 Zeichen der Beschreibung, die Zusammenfassung und Ihre Notizen. Ausgeblendete und zurückgestellte Karten werden ebenfalls gefunden und als `ausgeblendet` markiert. Leeren Sie das Feld, um zu den Tabs zurückzukehren. Die mobile Claude-App zeichnet noch keine Textfelder; dort werden Notizen angezeigt, aber Suche und `Notiz` fehlen.
 
 Karten, an denen eine Sitzung arbeitet, sammeln sich oben in Zu reviewen und Meine PRs unter `In Arbeit in einer Sitzung`, mit dem Ordnernamen der Sitzung oder `diese Sitzung`. Ihr PR landet dort, wenn der Ordner einer Sitzung seinen Branch in seinem Repository ausgecheckt hat; jede Karte landet dort, sobald ein Prompt dieser Sitzung auf sie verlinkt, wie es `Reviewen` tut. Wird eine Sitzung geschlossen oder meldet sie sich 10 Minuten lang nicht, kehren ihre Karten in ihre Gruppen zurück.
+
+Karten aus dem Repository dieser Sitzung stehen in jeder Gruppe vorn, markiert mit `dieses Repository`. Enthalten die Tabs auch andere Repositorys, schränken `Dieses Repository N` und `Alle N` über den Tabs sie auf dieses Repository ein oder zeigen wieder alles; die Leiste zählt immer alles. Das Repository dieser Sitzung ist wie bei `gh` das, das `GH_REPO` nennt, sonst das der GitHub-Remotes des Ordners.
+
+Unter dem Titel zeigt eine Karte bis zu zwei Labels und wie viele es noch gibt, die Zahl der Kommentare und bei einem PR `→ Branch`, wenn er nicht auf den Standard-Branch des Repositorys zielt.
+
+Wenn nichts Ihr Zutun erfordert (keine Review-Anfrage, kein PR mit etwas zu tun, kein Issue, das Ihnen zugewiesen ist oder Sie erwähnt), zeigt das Panel über den Tabs `✓ Nichts wartet auf Sie`, und die Leiste bleibt verborgen.
 
 ### Zu reviewen
 
@@ -63,6 +69,8 @@ Ein Ihnen zugewiesenes Issue hat eine Schaltfläche `Daran arbeiten`, die genaus
 
 Benachrichtigt wird bei einer neuen Review-Anfrage, einem neuen Review zu einem Ihrer PRs, wenn einer Ihrer PRs zu „Änderungen angefordert“, „CI fehlgeschlagen“ oder „Mergekonflikt“ wechselt, sowie bei einer neuen Zuweisung, Erwähnung oder einem neuen Verweis. Wenn eine Sitzung die Listen zum ersten Mal liest, wird nichts gemeldet. Treffen mehrere gleichzeitig ein, erscheinen sie nacheinander im Abstand von viereinhalb Sekunden.
 
+Wird Ihr PR genehmigt und läuft keine CI mehr, erscheint einmal `Bereit zum Mergen`.
+
 ![Drei Benachrichtigungen nacheinander unter dem Prompt: eine neue Review-Anfrage, Änderungen angefordert an Ihrem PR und eine neue Erwähnung](docs/images/en/toasts.gif)
 
 ## Voraussetzungen
@@ -101,6 +109,9 @@ Die Optionen werden auf dem Installationsbildschirm gesetzt und lassen sich spä
 | `scope` | leer | GitHub-Suchqualifizierer, die an jede Suche angehängt werden (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Leer bedeutet: ganz GitHub. |
 | `githubUser` | leer | Das `gh`-Konto, das verwendet wird, wenn mehrere angemeldet sind (`gh auth token -u <user>`). Leer verwendet das aktive Konto. |
 | `language` | `auto` | `auto` oder einer der Codes unter [Sprache](#sprache). |
+| `refreshMinutes` | `10` | Minuten zwischen zwei Abrufen von GitHub: 5, 10, 15, 30 oder 60. Alle Sitzungen teilen sich einen Abruf. |
+| `repoPaths` | leer | Wo Claude für die Schaltflächen zum nächsten Schritt an jedem Repository arbeitet. Siehe unten. |
+| `motion` | `auto` | `off` schaltet das Aufleuchten der Zahlen in der Leiste ab. `auto` schaltet es ebenfalls ab, wenn die Einstellung für reduzierte Bewegung von Claude Code (`prefersReducedMotion`) an ist. |
 
 `scope` akzeptiert alles, was die [Issue- und PR-Suche](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) von GitHub akzeptiert:
 
@@ -113,6 +124,13 @@ user:my-username
 ```
 
 Wiederholte Qualifizierer `org:`, `repo:` und `user:` treffen zu, sobald einer von ihnen passt. Eine Team-Review-Anfrage zählt als Anfrage an Sie, so wie GitHubs `review-requested:@me` es definiert.
+
+`repoPaths` nimmt durch Kommas getrennte Einträge `owner/repo=Pfad`. `owner/*=Pfad/*` gilt für alle Repositorys eines Owners, wobei `*` im Pfad für den Namen des Repositorys steht; ein genauer Name hat Vorrang vor einem Platzhalter, und `~` ist Ihr Home-Ordner. Ein hier genannter Ordner hat Vorrang vor dem Ordner der Sitzung und den Ordnern, die sich die Mod gemerkt hat.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Sprache
 
@@ -147,8 +165,8 @@ Die Mod greift nur über Ihr eigenes `gh` auf GitHub zu, sendet PR-Texte an Clau
 - **Führt `git` aus** im Ordner der Sitzung, alle 30 Sekunden: `git branch --show-current` und `git remote -v`, um eine Sitzung auf dem Branch Ihres PRs zu finden, und `git rev-parse --path-format=absolute --git-common-dir`, um sich den Hauptordner dieses Repositorys zu merken.
 - **Fragt Claude** (Modell `sonnet`) nach jeder Zusammenfassung und sendet dabei Repository-Namen, Titel, Beschreibung (die ersten 12.000 Zeichen), geänderte Dateipfade (bis zu 80) und Größe eines PRs; bei einem erneut angefragten PR außerdem die erste Zeile jeder Commit-Nachricht und bis zu 60 Dateipfade seit Ihrem letzten Review. Das wird auf Ihre Nutzung von Claude Code angerechnet. Jeder PR wird pro Head-Commit und Sprache einmal zusammengefasst; eine fehlgeschlagene Zusammenfassung wird pro Commit höchstens dreimal versucht. Einmal pro Woche sendet die Mod außerdem Ihre eigenen Review-Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben – jeder auf 500 Zeichen gekürzt, höchstens 60 davon und insgesamt 12.000 Zeichen –, um Ihren Review-Stil zu beschreiben; bei weniger als fünf wird nichts gesendet.
 - **Schreibt Dateien** nur in ihren Cache-Ordner, `~/.claude/plugins/data/review-inbox` (ist `CLAUDE_CONFIG_DIR` gesetzt, tritt es an die Stelle von `~/.claude`). `inbox-<hash>.json` enthält die Listen und Zusammenfassungen, `hidden-<hash>.json` die ausgeblendeten PRs, `notes-<hash>.json` Ihre Notizen und Zurückstellungen (eine Datei pro Konto und Bereich, unabhängig von der Sprache), `sessions.json` Ordner, Branch, GitHub-Remotes und die PR-Links aus den Prompts jeder laufenden Sitzung (eine Datei für alle Konten), `repos.json` den Hauptordner jedes GitHub-Repositorys, in dem eine Sitzung lief (für die Schaltflächen zum nächsten Schritt) und `style-<hash>.json` die Beschreibung Ihres Review-Stils. Jede Datei wird zuerst daneben geschrieben und dann mit `mv` an ihren Platz verschoben, sodass keine Sitzung eine halb geschriebene Datei liest; wo es kein `mv` gibt, etwa unter Windows, wird sie direkt geschrieben.
-- **Liest Umgebungsvariablen**: `CLAUDE_CONFIG_DIR`, `HOME` und `USERPROFILE`, um diesen Ordner zu finden; `LC_ALL`, `LC_MESSAGES` und `LANG` nur, wenn `language` auf `auto` steht. Sie setzt keine.
-- **Liest Einstellungen von Claude Code** nur, wenn `language` auf `auto` steht, und verwendet nur den Schlüssel `language`.
+- **Liest Umgebungsvariablen**: `CLAUDE_CONFIG_DIR`, `HOME` und `USERPROFILE`, um diesen Ordner zu finden; `GH_REPO`, um wie `gh` das Repository dieser Sitzung zu kennen; `LC_ALL`, `LC_MESSAGES` und `LANG` nur, wenn `language` auf `auto` steht. Sie setzt keine.
+- **Liest Einstellungen von Claude Code**: den Schlüssel `language` nur, wenn `language` auf `auto` steht, und den Schlüssel `prefersReducedMotion` nur, wenn `motion` auf `auto` steht.
 - **Liest und befüllt Ihren Prompt** nur rund um das Panel: Beim Öffnen des Panels liest sie den bereits eingegebenen Text, um die PRs zu markieren, für die er schon eine Anfrage enthält, und beim Schließen fügt sie die Anfragen für die von Ihnen hinzugefügten PRs in neuen Zeilen nach diesem Text an.
 
 ## Funktionsweise
@@ -158,6 +176,8 @@ Alle Ihre offenen Sitzungen teilen sich einen Abruf: Eine Sitzung fragt GitHub h
 Jede offene Sitzung von Claude Code führt die Mod aus, doch alle teilen sich eine Cache-Datei pro Konto, Scope und Sprache; dasselbe gilt für ausgeblendete PRs. Jede Sitzung liest diese Datei alle 30 Sekunden. Nur die Sitzung, die sie älter als 10 Minuten vorfindet und sich eine kurzzeitige Sperre sichert, ruft GitHub ab – zehn offene Sitzungen erzeugen also eine einzige Anfrage. Die abrufende Sitzung erneuert ihre Sperre, solange sie arbeitet; eine Sperre, die 3 Minuten lang nicht erneuert wurde, wird übernommen. Ein fehlgeschlagener Abruf behält die letzten gültigen Listen und wird nach einer Minute wiederholt. `↻` im Panel ruft sofort ab.
 
 Eine einzige GraphQL-Suche liefert alle PRs, die auf Ihr Review warten, samt allem, was die Karten brauchen; eine weitere Anfrage mit drei Suchen füllt Meine PRs und Meine Issues. Verweise stammen aus den Cross-Reference-Ereignissen der PRs und Issues, die Sie erstellt haben. GitHub aktualisiert `updatedAt` eines Eintrags nicht, wenn etwas auf ihn verweist; daher werden Einträge, an denen sich in den letzten 60 Tagen etwas getan hat, auf Verweise aus den letzten 30 Tagen geprüft, 50 Einträge pro Anfrage. Lehnt GitHub die Verweissuche ab (es gilt ein Ressourcenlimit pro Abfrage), bleiben die letzten Verweise erhalten, und die anderen Tabs werden trotzdem aktualisiert.
+
+`refreshMinutes` ändert diese 10 Minuten.
 
 ## Einschränkungen
 

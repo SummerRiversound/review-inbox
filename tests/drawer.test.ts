@@ -32,10 +32,10 @@ async function opened(
   mine: MyPr[],
   issues: IssueItem[],
   tab: string,
-  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string> } = {},
+  more: { items?: InboxItem[]; sessions?: Record<string, Presence>; files?: Record<string, string>; env?: Record<string, string> } = {},
 ) {
   const clock = mock.clock(on)
-  mock.env(on, { HOME: '/home/me' })
+  mock.env(on, { HOME: '/home/me', ...more.env })
   on('settings.read', async () => ({ value: {} }))
   on('session.start', async () => ({ cwd: '/work' }))
   on('session.id', async () => ({ value: 'self' }))
@@ -221,4 +221,36 @@ test('a session remembers the main checkout of each GitHub repository its folder
     'me/r': '/home/me/code/r',
     'o/r': '/home/me/code/r',
   })
+})
+
+test('when the tabs mix repositories, this session\'s comes first and a button narrows the tab to it', async ($, on) => {
+  const ui = await opened($, on, [{ ...pr(1, 'changes'), repo: 'x/y' }, pr(2, 'changes')], [], 'mine', { env: { GH_REPO: 'o/r' } })
+
+  expect(await shown(ui, /this repo/)).toBe(true)
+  await ui.press({ key: 'scope-here' })
+  expect(await shown(ui, /#1/)).toBe(false)
+  expect(await shown(ui, /#2/)).toBe(true)
+  await ui.press({ key: 'scope-all' })
+  expect(await shown(ui, /#1/)).toBe(true)
+  await ui.unmount()
+})
+
+test('the scope buttons stay away when every card is from this session\'s repository', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'mine', { env: { GH_REPO: 'o/r' } })
+
+  expect(await ui.find({ key: 'scope-here' })).toBeUndefined()
+  expect(await shown(ui, /this repo/)).toBe(false)
+  await ui.unmount()
+})
+
+test('nothing needing me shows the inbox-zero line', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'waiting')], [], 'mine')
+  expect(await shown(ui, /Nothing needs you/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a PR to act on keeps the inbox-zero line away', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
+  expect(await shown(ui, /Nothing needs you/)).toBe(false)
+  await ui.unmount()
 })

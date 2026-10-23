@@ -31,6 +31,26 @@
       "description": "Language of the band, drawer, toasts and summaries; auto follows Claude Code's language setting, then the system locale, then English",
       "options": ["auto", "en", "ko", "ja", "zh-CN", "zh-TW", "es", "pt-BR", "de", "fr"],
       "default": "auto"
+    },
+    "refreshMinutes": {
+      "type": "string",
+      "title": "Refresh interval",
+      "description": "Minutes between fetches from GitHub, shared by every session",
+      "options": ["5", "10", "15", "30", "60"],
+      "default": "10"
+    },
+    "repoPaths": {
+      "type": "string",
+      "title": "Repository folders",
+      "description": "Where Claude works on each repository, comma-separated: owner/repo=~/code/repo or owner/*=~/code/*; wins over the folders the mod remembers",
+      "default": ""
+    },
+    "motion": {
+      "type": "string",
+      "title": "Motion",
+      "description": "auto flashes a band count that goes down unless Claude Code's reduced motion setting is on; off never does",
+      "options": ["auto", "off"],
+      "default": "auto"
     }
   }
 }

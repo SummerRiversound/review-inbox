@@ -6,7 +6,7 @@
 
 Un mod de [Claude Code](https://claude.com/claude-code) que mantiene a la vista tu trabajo en GitHub mientras programas: los pull requests que esperan tu revisión, cada uno resumido en lenguaje sencillo antes de que lo abras; tus propios PR abiertos y las revisiones que reciben, y las incidencias en las que te involucran.
 
-- **Franja sobre el prompt** — una línea que cuenta solo lo que requiere tu atención: PR que esperan tu revisión, tus PR por atender e incidencias asignadas a ti o que te mencionan. Su color indica cuánto lleva esperando la solicitud de revisión más antigua (amarillo a partir de 3 días, rojo a partir de 14). `Abrir` abre la bandeja.
+- **Franja sobre el prompt** — una línea que cuenta solo lo que requiere tu atención: PR que esperan tu revisión, tus PR por atender e incidencias asignadas a ti o que te mencionan. Su color indica cuánto lleva esperando la solicitud de revisión más antigua (amarillo a partir de 3 días, rojo a partir de 14). `Abrir` abre la bandeja. Cuando un número baja, se pone verde un instante.
 - **Bandeja** — `/review-inbox`, con tres pestañas: Por revisar, Mis PR y Mis incidencias.
 - **Avisos** — una notificación breve cuando llega algo nuevo mientras trabajas.
 
@@ -23,6 +23,12 @@ Cada pestaña agrupa sus tarjetas por categoría. Pulsa el encabezado de una cat
 El campo de búsqueda de arriba busca en todas las pestañas a la vez: repositorio, número, título, autor, los primeros 2.000 caracteres de la descripción, el resumen y tus notas. También encuentra las tarjetas ocultas y pospuestas, marcadas como `oculto`. Vacía el campo para volver a las pestañas. La app móvil de Claude todavía no dibuja campos de texto, así que allí muestra las notas pero no tiene búsqueda ni `Nota`.
 
 Las tarjetas en las que trabaja una sesión se agrupan en `En curso en una sesión`, arriba de Por revisar y Mis PR, con el nombre de la carpeta de la sesión o `esta sesión`. Tu PR entra ahí cuando la carpeta de una sesión tiene su rama activa en su repositorio; cualquier tarjeta entra en cuanto un prompt de esa sesión enlaza a ella, como hace `Revisar`. Cuando una sesión se cierra o lleva 10 minutos sin dar señales, sus tarjetas vuelven a sus grupos.
+
+Las tarjetas del repositorio de esta sesión van primero en cada grupo, marcadas con `este repositorio`. Si las pestañas también tienen otros repositorios, `Este repositorio N` y `Todos N`, encima de las pestañas, las limitan a este repositorio o vuelven a mostrarlo todo; la barra siempre cuenta todo. El repositorio de esta sesión es, como para `gh`, el que indica `GH_REPO`, o si no, el de los remotos de GitHub de la carpeta.
+
+Bajo el título, una tarjeta muestra hasta dos etiquetas y cuántas más hay, su número de comentarios y, en un PR, `→ rama` cuando apunta a una rama que no es la predeterminada del repositorio.
+
+Cuando nada te necesita (ninguna solicitud de revisión, ningún PR tuyo con algo que hacer, ninguna incidencia asignada a ti o que te mencione), la bandeja muestra `✓ Nada te necesita ahora` encima de las pestañas, y la barra sigue oculta.
 
 ### Por revisar
 
@@ -63,6 +69,8 @@ Una incidencia asignada a ti tiene un botón `Trabajar en esto` que funciona igu
 
 Avisan de una nueva solicitud de revisión, una nueva revisión en uno de tus PR, uno de tus PR que pasa a cambios solicitados, CI con errores o conflicto de fusión, y una nueva asignación, mención o referencia. La primera consulta de una sesión no anuncia nada. Si llegan varios a la vez, se muestran uno tras otro, con cuatro segundos y medio de separación.
 
+Cuando tu PR queda aprobado y no hay CI en marcha, aparece `Listo para merge` una vez.
+
 ![Tres avisos seguidos bajo el prompt: una nueva solicitud de revisión, cambios solicitados en tu PR y una nueva mención](docs/images/en/toasts.gif)
 
 ## Requisitos
@@ -101,6 +109,9 @@ Se definen en la pantalla de instalación; puedes cambiarlas después en `/confi
 | `scope` | vacío | Calificadores de búsqueda de GitHub que se añaden a todas las búsquedas (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vacío significa todo GitHub. |
 | `githubUser` | vacío | La cuenta de `gh` que se usa cuando hay varias con la sesión iniciada (`gh auth token -u <user>`). Si está vacío, se usa la cuenta activa. |
 | `language` | `auto` | `auto` o uno de los códigos de [Idioma](#idioma). |
+| `refreshMinutes` | `10` | Minutos entre una consulta a GitHub y la siguiente: 5, 10, 15, 30 o 60. Todas las sesiones comparten una consulta. |
+| `repoPaths` | vacío | Dónde trabaja Claude en cada repositorio, para los botones del siguiente paso. Ver abajo. |
+| `motion` | `auto` | `off` quita el destello de los números de la barra. `auto` también lo quita cuando el ajuste de movimiento reducido de Claude Code (`prefersReducedMotion`) está activado. |
 
 `scope` admite todo lo que acepte la [búsqueda de incidencias y PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub:
 
@@ -113,6 +124,13 @@ user:my-username
 ```
 
 Si repites los calificadores `org:`, `repo:` y `user:`, basta con que coincida cualquiera de ellos. Una solicitud de revisión a un equipo cuenta como una solicitud para ti, tal como lo define `review-requested:@me` de GitHub.
+
+`repoPaths` admite entradas `owner/repo=ruta` separadas por comas. `owner/*=ruta/*` abarca todos los repositorios de un owner, y el `*` de la ruta es el nombre del repositorio; un nombre exacto gana sobre un comodín, y `~` es tu carpeta personal. Una carpeta indicada aquí gana sobre la carpeta de la propia sesión y las que recuerda el mod.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Idioma
 
@@ -147,8 +165,8 @@ El mod accede a GitHub solo a través de tu propio `gh`, envía a Claude el text
 - **Ejecuta `git`** en la carpeta de la sesión cada 30 segundos: `git branch --show-current` y `git remote -v`, para encontrar una sesión en la rama de tu PR, y `git rev-parse --path-format=absolute --git-common-dir`, para recordar la carpeta principal de ese repositorio.
 - **Consulta a Claude** (el modelo `sonnet`) para cada resumen y le envía el nombre del repositorio del PR, el título, la descripción (los primeros 12 000 caracteres), las rutas de los archivos modificados (hasta 80) y el tamaño; para un PR con revisión solicitada de nuevo, también la primera línea de cada mensaje de commit y hasta 60 rutas de archivo desde tu última revisión. Esto cuenta para tu uso de Claude Code. Cada PR se resume una vez por commit head e idioma; un resumen que falla se intenta como máximo tres veces por commit. Una vez por semana también envía tus propios comentarios de revisión en hasta 30 PR que revisaste recientemente, cada uno recortado a 500 caracteres, con un máximo de 60 comentarios y 12 000 caracteres en total, para describir tu estilo de revisión; si hay menos de cinco, no se envía nada.
 - **Escribe archivos** solo en su carpeta de caché, `~/.claude/plugins/data/review-inbox` (si `CLAUDE_CONFIG_DIR` está definida, ocupa el lugar de `~/.claude`). `inbox-<hash>.json` guarda las listas y los resúmenes; `hidden-<hash>.json`, los PR ocultos; `notes-<hash>.json`, tus notas y lo pospuesto, un archivo por cuenta y alcance sea cual sea el idioma; `sessions.json`, la carpeta, la rama, los remotos de GitHub y los enlaces a PR de los prompts de cada sesión activa, uno para todas las cuentas; `repos.json`, la carpeta principal de cada repositorio de GitHub en el que se abrió una sesión, para los botones del siguiente paso; `style-<hash>.json`, la descripción de tu estilo de revisión. Cada archivo se escribe primero en uno temporal a su lado y se mueve a su sitio con `mv`, así ninguna sesión lee un archivo a medio escribir; donde no hay `mv`, como en Windows, se escribe directamente.
-- **Lee variables de entorno**: `CLAUDE_CONFIG_DIR`, `HOME` y `USERPROFILE` para encontrar esa carpeta; `LC_ALL`, `LC_MESSAGES` y `LANG` solo cuando `language` es `auto`. No define ninguna.
-- **Lee la configuración de Claude Code** solo cuando `language` es `auto`, y únicamente usa la clave `language`.
+- **Lee variables de entorno**: `CLAUDE_CONFIG_DIR`, `HOME` y `USERPROFILE` para encontrar esa carpeta; `GH_REPO` para saber, como `gh`, el repositorio de esta sesión; `LC_ALL`, `LC_MESSAGES` y `LANG` solo cuando `language` es `auto`. No define ninguna.
+- **Lee los ajustes de Claude Code**: la clave `language` solo cuando `language` es `auto`, y la clave `prefersReducedMotion` solo cuando `motion` es `auto`.
 - **Lee y rellena tu prompt** solo en torno a la bandeja: lee el texto del prompt cuando se abre la bandeja, para marcar los PR que ya pide, y cuando se cierra añade las solicitudes de los PR que añadiste, en líneas nuevas después de ese texto.
 
 ## Cómo funciona
@@ -158,6 +176,8 @@ Todas tus sesiones abiertas comparten una misma consulta: una sola sesión pregu
 Cada sesión abierta de Claude Code ejecuta el mod, pero todas comparten un único archivo de caché por cuenta, ámbito (scope) e idioma, y lo mismo ocurre con los PR ocultos. Cada sesión lo lee cada 30 segundos. Solo llama a GitHub la sesión que lo encuentra con más de 10 minutos de antigüedad y gana una breve reserva, de modo que diez sesiones abiertas hacen una sola petición. La sesión que consulta renueva su reserva mientras trabaja; si una reserva pasa 3 minutos sin renovarse, otra sesión la toma. Si una consulta falla, se conservan las últimas listas válidas y se reintenta al cabo de un minuto. `↻` en la bandeja consulta al instante.
 
 Una búsqueda GraphQL devuelve todos los PR que esperan tu revisión con lo que necesitan las tarjetas, y otra petición con tres búsquedas llena Mis PR y Mis incidencias. Las referencias salen de los eventos de referencia cruzada de los PR e incidencias que creaste. GitHub no actualiza el `updatedAt` de un elemento cuando algo hace referencia a él, así que en los elementos con actividad en los últimos 60 días se buscan referencias hechas en los últimos 30, a razón de 50 elementos por petición. Si GitHub rechaza la búsqueda de referencias (tiene un límite de recursos por consulta), se conservan las últimas referencias y las demás pestañas se siguen actualizando.
+
+`refreshMinutes` cambia esos 10 minutos.
 
 ## Límites
 

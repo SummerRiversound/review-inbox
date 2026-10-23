@@ -45,6 +45,8 @@ export const ptBR: Messages = {
     at: (path: string) => `em ${path}`,
     noClone: 'sem clone local',
     ciRunning: ' · CI em execução',
+    thisRepo: 'este repositório',
+    comments: (n: number) => count(n, 'comentário'),
     newReview: (who: string) => `Nova revisão · ${who}`,
     referenced: (by: string, target: string) => `${by} referenciou ${target}`,
   },
@@ -68,11 +70,14 @@ export const ptBR: Messages = {
     firstFetch: 'Buscando dados no GitHub. Na primeira vez, isso leva cerca de um minuto.',
   },
   empty: {
+    zero: '✓ Nada precisa de você agora',
     review: 'Nenhum PR está aguardando sua revisão.',
     mine: 'Você não tem PRs abertos.',
     issues: 'Não há issues atribuídas a você ou que mencionem você.',
   },
   sections: {
+    here: (n: number) => `Este repositório ${n}`,
+    all: (n: number) => `Todos ${n}`,
     session: n => `Em andamento em uma sessão ${n}`,
     hidden: (n: number) => `${count(n, 'oculto')} · mostrar todos`,
     direct: (n: number) => `Solicitações diretas ${n}`,
@@ -114,6 +119,7 @@ export const ptBR: Messages = {
     retry: 'Tente novamente em instantes.',
   },
   alert: {
+    ready: 'Pronto para merge',
     turned: (state: string) => `Meu PR: ${state}`,
     reviewed: 'Nova revisão no meu PR',
     by: (who: string) => `nova revisão de ${who}`,

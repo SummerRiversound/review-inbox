@@ -4,7 +4,7 @@ import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -241,4 +241,23 @@ test('a task request names the PR, its next step and where to work, and a PR the
   expect(text).toContain(m.prompt.here)
 
   expect(taskPrompts('Look at https://github.com/o/r/pull/1', [conflict], m)).toBe('')
+})
+
+test('my PR turning approved with no CI running is announced once as ready to merge, never on the first look', async () => {
+  const before = [myPr('waiting', 'a'), { ...myPr('approved', 'b'), ciPending: true }]
+  const after = [{ ...myPr('approved', 'a'), number: 5 }, myPr('approved', 'b')]
+  expect(prAlerts(undefined, after)).toEqual([])
+  const alerts = prAlerts(prSeenKeys(before), after)
+  expect(alerts.map(a => [a.pr.url, a.ready])).toEqual([['a', true], ['b', true]])
+  expect(prAlertText(alerts[0]!, MESSAGES.en)).toBe('Ready to merge · o/r #5')
+  expect(prAlerts(prSeenKeys(after), after)).toEqual([])
+  // CI finishing alone, on a PR not yet approved, is not news.
+  expect(prAlerts(prSeenKeys([{ ...myPr('waiting', 'c'), ciPending: true }]), [myPr('waiting', 'c')])).toEqual([])
+})
+
+test('a band count that goes down is picked out, one that rises, holds or reaches zero is not', async () => {
+  const before = { reviews: 3, prTodo: 2, issues: 1 }
+  expect(droppedCounts(undefined, before)).toEqual([])
+  expect(droppedCounts(before, { reviews: 2, prTodo: 2, issues: 0 })).toEqual(['reviews'])
+  expect(droppedCounts(before, { reviews: 4, prTodo: 1, issues: 1 })).toEqual(['prTodo'])
 })

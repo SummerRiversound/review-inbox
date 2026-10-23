@@ -8,6 +8,7 @@ import {
   INBOX_QUERY,
   RETRY_MS,
   ageColor,
+  detailsText,
   failedSummary,
   hasRequest,
   isHidden,
@@ -35,7 +36,7 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
-import { liveSessions, mainCheckout, placeOf, remember, repoOf, workingOn } from './sessions'
+import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from './sessions'
 import type { Place } from './sessions'
 import type { Language, Messages } from './i18n'
 import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
@@ -49,6 +50,7 @@ import {
   atLeast,
   bandCounts,
   bandLabels,
+  droppedCounts,
   isIssueHidden,
   isPrHidden,
   issueAlerts,
@@ -70,7 +72,7 @@ import {
   toMyPrs,
   toReferences,
 } from './tabs'
-import type { GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
+import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
 
 const PANE = 'review-inbox'
 // Reading the shared file is a local disk read, so every session can afford it often.
@@ -99,10 +101,20 @@ const repos = atom({ plugin: 'review-inbox', key: 'repos' } as const, {} as Repo
 // PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
 const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
+const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, false)
+const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
 
-type Options = { scope?: string; githubUser?: string; language?: string }
+type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string }
 
-let config = { scope: '', githubUser: '', language: 'en' as Language }
+// A band count that goes down shows in the success color this long; no tween, nothing moves.
+const FLASH_MS = 250
+
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto' }
+// Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
+let isStill = false
+let lastBand: BandCounts | undefined
+// GH_REPO, which gh itself treats as the current repository.
+let ghRepo: string | undefined
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -411,7 +423,7 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
 async function sync($: EngineInterface, force = false) {
   const file = await readJson<InboxFile>($, inboxFile(), { items: [] })
   if (file === undefined) return
-  if (isFetching || !shouldFetch(file, Date.now(), force)) return show($, file)
+  if (isFetching || !shouldFetch(file, Date.now(), force, config.refreshMs)) return show($, file)
 
   isFetching = true
   try {
@@ -505,6 +517,23 @@ async function show($: EngineInterface, file: InboxFile) {
       toast($, [m.toast.back, c.name, notesNow[c.key]?.text].filter(Boolean).join(' · '))
     }
   }
+  await flashDrops($)
+}
+
+// What the band counts, after hides and snoozes: compared with the last count to flash a drop.
+async function bandNow($: EngineInterface): Promise<BandCounts> {
+  const away = awayTests(await read($, hidden), await read($, notes), Date.now())
+  const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
+  return bandCounts(reviews.length, (await read($, mine)).filter(pr => !away.pr(pr)), (await read($, issues)).filter(i => !away.issue(i)))
+}
+
+async function flashDrops($: EngineInterface) {
+  const counts = await bandNow($)
+  const drops = droppedCounts(lastBand, counts)
+  lastBand = counts
+  if (isStill || drops.length === 0) return
+  await update($, dropped, () => drops)
+  $.clock.after(FLASH_MS, () => void update($, dropped, () => []))
 }
 
 async function openDrawer($: EngineInterface) {
@@ -545,7 +574,7 @@ async function pickable($: EngineInterface): Promise<Pickable[]> {
 
 // This session's folder when it holds the repository, else the one remembered for it while that folder is still there.
 async function placeFor($: EngineInterface, repo: string): Promise<Place> {
-  const place = placeOf(repo, (await read($, sessions))[selfId], await read($, repos))
+  const place = placeOf(repo, (await read($, sessions))[selfId], await read($, repos), mappedPath(repo, config.repoPaths, home))
   return place.kind === 'folder' && !(await $.fs.exists(place.path)) ? { kind: 'unknown' } : place
 }
 
@@ -605,6 +634,7 @@ async function setNotes($: EngineInterface, change: (n: Record<string, Note>) =>
   const next = keptNotes(change(current), await liveKeys($), Date.now())
   await writeJson($, notesFile(), next)
   await update($, notes, () => next)
+  await flashDrops($)
 }
 
 // Saving the text keeps a snooze already set; an empty note with no snooze is no note.
@@ -674,18 +704,31 @@ async function setHidden($: EngineInterface, change: (h: Record<string, string>)
   const next = Object.fromEntries(Object.entries(change(current)).filter(([key]) => live.has(key)))
   await writeJson($, hiddenFile(), next)
   await update($, hidden, () => next)
+  await flashDrops($)
 }
 
 export const register: Register = (on, options) => {
   const opts = options as Options
   languageOption = opts.language
-  config = { scope: (opts.scope ?? '').trim(), githubUser: (opts.githubUser ?? '').trim(), language: 'en' }
+  const minutes = Number(opts.refreshMinutes)
+  config = {
+    scope: (opts.scope ?? '').trim(),
+    githubUser: (opts.githubUser ?? '').trim(),
+    language: 'en',
+    refreshMs: (Number.isFinite(minutes) && minutes >= 5 ? minutes : 10) * 60_000,
+    repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
+    motion: opts.motion === 'off' ? 'off' : 'auto',
+  }
   m = MESSAGES.en
 
   on('session.start', async ($, e, next) => {
     // Before anything is drawn or fetched: the language decides the strings and which shared file is read.
     config.language = await resolveLanguage($)
     m = MESSAGES[config.language]
+    home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
+    ghRepo = await $.env.get('GH_REPO')
+    isStill =
+      config.motion === 'off' || (await $.settings.read({ key: 'prefersReducedMotion' }).then(v => v === true, () => false))
     // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
@@ -745,8 +788,12 @@ export const register: Register = (on, options) => {
     const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
     const prs = (await read($, mine)).filter(pr => !away.pr(pr))
     const issueList = (await read($, issues)).filter(i => !away.issue(i))
-    const counts = bandLabels(bandCounts(reviews.length, prs, issueList), m, await read($, capped))
+    const band = bandCounts(reviews.length, prs, issueList)
+    const counts = bandLabels(band, m, await read($, capped))
     if (counts.length === 0) return next(e)
+    // bandLabels keeps this order and leaves out the same zeros.
+    const keys = (['reviews', 'prTodo', 'issues'] as const).filter(k => band[k] > 0)
+    const flashing = await read($, dropped)
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const now = Date.now()
@@ -756,7 +803,14 @@ export const register: Register = (on, options) => {
       <Box flexDirection="row" justifyContent="space-between">
         <Box flexDirection="row">
           <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
-          <Text bold>{counts.join(' · ')}</Text>
+          <Text bold>
+            {counts.map((label, i) => (
+              <Text key={keys[i]} color={flashing.includes(keys[i]!) ? 'success' : undefined}>
+                {i > 0 ? ' · ' : ''}
+                {label}
+              </Text>
+            ))}
+          </Text>
           {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
         </Box>
         <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
@@ -776,19 +830,28 @@ export const register: Register = (on, options) => {
     const q = rawQuery.trim()
     const editingKey = await read($, editing)
     const everything = await read($, items)
-    const list = everything.filter(i => !away.review(i))
     const state = await read($, status)
-    const ready = list.filter(i => !i.isDraft)
-    const drafts = list.filter(i => i.isDraft)
     const active = await read($, tab)
     const allPrs = await read($, mine)
-    const myPrs = allPrs.filter(pr => !away.pr(pr))
     const allIssues = await read($, issues)
-    const myIssues = allIssues.filter(i => !away.issue(i))
+    const live = liveSessions(await read($, sessions), now)
+    // This session's repositories come first in every group; the scope buttons narrow the tabs to them.
+    const here = thisRepos(live[selfId], ghRepo)
+    const shownReviews = hereFirst(everything.filter(i => !away.review(i)), here)
+    const shownPrs = hereFirst(allPrs.filter(pr => !away.pr(pr)), here)
+    const shownIssues = hereFirst(allIssues.filter(i => !away.issue(i)), here)
+    const allShown = [...shownReviews, ...shownPrs, ...shownIssues]
+    const isMixed = allShown.some(c => isHere(c.repo, here)) && !allShown.every(c => isHere(c.repo, here))
+    const narrow = isMixed && (await read($, onlyHere))
+    const scoped = <T extends { repo: string }>(cards: T[]) => (narrow ? cards.filter(c => isHere(c.repo, here)) : cards)
+    const list = scoped(shownReviews)
+    const ready = list.filter(i => !i.isDraft)
+    const drafts = list.filter(i => i.isDraft)
+    const myPrs = scoped(shownPrs)
+    const myIssues = scoped(shownIssues)
     const cappedTabs = await read($, capped)
     const shut = await read($, collapsed)
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
-    const live = liveSessions(await read($, sessions), now)
     const where = (pr: { repo: string; url: string; branch?: string }) =>
       workingOn(live, pr).map(id => (id === selfId ? m.session.here : live[id]!.folder))
     const sessionLine = (pr: { repo: string; url: string; branch?: string }) => {
@@ -800,7 +863,7 @@ export const register: Register = (on, options) => {
     const taskRow = (card: MyPr | IssueItem, key: string) => {
       const kind = taskOf(card)
       if (!kind) return undefined
-      const place = placeOf(card.repo, live[selfId], repoPaths)
+      const place = placeOf(card.repo, live[selfId], repoPaths, mappedPath(card.repo, config.repoPaths, home))
       const hint =
         place.kind === 'here'
           ? m.card.here
@@ -822,6 +885,19 @@ export const register: Register = (on, options) => {
             onPress={() => void addCard($, key)}
           />
         </Box>
+      )
+    }
+
+    // Only when the tabs mix repositories; on every card it would say nothing.
+    const hereTag = (repo: string) => isMixed && isHere(repo, here) && <Text dimColor> · {m.card.thisRepo}</Text>
+    const detailsLine = (card: Parameters<typeof detailsText>[0]) => {
+      const text = detailsText(card, m)
+      return (
+        text && (
+          <Text dimColor wrap="truncate-end">
+            {text}
+          </Text>
+        )
       )
     }
 
@@ -903,6 +979,7 @@ export const register: Register = (on, options) => {
             <Box flexDirection="row" justifyContent="space-between">
               <Text bold>
                 {item.repo} #{item.number}
+                {hereTag(item.repo)}
                 {item.isRerequest && <Text color="suggestion"> {m.card.rerequest}</Text>}
               </Text>
               <Text dimColor>
@@ -918,6 +995,7 @@ export const register: Register = (on, options) => {
             <Text dimColor wrap="truncate-end">
               <Link href={item.url}>{item.title} ↗</Link>
             </Text>
+            {detailsLine(item)}
 
             {item.sinceLastReview && (
               <Box flexDirection="column" marginTop={1}>
@@ -994,6 +1072,7 @@ export const register: Register = (on, options) => {
           <Box flexDirection="row" justifyContent="space-between">
             <Text bold>
               {pr.repo} #{pr.number}
+              {hereTag(pr.repo)}
             </Text>
             <Text>
               <Text color={stateColor(pr.state)} bold={pr.state !== 'waiting'}>
@@ -1015,6 +1094,7 @@ export const register: Register = (on, options) => {
               onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
             />,
           ])}
+          {detailsLine(pr)}
           {pr.newReviews.length > 0 && (
             <Text color="suggestion" wrap="truncate-end">
               {m.card.newReview(reviewers(pr))}
@@ -1033,6 +1113,7 @@ export const register: Register = (on, options) => {
           <Box flexDirection="row" justifyContent="space-between">
             <Text bold>
               {issue.repo} #{issue.number}
+              {hereTag(issue.repo)}
             </Text>
             <Text dimColor>
               {m.issueKind[issue.kind]} · {m.card.ago(waitingDays(issue.at, now))}
@@ -1048,6 +1129,7 @@ export const register: Register = (on, options) => {
               onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
             />,
           ])}
+          {detailsLine(issue)}
           {issue.kind === 'reference' && (
             <Text dimColor>
               {m.card.referenced(issue.by ?? '', issue.target ?? '')}
@@ -1070,6 +1152,9 @@ export const register: Register = (on, options) => {
             : m.status.updated(minutes)
 
     const direct = myIssues.filter(i => i.kind !== 'reference')
+    const band = bandCounts(shownReviews.filter(i => !i.isDraft).length, shownPrs, shownIssues)
+    const isZero = state.kind === 'ready' && state.updatedAt !== undefined && band.reviews + band.prTodo + band.issues === 0
+    const tabCards: { repo: string }[] = active === 'review' ? shownReviews : active === 'mine' ? shownPrs : shownIssues
     const tabs: { id: Tab; label: string }[] = [
       { id: 'review', label: m.tabs.review(atLeast(ready.length, cappedTabs.review)) },
       { id: 'mine', label: m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)) },
@@ -1186,6 +1271,26 @@ export const register: Register = (on, options) => {
 
         {!found && (
           <Box flexDirection="column">
+            {isZero && (
+              <Box marginTop={1}>
+                <Text color="success">{m.empty.zero}</Text>
+              </Box>
+            )}
+            {isMixed && (
+              <Box flexDirection="row" gap={1} marginTop={1}>
+                {[
+                  { id: 'here', isOn: narrow, label: m.sections.here(tabCards.filter(c => isHere(c.repo, here)).length) },
+                  { id: 'all', isOn: !narrow, label: m.sections.all(tabCards.length) },
+                ].map(s => (
+                  <Button
+                    key={`scope-${s.id}`}
+                    label={s.label}
+                    {...(s.isOn ? { variant: 'primary' as const } : { dimColor: true })}
+                    onPress={() => void update($, onlyHere, () => s.id === 'here')}
+                  />
+                ))}
+              </Box>
+            )}
             <Box flexDirection="row" gap={1} marginY={1}>
               {tabs.map(t => (
                 <Button

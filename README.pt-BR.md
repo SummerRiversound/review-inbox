@@ -6,7 +6,7 @@
 
 Um mod para o [Claude Code](https://claude.com/claude-code) que mantém o seu trabalho no GitHub à vista enquanto você programa: os pull requests aguardando sua revisão, cada um resumido em linguagem simples antes de você abri-lo, os seus próprios PRs abertos e as revisões que eles recebem, e as issues que envolvem você.
 
-- **Barra acima do prompt** — uma linha que conta só o que depende de você: PRs aguardando sua revisão, seus PRs com algo a resolver e issues atribuídas a você ou que mencionam você. A cor indica há quanto tempo a solicitação de revisão mais antiga está esperando (amarelo a partir de 3 dias, vermelho a partir de 14). `Abrir` abre a caixa de revisões.
+- **Barra acima do prompt** — uma linha que conta só o que depende de você: PRs aguardando sua revisão, seus PRs com algo a resolver e issues atribuídas a você ou que mencionam você. A cor indica há quanto tempo a solicitação de revisão mais antiga está esperando (amarelo a partir de 3 dias, vermelho a partir de 14). `Abrir` abre a caixa de revisões. Quando um número cai, ele fica verde por um instante.
 - **Caixa de revisões** — `/review-inbox`, com três abas: Para revisar, Meus PRs e Minhas issues.
 - **Notificações** — um aviso curto quando algo novo chega enquanto você trabalha.
 
@@ -23,6 +23,12 @@ Cada aba agrupa seus cartões por categoria. Pressione o título de uma categori
 O campo de busca no topo procura em todas as abas de uma vez: repositório, número, título, autor, os primeiros 2.000 caracteres da descrição, o resumo e suas notas. Cartões ocultos e adiados também aparecem, marcados como `oculto`. Esvazie o campo para voltar às abas. O app móvel do Claude ainda não desenha campos de texto, então lá ele mostra as notas, mas não tem busca nem `Nota`.
 
 Os cartões em que uma sessão está trabalhando se reúnem em `Em andamento em uma sessão`, no topo de Para revisar e Meus PRs, com o nome da pasta da sessão ou `esta sessão`. Seu PR entra ali quando a pasta de uma sessão está com o branch dele no repositório dele; qualquer cartão entra assim que um prompt dessa sessão tem o link dele, como faz `Revisar`. Quando a sessão é fechada ou fica 10 minutos sem dar sinal, os cartões voltam aos seus grupos.
+
+Os cartões do repositório desta sessão vêm primeiro em cada grupo, marcados com `este repositório`. Quando as abas também têm outros repositórios, `Este repositório N` e `Todos N`, acima das abas, restringem a este repositório ou voltam a mostrar tudo; a faixa sempre conta tudo. O repositório desta sessão é, como para o `gh`, o que `GH_REPO` indica, senão o dos remotos do GitHub da pasta.
+
+Abaixo do título, um cartão mostra até dois rótulos e quantos mais há, o número de comentários e, em um PR, `→ branch` quando ele aponta para um branch que não é o padrão do repositório.
+
+Quando nada precisa de você (nenhum pedido de revisão, nenhum PR seu com algo a fazer, nenhuma issue atribuída a você ou que mencione você), a caixa mostra `✓ Nada precisa de você agora` acima das abas, e a faixa continua escondida.
 
 ### Para revisar
 
@@ -63,6 +69,8 @@ Uma issue atribuída a você tem um botão `Trabalhar nisto` que funciona do mes
 
 Uma nova solicitação de revisão, uma nova revisão em um dos seus PRs, um dos seus PRs passando para alterações solicitadas, CI com falha ou conflito de merge, e uma nova atribuição, menção ou referência. A primeira consulta de uma sessão não anuncia nada. Quando várias chegam ao mesmo tempo, elas aparecem uma depois da outra, com quatro segundos e meio de intervalo.
 
+Quando seu PR é aprovado e não há CI rodando, aparece `Pronto para merge` uma vez.
+
 ![Três notificações em sequência abaixo do prompt: uma nova solicitação de revisão, alterações solicitadas no seu PR e uma nova menção](docs/images/en/toasts.gif)
 
 ## Requisitos
@@ -101,6 +109,9 @@ As opções são definidas na tela de instalação e podem ser alteradas depois 
 | `scope` | vazio | Qualificadores de busca do GitHub acrescentados a todas as buscas (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vazio significa todo o GitHub. |
 | `githubUser` | vazio | A conta do `gh` a usar quando há várias autenticadas (`gh auth token -u <user>`). Vazio usa a conta ativa. |
 | `language` | `auto` | `auto` ou um dos códigos em [Idioma](#idioma). |
+| `refreshMinutes` | `10` | Minutos entre uma busca no GitHub e a seguinte: 5, 10, 15, 30 ou 60. Todas as sessões compartilham uma busca. |
+| `repoPaths` | vazio | Onde o Claude trabalha em cada repositório, para os botões de próximo passo. Veja abaixo. |
+| `motion` | `auto` | `off` tira o destaque dos números da faixa. `auto` também tira quando a configuração de movimento reduzido do Claude Code (`prefersReducedMotion`) está ligada. |
 
 `scope` aceita tudo o que a [busca de issues e PRs](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) do GitHub aceita:
 
@@ -113,6 +124,13 @@ user:my-username
 ```
 
 Qualificadores `org:`, `repo:` e `user:` repetidos correspondem a qualquer um deles. Uma solicitação de revisão à equipe conta como uma solicitação para você, como define o `review-requested:@me` do GitHub.
+
+`repoPaths` aceita entradas `owner/repo=caminho` separadas por vírgulas. `owner/*=caminho/*` vale para todos os repositórios de um owner, com o `*` do caminho sendo o nome do repositório; um nome exato vence um curinga, e `~` é a sua pasta pessoal. Uma pasta indicada aqui vence a pasta da própria sessão e as que o mod lembra.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Idioma
 
@@ -147,8 +165,8 @@ O mod acessa o GitHub só pelo seu próprio `gh`, envia o texto dos PRs ao Claud
 - **Executa o `git`** na pasta da sessão a cada 30 segundos: `git branch --show-current` e `git remote -v`, para achar uma sessão no branch do seu PR, e `git rev-parse --path-format=absolute --git-common-dir`, para lembrar a pasta principal desse repositório.
 - **Consulta o Claude** (o modelo `sonnet`) para cada resumo, enviando o nome do repositório do PR, o título, a descrição (os primeiros 12.000 caracteres), os caminhos dos arquivos alterados (até 80) e o tamanho; para um PR com revisão solicitada novamente, também a primeira linha de cada mensagem de commit e até 60 caminhos de arquivo desde a sua última revisão. Isso conta no seu uso do Claude Code. Cada PR é resumido uma vez por commit de head e por idioma; um resumo que falha é tentado no máximo três vezes por commit. Uma vez por semana, ele também envia os seus próprios comentários de revisão em até 30 PRs que você revisou recentemente, cada um cortado em 500 caracteres, no máximo 60 comentários e 12.000 caracteres no total, para descrever o seu estilo de revisão; com menos de cinco, nada é enviado.
 - **Grava arquivos** apenas na própria pasta de cache, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` substitui `~/.claude` quando está definido). `inbox-<hash>.json` guarda as listas e os resumos; `hidden-<hash>.json` guarda os PRs ocultos; `notes-<hash>.json` guarda suas notas e adiamentos, um arquivo por conta e escopo, qualquer que seja o idioma; `sessions.json` guarda a pasta, o branch, os remotos do GitHub e os links de PR dos prompts de cada sessão ativa, um para todas as contas; `repos.json` guarda a pasta principal de cada repositório do GitHub em que uma sessão foi aberta, para os botões de próximo passo; `style-<hash>.json` guarda a descrição do seu estilo de revisão. Cada arquivo é gravado primeiro em um temporário ao lado e movido para o lugar com `mv`, assim nenhuma sessão lê um arquivo pela metade; onde não há `mv`, como no Windows, ele é gravado diretamente.
-- **Lê variáveis de ambiente**: `CLAUDE_CONFIG_DIR`, `HOME` e `USERPROFILE` para encontrar essa pasta; `LC_ALL`, `LC_MESSAGES` e `LANG` só quando `language` é `auto`. Não define nenhuma.
-- **Lê as configurações do Claude Code** só quando `language` é `auto`, e usa apenas a chave `language`.
+- **Lê variáveis de ambiente**: `CLAUDE_CONFIG_DIR`, `HOME` e `USERPROFILE` para achar essa pasta; `GH_REPO` para saber, como o `gh`, o repositório desta sessão; `LC_ALL`, `LC_MESSAGES` e `LANG` só quando `language` é `auto`. Não define nenhuma.
+- **Lê as configurações do Claude Code**: a chave `language` só quando `language` é `auto`, e a chave `prefersReducedMotion` só quando `motion` é `auto`.
 - **Lê e preenche o seu prompt** só ao abrir e fechar a caixa de revisões: ao abrir, lê o texto que já está no prompt para marcar os PRs que ele já pede; ao fechar, acrescenta os pedidos dos PRs que você adicionou, em novas linhas depois desse texto.
 
 ## Como funciona
@@ -158,6 +176,8 @@ Todas as suas sessões abertas compartilham uma única busca: uma sessão consul
 Toda sessão aberta do Claude Code executa o mod, mas elas compartilham um único arquivo de cache por conta, escopo e idioma, e o mesmo vale para os PRs ocultos. Cada sessão lê esse arquivo a cada 30 segundos. Só a sessão que o encontra com mais de 10 minutos e ganha uma reserva curta chama o GitHub, então dez sessões abertas fazem uma única requisição. A sessão que está buscando renova a reserva enquanto trabalha; uma reserva que não é renovada por 3 minutos é assumida por outra sessão. Uma busca que falha mantém as últimas listas válidas e é repetida depois de um minuto. `↻` na caixa de revisões busca na hora.
 
 Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cartões precisam, e mais uma requisição, com três buscas, preenche Meus PRs e Minhas issues. As referências vêm dos eventos de referência cruzada nos PRs e issues de sua autoria. O GitHub não atualiza o `updatedAt` de um item quando algo o referencia; por isso, os itens atualizados nos últimos 60 dias são verificados em busca de referências feitas nos últimos 30, 50 itens por requisição. Se o GitHub recusar a busca de referências (ele tem um limite de recursos por consulta), as últimas referências são mantidas e as outras abas continuam sendo atualizadas.
+
+`refreshMinutes` muda esses 10 minutos.
 
 ## Limites
 

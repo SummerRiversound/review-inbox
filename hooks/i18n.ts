@@ -53,6 +53,8 @@ const en = {
     at: (path: string) => `in ${path}`,
     noClone: 'no local clone',
     ciRunning: ' · CI running',
+    thisRepo: 'this repo',
+    comments: (n: number) => count(n, 'comment'),
     newReview: (who: string) => `New review · ${who}`,
     referenced: (by: string, target: string) => `${by} referenced my ${target}`,
   },
@@ -76,11 +78,14 @@ const en = {
     firstFetch: 'Fetching from GitHub. The first time takes about a minute.',
   },
   empty: {
+    zero: '✓ Nothing needs you',
     review: 'No PRs are waiting for your review.',
     mine: 'You have no open PRs.',
     issues: 'No issues are assigned to you or mention you.',
   },
   sections: {
+    here: (n: number) => `This repo ${n}`,
+    all: (n: number) => `All ${n}`,
     session: (n: number) => `In progress in a session ${n}`,
     hidden: (n: number) => `${n} hidden · show all`,
     direct: (n: number) => `Direct requests ${n}`,
@@ -121,6 +126,7 @@ const en = {
     retry: 'Try again in a moment.',
   },
   alert: {
+    ready: 'Ready to merge',
     turned: (state: string) => `My PR: ${state}`,
     reviewed: 'New review on my PR',
     by: (who: string) => `new review ${who}`,
