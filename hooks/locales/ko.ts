@@ -113,6 +113,7 @@ export const ko: Messages = {
     hidden: '숨김',
   },
   toast: {
+    away: '자리를 비운 사이',
     back: '미뤄 둔 카드가 돌아왔습니다',
     added: n => `카드 ${n}개 추가됨 · Esc를 누르면 요청이 입력창에 들어갑니다`,
     newRequest: '새 리뷰 요청',

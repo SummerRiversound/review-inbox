@@ -6,7 +6,7 @@ import { MESSAGES } from '../hooks/i18n'
 import { INBOX_QUERY } from '../hooks/inbox'
 import { STYLE_QUERY } from '../hooks/style'
 import {
-  bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, REFERENCES_QUERY, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
+  awayText, bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, REFERENCES_QUERY, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -175,6 +175,17 @@ test('new reviewers are announced once per review, never on the first look', asy
   expect(prAlerts(undefined, later)).toEqual([])
   expect(prAlerts(prSeenKeys(first), later).map(a => [a.pr.url, a.by])).toEqual([['a', 'kim']])
   expect(prAlerts(prSeenKeys(later), later)).toEqual([])
+})
+
+test('what changed while no session was open is one line of counts, each PR counted once', async () => {
+  const before = [myPr('waiting', 'a'), myPr('waiting', 'b'), myPr('waiting', 'c')]
+  const after = [myPr('ci-failing', 'a'), myPr('ci-failing', 'b', [{ by: 'kim', at: '1' }]), myPr('waiting', 'c', [{ by: 'kim', at: '1' }])]
+  const mention = { kind: 'mention', repo: 'o/i', number: 3, title: 'i3', url: 'i3', at: '1' } as IssueItem
+  const { en, ko } = MESSAGES
+  const news = prAlerts(prSeenKeys(before), after)
+  expect(awayText(2, news, [mention], en)).toBe('While you were away · New review request 2 · CI failing 2 · New review on my PR 1 · Mentions me 1')
+  expect(awayText(0, news, [], ko)).toBe('자리를 비운 사이 · CI 실패 2 · 내 PR 새 리뷰 1')
+  expect(awayText(0, [], [], en)).toBe(undefined)
 })
 
 test('a review that also turns my PR to changes requested is one toast, not two', async () => {

@@ -113,6 +113,7 @@ export const zhCN: Messages = {
     hidden: '已隐藏',
   },
   toast: {
+    away: '你离开期间',
     back: '推迟的卡片回来了',
     added: n => `已添加 ${n} 张卡片 · 按 Esc 将请求放入输入框`,
     newRequest: '新的审查请求',

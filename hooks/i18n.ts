@@ -124,6 +124,7 @@ const en = {
     hidden: 'hidden',
   },
   toast: {
+    away: 'While you were away',
     back: 'Back from snooze',
     added: (n: number) => `${count(n, 'card')} added · Esc puts their requests in the prompt`,
     newRequest: 'New review request',

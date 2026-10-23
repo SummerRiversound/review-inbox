@@ -117,6 +117,7 @@ export const ptBR: Messages = {
     hidden: 'oculto',
   },
   toast: {
+    away: 'Enquanto você estava fora',
     back: 'Um cartão adiado voltou',
     added: (n: number) => `${count(n, 'cartão adicionado', 'cartões adicionados')} · Esc coloca os pedidos deles no prompt`,
     newRequest: 'Nova solicitação de revisão',

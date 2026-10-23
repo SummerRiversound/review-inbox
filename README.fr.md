@@ -94,7 +94,7 @@ GitHub ne donne les notifications qu'à la connexion de gh et aux jetons classiq
 
 ### Notifications
 
-Une nouvelle demande de revue, une nouvelle revue sur l'une de vos PR, l'une de vos PR qui passe à l'état modifications demandées, CI en échec ou conflit de fusion, et une nouvelle assignation, mention ou référence. La première consultation d'une session n'annonce rien. Quand plusieurs notifications arrivent en même temps, elles s'affichent l'une après l'autre, à quatre secondes et demie d'intervalle.
+Une nouvelle demande de revue, une nouvelle revue sur l'une de vos PR, l'une de vos PR qui passe à l'état modifications demandées, CI en échec ou conflit de fusion, et une nouvelle assignation, mention ou référence. Une nouvelle session ne les annonce pas une par une : une seule notification résume ce qui a changé depuis le dernier passage d'une session, par exemple `Pendant votre absence · CI en échec 2`, et rien ne s'affiche si rien n'a changé. Quand plusieurs notifications arrivent en même temps, elles s'affichent l'une après l'autre, à quatre secondes et demie d'intervalle.
 
 Quand votre PR est approuvée sans CI en cours, `Prête à merger` s'affiche une fois.
 

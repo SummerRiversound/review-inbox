@@ -90,6 +90,7 @@ import {
   issueHide,
   issueHideKey,
   issueKey,
+  awayText,
   prAlertText,
   prAlerts,
   prHide,
@@ -167,10 +168,13 @@ let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
 let terminalColumns = 160
-// What this session has already shown; undefined until its first look, so a new session stays quiet.
+// What this session has already shown; undefined until its first look, which compares with the last session's instead.
 let shownKeys: string[] | undefined
 let shownPrKeys: string[] | undefined
 let shownIssueKeys: string[] | undefined
+// What any session last saw, shared through shownFile, and what this one last wrote there.
+type Shown = { reviews?: string[]; prs?: string[]; issues?: string[] }
+let shownWritten = ''
 let shownSnoozed: string[] | undefined
 // What the open note field holds; a button beside it saves this.
 let draft = ''
@@ -231,6 +235,8 @@ const hiddenFile = () => `hidden-${cacheKey(config.githubUser, config.scope, con
 const notesFile = () => `notes-${cacheKey(config.githubUser, config.scope)}.json`
 // Not keyed by language either: the last close of the drawer is the same whatever it was drawn in.
 const seenFile = () => `seen-${cacheKey(config.githubUser, config.scope)}.json`
+// Card keys carry no language, so the news a session announced holds whatever the language.
+const shownFile = () => `shown-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
@@ -682,26 +688,36 @@ async function show($: EngineInterface, file: InboxFile) {
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
-  const fresh = newArrivals(shownKeys, file.items)
-  for (const item of fresh.slice(0, 3)) {
-    toast($, `${m.toast.newRequest} · ${item.repo} #${item.number} · ${item.summary}`)
-  }
-  if (fresh.length > 3) toast($, m.toast.moreRequests(fresh.length - 3))
-  shownKeys = shownReady(file.items)
-
-  if (prs) {
-    const prNews = prAlerts(shownPrKeys, prs)
+  // A session's first look compares with what the last session saw, and sums up in one toast what changed while none was open.
+  const isFirstLook = shownKeys === undefined
+  // A stale file is about to be fetched again; taking it as the baseline would announce its news one by one after the fetch.
+  if (isFirstLook && Date.now() - file.fetchedAt > config.refreshMs) return
+  const last = isFirstLook ? await readJson<Shown>($, shownFile(), {}) : undefined
+  const fresh = newArrivals(shownKeys ?? last?.reviews, file.items)
+  const prNews = prs ? prAlerts(shownPrKeys ?? last?.prs, prs) : []
+  const newIssues = issueList ? issueAlerts(shownIssueKeys ?? last?.issues, issueList) : []
+  if (isFirstLook) {
+    const text = awayText(fresh.length, prNews, newIssues, m)
+    if (text) toast($, text)
+  } else {
+    for (const item of fresh.slice(0, 3)) {
+      toast($, `${m.toast.newRequest} · ${item.repo} #${item.number} · ${item.summary}`)
+    }
+    if (fresh.length > 3) toast($, m.toast.moreRequests(fresh.length - 3))
     for (const alert of prNews.slice(0, 3)) toast($, prAlertText(alert, m))
     if (prNews.length > 3) toast($, m.toast.morePrAlerts(prNews.length - 3))
-    shownPrKeys = prSeenKeys(prs)
-  }
-  if (issueList) {
-    const newIssues = issueAlerts(shownIssueKeys, issueList)
     for (const issue of newIssues.slice(0, 3)) {
       toast($, `${m.issueKind[issue.kind]} · ${issue.repo} #${issue.number} · ${issue.title}`)
     }
     if (newIssues.length > 3) toast($, m.toast.moreIssueAlerts(newIssues.length - 3))
-    shownIssueKeys = issueList.map(issueKey)
+  }
+  shownKeys = shownReady(file.items)
+  if (prs) shownPrKeys = prSeenKeys(prs)
+  if (issueList) shownIssueKeys = issueList.map(issueKey)
+  const shown: Shown = { reviews: shownKeys, prs: shownPrKeys, issues: shownIssueKeys }
+  if (JSON.stringify(shown) !== shownWritten) {
+    shownWritten = JSON.stringify(shown)
+    await writeJson($, shownFile(), shown).catch(() => undefined)
   }
   if (notesNow !== undefined) {
     // Snoozed alone: a card that was away at the last look and no longer is came back by its day or its news.

@@ -94,7 +94,7 @@ GitHub solo da las notificaciones al inicio de sesión de gh y a los tokens clá
 
 ### Avisos
 
-Avisan de una nueva solicitud de revisión, una nueva revisión en uno de tus PR, uno de tus PR que pasa a cambios solicitados, CI con errores o conflicto de fusión, y una nueva asignación, mención o referencia. La primera consulta de una sesión no anuncia nada. Si llegan varios a la vez, se muestran uno tras otro, con cuatro segundos y medio de separación.
+Avisan de una nueva solicitud de revisión, una nueva revisión en uno de tus PR, uno de tus PR que pasa a cambios solicitados, CI con errores o conflicto de fusión, y una nueva asignación, mención o referencia. Una sesión nueva no los anuncia uno a uno: un solo aviso resume lo que cambió desde la última vez que una sesión miró, por ejemplo `Mientras no estabas · CI con errores 2`, y no aparece si no cambió nada. Si llegan varios a la vez, se muestran uno tras otro, con cuatro segundos y medio de separación.
 
 Cuando tu PR queda aprobado y no hay CI en marcha, aparece `Listo para merge` una vez.
 

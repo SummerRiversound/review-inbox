@@ -94,7 +94,7 @@ GitHub gibt Benachrichtigungen nur an die Anmeldung von gh und an klassische Tok
 
 ### Benachrichtigungen
 
-Benachrichtigt wird bei einer neuen Review-Anfrage, einem neuen Review zu einem Ihrer PRs, wenn einer Ihrer PRs zu „Änderungen angefordert“, „CI fehlgeschlagen“ oder „Mergekonflikt“ wechselt, sowie bei einer neuen Zuweisung, Erwähnung oder einem neuen Verweis. Wenn eine Sitzung die Listen zum ersten Mal liest, wird nichts gemeldet. Treffen mehrere gleichzeitig ein, erscheinen sie nacheinander im Abstand von viereinhalb Sekunden.
+Benachrichtigt wird bei einer neuen Review-Anfrage, einem neuen Review zu einem Ihrer PRs, wenn einer Ihrer PRs zu „Änderungen angefordert“, „CI fehlgeschlagen“ oder „Mergekonflikt“ wechselt, sowie bei einer neuen Zuweisung, Erwähnung oder einem neuen Verweis. Eine neue Sitzung meldet sie nicht einzeln: Eine Benachrichtigung fasst zusammen, was sich seit dem letzten Blick einer Sitzung geändert hat, etwa `Während Sie weg waren · CI fehlgeschlagen 2`, und bleibt aus, wenn sich nichts geändert hat. Treffen mehrere gleichzeitig ein, erscheinen sie nacheinander im Abstand von viereinhalb Sekunden.
 
 Wird Ihr PR genehmigt und läuft keine CI mehr, erscheint einmal `Bereit zum Mergen`.
 

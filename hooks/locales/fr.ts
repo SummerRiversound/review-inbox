@@ -116,6 +116,7 @@ export const fr: Messages = {
     hidden: 'masquée',
   },
   toast: {
+    away: 'Pendant votre absence',
     back: 'Une carte reportée est de retour',
     added: n => `${count(n, 'carte ajoutée', 'cartes ajoutées')} · Échap place leurs demandes dans le prompt`,
     newRequest: 'Nouvelle demande de revue',

@@ -113,6 +113,7 @@ export const zhTW: Messages = {
     hidden: '已隱藏',
   },
   toast: {
+    away: '你離開期間',
     back: '延後的卡片回來了',
     added: n => `已加入 ${n} 張卡片 · 按 Esc 將請求放入輸入框`,
     newRequest: '新的審查請求',

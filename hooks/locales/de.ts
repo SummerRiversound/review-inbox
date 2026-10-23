@@ -117,6 +117,7 @@ export const de: Messages = {
     hidden: 'ausgeblendet',
   },
   toast: {
+    away: 'Während Sie weg waren',
     back: 'Zurückgestellte Karte ist zurück',
     added: n => `${count(n, 'Karte', 'Karten')} hinzugefügt · Esc übernimmt ihre Anfragen in den Prompt`,
     newRequest: 'Neue Review-Anfrage',

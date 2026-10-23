@@ -116,6 +116,7 @@ export const es: Messages = {
     hidden: 'oculto',
   },
   toast: {
+    away: 'Mientras no estabas',
     back: 'Vuelve una tarjeta pospuesta',
     added: (n: number) => `${count(n, 'tarjeta añadida', 'tarjetas añadidas')} · Esc pone sus solicitudes en el prompt`,
     newRequest: 'Nueva solicitud de revisión',
