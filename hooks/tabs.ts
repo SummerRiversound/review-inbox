@@ -253,6 +253,19 @@ export function prAlertText({ pr, turned, ready, by }: PrAlert, m: Messages): st
     .join(' · ')
 }
 
+// One toast for what changed while no session was open: each kind of news with how many, a PR counted once as prAlertText heads it.
+export function awayText(requests: number, prNews: PrAlert[], issues: IssueItem[], m: Messages): string | undefined {
+  const labels = [
+    ...Array<string>(requests).fill(m.toast.newRequest),
+    ...prNews.map(({ pr, turned, ready }) => (turned ? m.state[pr.state] : ready ? m.alert.ready : m.alert.reviewed)),
+    ...issues.map(i => m.issueKind[i.kind]),
+  ]
+  if (labels.length === 0) return undefined
+  const counts = new Map<string, number>()
+  for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1)
+  return [m.toast.away, ...[...counts].map(([label, n]) => `${label} ${n}`)].join(' · ')
+}
+
 export const prSeenKeys = (prs: MyPr[]) =>
   prs.flatMap(pr => [stateKey(pr), ...(isReady(pr) ? [readyKey(pr)] : []), ...pr.newReviews.map(r => reviewKey(pr, r))])
 

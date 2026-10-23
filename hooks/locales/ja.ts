@@ -113,6 +113,7 @@ export const ja: Messages = {
     hidden: '非表示',
   },
   toast: {
+    away: '離れている間に',
     back: '延期したカードが戻りました',
     added: (n: number) => `カード ${n} 件を追加 · Esc で依頼が入力欄に入ります`,
     newRequest: '新しいレビューリクエスト',

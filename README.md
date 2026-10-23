@@ -94,7 +94,7 @@ GitHub gives notifications only to gh's own sign-in and to classic tokens. Witho
 
 ### Toasts
 
-A new review request, a new review on one of your PRs, one of your PRs turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A session's first look announces nothing. When several arrive at once, they show one after another, 4.5 seconds apart.
+A new review request, a new review on one of your PRs, one of your PRs turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A new session does not announce these one by one: one toast sums up what changed since a session last looked, such as `While you were away · CI failing 2`, and stays quiet when nothing did. When several arrive at once, they show one after another, 4.5 seconds apart.
 
 Your PR turning approved with no CI running shows `Ready to merge` once.
 

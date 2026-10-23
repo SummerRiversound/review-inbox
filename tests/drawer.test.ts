@@ -4,6 +4,7 @@ import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
 import { cacheKey } from '../hooks/inbox'
+import { prSeenKeys } from '../hooks/tabs'
 
 const PANE = {
   plugin: 'review-inbox',
@@ -16,6 +17,7 @@ const PANE = {
 const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
 const SESSIONS = '/home/me/.claude/plugins/data/review-inbox/sessions.json'
 const REPOS = '/home/me/.claude/plugins/data/review-inbox/repos.json'
+const SHOWN = `/home/me/.claude/plugins/data/review-inbox/shown-${cacheKey('', '')}.json`
 
 const pr = (number: number, state: MyPr['state'], body?: string): MyPr =>
   ({ repo: 'o/r', number, title: `t${number}`, url: `u${number}`, createdAt: '2026-10-01T00:00:00Z', state, ciPending: false, newReviews: [], ...(body ? { body } : {}) })
@@ -86,6 +88,22 @@ test('my PRs are grouped by state, and a group folds shut and opens again', asyn
   expect(await shown(ui, /#2/)).toBe(true)
   await ui.press({ key: 'fold-mine:changes' })
   expect(await shown(ui, /#1/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a new session sums up in one toast what changed since the last session looked, and only once', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const last = { reviews: [], prs: prSeenKeys([pr(1, 'waiting')]), issues: [] }
+  const ui = await opened($, on, [pr(1, 'ci-failing'), pr(2, 'waiting')], [], 'mine', { files: { [SHOWN]: JSON.stringify(last) } })
+
+  expect(toasts).toEqual(['While you were away · CI failing 1'])
+  expect(JSON.parse(files.get(SHOWN)!).prs).toEqual(prSeenKeys([pr(1, 'ci-failing'), pr(2, 'waiting')]))
+  await clock.advance(30_000)
+  expect(toasts).toHaveLength(1)
   await ui.unmount()
 })
 

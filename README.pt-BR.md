@@ -94,7 +94,7 @@ O GitHub só entrega notificações ao login do gh e a tokens clássicos. Sem ac
 
 ### Notificações
 
-Uma nova solicitação de revisão, uma nova revisão em um dos seus PRs, um dos seus PRs passando para alterações solicitadas, CI com falha ou conflito de merge, e uma nova atribuição, menção ou referência. A primeira consulta de uma sessão não anuncia nada. Quando várias chegam ao mesmo tempo, elas aparecem uma depois da outra, com quatro segundos e meio de intervalo.
+Uma nova solicitação de revisão, uma nova revisão em um dos seus PRs, um dos seus PRs passando para alterações solicitadas, CI com falha ou conflito de merge, e uma nova atribuição, menção ou referência. Uma sessão nova não as anuncia uma a uma: uma só notificação resume o que mudou desde a última vez que uma sessão olhou, por exemplo `Enquanto você estava fora · CI com falha 2`, e nada aparece se nada mudou. Quando várias chegam ao mesmo tempo, elas aparecem uma depois da outra, com quatro segundos e meio de intervalo.
 
 Quando seu PR é aprovado e não há CI rodando, aparece `Pronto para merge` uma vez.
 
