@@ -47,6 +47,8 @@
 
 在你最新一次 commit 之後提交的審查，會顯示為 `新審查` 並附上審查者，直到你再次 commit 為止。核准、請求變更和只有留言的審查都算在內，包括討論串中的回覆，不論來自真人或機器人；已撤銷（dismissed）的審查則不算。這樣的 PR 會算作待處理，並排在同一狀態中沒有新動態的 PR 前面。不會呼叫模型。
 
+輪到你處理的 PR（請求變更、CI 失敗或合併衝突）會有一個下一步按鈕：`處理留言`、`修正 CI` 或 `解決衝突`。按鈕旁會顯示 Claude 將要工作的資料夾：目前工作階段位於該儲存庫的複本中時顯示 `這個資料夾`，有工作階段曾在該儲存庫中執行時顯示那個資料夾，否則顯示 `沒有本機複本`。按鈕會像 `審查` 一樣加入卡片。關閉收件匣時，請求會寫明這一步以及讀取留言或失敗記錄的 `gh` 指令，並要求 Claude 在新的 worktree 中工作，不動那個資料夾的分支。沒有已知資料夾時，Claude 會問你複本在哪裡，或建議 `gh repo clone` 並等你同意。不會增加 GitHub 呼叫，也不會呼叫模型。
+
 ### 我的議題
 
 列出指派給你的開啟中議題，以及提及你的開啟中議題和 PR；同時符合兩者的項目只會顯示一次，歸為「指派給我」。下方列出最近 30 天內引用了你的議題或 PR 的其他議題和 PR，並註明是誰引用的。你自己建立的引用不會列出，而且只顯示最新的 20 筆。不會呼叫模型。
@@ -54,6 +56,8 @@
 項目分為指派、提及和引用三組。`隱藏` 會隱藏項目，直到它有新的動態。
 
 ![我的議題：指派給你的議題、提及你的項目，以及其他地方對你工作的引用](docs/images/en/my-issues.png)
+
+指派給你的議題會有一個運作方式相同的 `開始處理` 按鈕：Claude 會閱讀議題、規劃變更，並在新 worktree 的新分支上開始。
 
 ### 通知
 
@@ -140,9 +144,9 @@ user:my-username
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
 - **執行 `gh`**：以 `gh api graphql` 取得清單，並每週一次取得你最近的審查留言；對已重新請求審查的 PR 執行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；設定了 `githubUser` 時執行 `gh auth token -u <githubUser>`。除此之外，mod 本身不會發出任何網路請求。
-- **執行 `git`**：每 30 秒在工作階段資料夾中執行 `git branch --show-current` 和 `git remote -v`，以找到位於你的 PR 分支上的工作階段。
+- **執行 `git`**：每 30 秒在工作階段資料夾中執行 `git branch --show-current` 和 `git remote -v`，以找到位於你的 PR 分支上的工作階段；並執行 `git rev-parse --path-format=absolute --git-common-dir`，以記住該儲存庫的主資料夾。
 - **詢問 Claude**（`sonnet` 模型）：為每份摘要傳送 PR 的儲存庫名稱、標題、說明（前 12,000 個字元）、變更的檔案路徑（最多 80 個）和變更規模；若是已重新請求審查的 PR，還會傳送你上次審查後每個 commit 訊息的第一行，以及最多 60 個檔案路徑。這會計入你的 Claude Code 用量。每個 PR 在每個 head commit 和語言下只摘要一次；摘要失敗時，每個 commit 最多嘗試三次。此外，每週一次會傳送你在最近審查過的至多 30 個 PR 上留下的審查留言，用來描述你的審查風格：每則截至 500 個字元，最多 60 則，總計不超過 12,000 個字元；少於 5 則時不會傳送任何內容。
-- **寫入檔案**：只寫入快取資料夾 `~/.claude/plugins/data/review-inbox`（設定了 `CLAUDE_CONFIG_DIR` 時，會以它取代 `~/.claude`）。`inbox-<hash>.json` 存放清單和摘要；`hidden-<hash>.json` 存放已隱藏的 PR；`notes-<hash>.json` 存放備註和延後（與語言無關，每個帳號和範圍一個檔案）；`sessions.json` 存放每個活動工作階段的資料夾名稱、分支、GitHub 遠端儲存庫和提示中出現的 PR 連結（與帳號無關，一個檔案）； `style-<hash>.json` 存放你的審查風格描述。每個檔案會先寫入旁邊的暫存檔，再用 `mv` 取代，因此其他工作階段不會讀到寫到一半的檔案；在沒有 `mv` 的環境（如 Windows）則直接寫入。
+- **寫入檔案**：只寫入快取資料夾 `~/.claude/plugins/data/review-inbox`（設定了 `CLAUDE_CONFIG_DIR` 時，會以它取代 `~/.claude`）。`inbox-<hash>.json` 存放清單和摘要；`hidden-<hash>.json` 存放已隱藏的 PR；`notes-<hash>.json` 存放備註和延後（與語言無關，每個帳號和範圍一個檔案）；`sessions.json` 存放每個活動工作階段的資料夾名稱、分支、GitHub 遠端儲存庫和提示中出現的 PR 連結（與帳號無關，一個檔案）； `repos.json` 存放工作階段執行過的每個 GitHub 儲存庫的主資料夾（供下一步按鈕使用）； `style-<hash>.json` 存放你的審查風格描述。每個檔案會先寫入旁邊的暫存檔，再用 `mv` 取代，因此其他工作階段不會讀到寫到一半的檔案；在沒有 `mv` 的環境（如 Windows）則直接寫入。
 - **讀取環境變數**：讀取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 來找到該資料夾；只有在 `language` 為 `auto` 時才讀取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不會設定任何環境變數。
 - **讀取 Claude Code 設定**：只在 `language` 為 `auto` 時讀取，而且只使用 `language` 這個鍵。
 - **讀取並填入輸入框**：只在收件匣開啟和關閉時進行。開啟時會讀取輸入框中正在撰寫的內容，標示出其中已請求審查的 PR；關閉時會在原有內容之後另起新行，加入你所加入 PR 的審查請求。

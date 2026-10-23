@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
-import type { Capped, InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, Tab } from '../types'
+import type { Capped, InboxFile, InboxItem, InboxStatus, IssueItem, MyPr, Note, Presence, RepoPaths, Tab } from '../types'
 import {
   CLAIM_MS,
   cacheKey,
@@ -35,7 +35,8 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
-import { liveSessions, repoOf, workingOn } from './sessions'
+import { liveSessions, mainCheckout, placeOf, remember, repoOf, workingOn } from './sessions'
+import type { Place } from './sessions'
 import type { Language, Messages } from './i18n'
 import { STYLE_JQ, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
@@ -63,11 +64,13 @@ import {
   referencesQuery,
   stateColor,
   tabQueries,
+  taskOf,
+  taskPrompts,
   toIssues,
   toMyPrs,
   toReferences,
 } from './tabs'
-import type { GqlMyPr, GqlReferenced, GqlTouched } from './tabs'
+import type { GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
 
 const PANE = 'review-inbox'
 // Reading the shared file is a local disk read, so every session can afford it often.
@@ -91,6 +94,7 @@ const notes = atom({ plugin: 'review-inbox', key: 'notes' } as const, {} as Reco
 const query = atom({ plugin: 'review-inbox', key: 'query' } as const, '')
 const editing = atom({ plugin: 'review-inbox', key: 'editing' } as const, '')
 const sessions = atom({ plugin: 'review-inbox', key: 'sessions' } as const, {} as Record<string, Presence>)
+const repos = atom({ plugin: 'review-inbox', key: 'repos' } as const, {} as RepoPaths)
 // The cards whose review request is in the prompt, so pressing Review again adds nothing.
 // PRs Review was pressed on since the drawer opened, filled when it closes; requested ones the draft already asked for when it opened.
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
@@ -117,6 +121,8 @@ const sessionToken = Math.random().toString(36).slice(2)
 // The session's own id, which a reload keeps, and the PRs its prompts linked to.
 let selfId = ''
 let linked: string[] = []
+// Shortens the folders shown on cards to ~.
+let home = ''
 
 // Claude Code's per-plugin data folder; a mod is not told its id, so it falls back to a fixed name there.
 async function cacheDir($: EngineInterface) {
@@ -166,6 +172,8 @@ const notesFile = () => `notes-${cacheKey(config.githubUser, config.scope)}.json
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
+// Also one for every account: a folder holds the same repository whoever is signed in.
+const REPOS_FILE = 'repos.json'
 
 async function resolveLanguage($: EngineInterface): Promise<Language> {
   const read = async <T,>(get: () => Promise<T>) => {
@@ -504,8 +512,8 @@ async function openDrawer($: EngineInterface) {
   if (!(await $.ui.panes()).some(p => p.id === PANE)) {
     // What the draft already asks for shows as added; a sent or cleared draft frees the cards again.
     const { text } = await $.prompt.read()
-    const list = await read($, items)
-    await update($, requested, () => list.filter(i => hasRequest(text, i.url)).map(itemKey))
+    const cards = await pickable($)
+    await update($, requested, () => cards.filter(c => hasRequest(text, c.url)).map(c => c.key))
     await update($, added, () => [])
   }
   await $.ui.open({
@@ -519,9 +527,30 @@ async function openDrawer($: EngineInterface) {
   })
 }
 
-// Filling the prompt takes the keyboard from the drawer, so Review only marks a card and the drawer's close fills them all.
-async function addCard($: EngineInterface, item: InboxItem) {
-  const key = itemKey(item)
+type Pickable = { key: string; url: string; review?: InboxItem; task?: Task }
+
+// Every card Review or a task button can pick, by the key its hide and note use.
+async function pickable($: EngineInterface): Promise<Pickable[]> {
+  const task = (card: MyPr | IssueItem, key: string): Pickable[] => {
+    const kind = taskOf(card)
+    const base = 'base' in card ? card.base : undefined
+    return kind ? [{ key, url: card.url, task: { kind, repo: card.repo, url: card.url, ...(base ? { base } : {}) } }] : []
+  }
+  return [
+    ...(await read($, items)).map(i => ({ key: itemKey(i), url: i.url, review: i })),
+    ...(await read($, mine)).flatMap(pr => task(pr, prHideKey(pr))),
+    ...(await read($, issues)).flatMap(i => task(i, issueHideKey(i))),
+  ]
+}
+
+// This session's folder when it holds the repository, else the one remembered for it while that folder is still there.
+async function placeFor($: EngineInterface, repo: string): Promise<Place> {
+  const place = placeOf(repo, (await read($, sessions))[selfId], await read($, repos))
+  return place.kind === 'folder' && !(await $.fs.exists(place.path)) ? { kind: 'unknown' } : place
+}
+
+// Filling the prompt takes the keyboard from the drawer, so Review and the task buttons only mark a card and the drawer's close fills them all.
+async function addCard($: EngineInterface, key: string) {
   const keys = await read($, added)
   if (keys.includes(key) || (await read($, requested)).includes(key)) return
   await update($, added, () => [...keys, key])
@@ -530,12 +559,14 @@ async function addCard($: EngineInterface, item: InboxItem) {
 
 // False only when a dialog holds the keys: that passes, so the drawer stays open with its picks and the next close tries again.
 async function fillAdded($: EngineInterface): Promise<boolean> {
-  const byKey = new Map((await read($, items)).map(i => [itemKey(i), i]))
+  const byKey = new Map((await pickable($)).map(c => [c.key, c]))
   const chosen = (await read($, added)).flatMap(key => byKey.get(key) ?? [])
   if (chosen.length > 0) {
     const { text } = await $.prompt.read()
     const style = (await readJson<StyleFile>($, styleFile(), {}))?.profile
-    const more = reviewPrompts(text, chosen, m, style)
+    const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
+    const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
+    const more = reviews + taskPrompts(text + reviews, tasks, m)
     const filled = more ? await $.prompt.fill({ text: more, mode: 'append' }) : undefined
     if (filled?.isFilled === false) {
       $.ui.toast(m.toast.promptBusy)
@@ -613,9 +644,23 @@ async function checkIn($: EngineInterface, leaving = false) {
     const prs = [...new Set([...(old?.prs ?? []), ...linked])].slice(-20)
     const folder = cwd.split(/[\\/]/).filter(Boolean).pop() ?? cwd
     next = { ...others, [selfId]: { at: Date.now(), folder, remotes, prs, ...(branch ? { branch } : {}) } }
+    await rememberFolder($, remotes, () => git(['rev-parse', '--path-format=absolute', '--git-common-dir']))
   }
   await writeJson($, SESSIONS_FILE, next)
   await update($, sessions, () => next)
+}
+
+// Remembers which folder holds each of this session's repositories, so a card in another session can name it.
+// shortcut: a folder moved or deleted is dropped only when a card's fill finds it gone; prune the file if it grows stale
+async function rememberFolder($: EngineInterface, remotes: string[], commonDir: () => Promise<string>) {
+  const file = await readJson<RepoPaths>($, REPOS_FILE, {})
+  if (file === undefined) return
+  home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
+  const top = remotes.length > 0 ? mainCheckout(await commonDir(), home) : undefined
+  // Written only when a folder changes, not at every check-in.
+  const next = top !== undefined && remotes.some(repo => file[repo]?.path !== top) ? remember(file, remotes, top, Date.now()) : file
+  if (next !== file) await writeJson($, REPOS_FILE, next)
+  await update($, repos, () => next)
 }
 
 // Read-modify-write on its own file, so a hide never races a fetch rewriting the inbox.
@@ -749,6 +794,35 @@ export const register: Register = (on, options) => {
     const sessionLine = (pr: { repo: string; url: string; branch?: string }) => {
       const names = where(pr)
       return names.length > 0 && <Text color="suggestion">{m.session.at(names.join(', '))}</Text>
+    }
+    const repoPaths = await read($, repos)
+    // Where the card's task would be worked on, beside its button; whether the folder still exists is checked at the fill.
+    const taskRow = (card: MyPr | IssueItem, key: string) => {
+      const kind = taskOf(card)
+      if (!kind) return undefined
+      const place = placeOf(card.repo, live[selfId], repoPaths)
+      const hint =
+        place.kind === 'here'
+          ? m.card.here
+          : place.kind === 'folder'
+            ? m.card.at(home && place.path.startsWith(`${home}/`) ? `~${place.path.slice(home.length)}` : place.path)
+            : m.card.noClone
+      const isAdded = addedKeys.includes(key)
+      return (
+        <Box flexDirection="row" justifyContent="space-between" gap={1}>
+          <Box flexShrink={1}>
+            <Text dimColor wrap="truncate-end">
+              {hint}
+            </Text>
+          </Box>
+          <Button
+            key={`task-${card.url}`}
+            label={isAdded ? m.card.added : m.card.task[kind]}
+            {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
+            onPress={() => void addCard($, key)}
+          />
+        </Box>
+      )
     }
 
     // My note above the title, with its snooze day.
@@ -890,7 +964,7 @@ export const register: Register = (on, options) => {
                   key={`review-${itemKey(item)}`}
                   label={isAdded ? m.card.added : m.card.review}
                   {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
-                  onPress={() => void addCard($, item)}
+                  onPress={() => void addCard($, itemKey(item))}
                 />
               </Box>
             </Box>
@@ -946,6 +1020,7 @@ export const register: Register = (on, options) => {
               {m.card.newReview(reviewers(pr))}
             </Text>
           )}
+          {taskRow(pr, prHideKey(pr))}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
         </Box>
       </Box>
@@ -978,6 +1053,7 @@ export const register: Register = (on, options) => {
               {m.card.referenced(issue.by ?? '', issue.target ?? '')}
             </Text>
           )}
+          {taskRow(issue, issueHideKey(issue))}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
         </Box>
       </Box>

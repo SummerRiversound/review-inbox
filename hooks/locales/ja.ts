@@ -32,6 +32,15 @@ export const ja: Messages = {
     hide: '非表示',
     review: 'レビューする',
     added: '追加済み',
+    task: {
+      changes: 'コメントに対応',
+      'ci-failing': 'CI を直す',
+      conflict: 'コンフリクトを解消',
+      work: 'これに取り組む',
+    },
+    here: 'このフォルダ',
+    at: (path: string) => `${path} で`,
+    noClone: 'ローカルのクローンなし',
     ciRunning: ' · CI 実行中',
     newReview: (who: string) => `新しいレビュー · ${who}`,
     referenced: (by: string, target: string) => `${by} さんが自分の ${target} を参照`,
@@ -92,7 +101,7 @@ export const ja: Messages = {
   },
   toast: {
     back: '延期したカードが戻りました',
-    added: (n: number) => `PR ${n} 件を追加 · Esc でレビュー依頼が入力欄に入ります`,
+    added: (n: number) => `カード ${n} 件を追加 · Esc で依頼が入力欄に入ります`,
     newRequest: '新しいレビューリクエスト',
     moreRequests: (n: number) => `レビューリクエストがさらに${n}件あります`,
     morePrAlerts: (n: number) => `自分の PR の通知がさらに${n}件あります`,
@@ -110,6 +119,20 @@ export const ja: Messages = {
     check: '特に確認してほしい点: ',
     since: '前回の自分のレビュー以降に変わった点: ',
     style: '普段の自分のレビュースタイル: ',
+    task: {
+      changes: (url: string) => `${url} の未解決のレビューコメントに対応して。コメントは \`gh pr view ${url} --comments\` で読んで。`,
+      'ci-failing': (url: string) =>
+        `${url} の失敗している CI を直して。失敗したチェックは \`gh pr checks ${url}\`、ログは \`gh run view <run-id> --log-failed\` で見つけて。`,
+      conflict: (url: string, base?: string) =>
+        `${url} のマージコンフリクトを解消して。${base ? `origin/${base}` : 'ベースブランチ'} を PR のブランチにマージして。`,
+      work: (url: string) => `${url} に取り組んで。issue を読み、変更を計画して、新しいブランチで始めて。`,
+    },
+    here: 'このフォルダ',
+    workIn: (where: string, isPr: boolean) =>
+      isPr
+        ? `${where} で、PR をチェックアウトした新しい worktree で作業して (フォークは \`gh pr checkout\` が扱う)。フォルダの今のブランチはそのままにして。`
+        : `${where} で、新しいブランチの新しい worktree で作業して。フォルダの今のブランチはそのままにして。`,
+    noClone: (repo: string) => `${repo} のローカルクローンの場所がわからない。どこにあるか聞くか、\`gh repo clone ${repo}\` を提案して、私の OK を待って。`,
   },
   summaryFailed: (reason: string) => `概要を作成できませんでした (${reason})。`,
   model: {

@@ -1,4 +1,4 @@
-import type { IssueKind, MyPrState } from '../types'
+import type { IssueKind, MyPrState, TaskKind } from '../types'
 import { de } from './locales/de'
 import { es } from './locales/es'
 import { fr } from './locales/fr'
@@ -43,6 +43,15 @@ const en = {
     hide: 'Hide',
     review: 'Review',
     added: 'Added',
+    task: {
+      changes: 'Address comments',
+      'ci-failing': 'Fix CI',
+      conflict: 'Resolve conflict',
+      work: 'Work on this',
+    } satisfies Record<TaskKind, string>,
+    here: 'this folder',
+    at: (path: string) => `in ${path}`,
+    noClone: 'no local clone',
     ciRunning: ' · CI running',
     newReview: (who: string) => `New review · ${who}`,
     referenced: (by: string, target: string) => `${by} referenced my ${target}`,
@@ -103,7 +112,7 @@ const en = {
   },
   toast: {
     back: 'Back from snooze',
-    added: (n: number) => `${count(n, 'PR')} added · Esc puts their review requests in the prompt`,
+    added: (n: number) => `${count(n, 'card')} added · Esc puts their requests in the prompt`,
     newRequest: 'New review request',
     moreRequests: (n: number) => count(n, 'more review request'),
     morePrAlerts: (n: number) => `${count(n, 'more alert')} on my PRs`,
@@ -121,6 +130,21 @@ const en = {
     check: 'Check in particular: ',
     since: 'Changed since my last review: ',
     style: 'My usual review style: ',
+    // Commands, not data: Claude reads the comments, checks and logs itself, so no outside text lands in the prompt.
+    task: {
+      changes: (url: string) => `Address the unresolved review comments on ${url}; read them with \`gh pr view ${url} --comments\`.`,
+      'ci-failing': (url: string) =>
+        `Fix the failing CI on ${url}: find the failing checks with \`gh pr checks ${url}\` and their logs with \`gh run view <run-id> --log-failed\`.`,
+      conflict: (url: string, base?: string) =>
+        `Resolve the merge conflict on ${url}: merge ${base ? `origin/${base}` : 'its base branch'} into its branch.`,
+      work: (url: string) => `Work on ${url}: read the issue, plan the change, and start on a new branch.`,
+    } satisfies Record<TaskKind, (url: string, base?: string) => string>,
+    here: 'this folder',
+    workIn: (where: string, isPr: boolean) =>
+      isPr
+        ? `Work in ${where}, in a new worktree with the PR checked out (\`gh pr checkout\` handles forks); leave the folder's current branch as it is.`
+        : `Work in ${where}, in a new worktree on a new branch; leave the folder's current branch as it is.`,
+    noClone: (repo: string) => `No local clone of ${repo} is known: ask me where it is, or offer \`gh repo clone ${repo}\` and wait for my yes.`,
   },
   summaryFailed: (reason: string) => `Could not write a summary (${reason}).`,
   // The language lines of the model instructions; the rest of the rules are shared.

@@ -52,7 +52,11 @@ export type MyPr = {
   newReviews: { by: string; at: string }[]
   body?: string
   branch?: string
+  base?: string
 }
+
+// The next step a card hands to Claude: what blocks my PR, or starting on an issue assigned to me.
+export type TaskKind = 'changes' | 'ci-failing' | 'conflict' | 'work'
 
 // Why an issue or PR is in my issues tab.
 export type IssueKind = 'assigned' | 'mention' | 'reference'
@@ -81,6 +85,9 @@ export type Presence = {
   remotes: string[]
   prs: string[]
 }
+
+// The folder on this machine last seen holding each GitHub repository, as owner/name; shared by every session and account.
+export type RepoPaths = Record<string, { path: string; at: number }>
 
 // Shared by every session on the machine; whichever finds it stale fetches and rewrites it.
 export type Capped = Partial<Record<Tab, boolean>>
@@ -125,6 +132,7 @@ declare module 'claude-code' {
       editing: string
       // Every live session's entry, this one's included, keyed by session id.
       sessions: Record<string, Presence>
+      repos: RepoPaths
       added: string[]
       requested: string[]
     }

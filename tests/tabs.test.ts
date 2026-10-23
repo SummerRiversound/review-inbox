@@ -4,7 +4,7 @@ import type { IssueItem, MyPr } from '../types'
 import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, toIssues, toMyPrs, toReferences,
+  bandCounts, bandLabels, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, TABS_QUERY, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -211,4 +211,34 @@ test('my PRs and issues keep their description for search', async () => {
   expect(pr!.body).toBe('callback lost its query')
   const issues = toIssues([{ ...touched('a', '2026-10-01T00:00:00Z'), body: 'steps to reproduce' }], [touched('m', '2026-10-02T00:00:00Z')], [])
   expect(issues.map(i => i.body)).toEqual([undefined, 'steps to reproduce'])
+})
+
+test('a PR stuck on me, or an issue assigned to me, has a next step to hand to Claude; the rest have none', async () => {
+  expect(taskOf(myPr('changes'))).toBe('changes')
+  expect(taskOf(myPr('ci-failing'))).toBe('ci-failing')
+  expect(taskOf(myPr('conflict'))).toBe('conflict')
+  for (const state of ['waiting', 'approved', 'draft'] as const) expect(taskOf(myPr(state))).toBe(undefined)
+  const issue = (kind: IssueItem['kind']): IssueItem => ({ kind, repo: 'o/r', number: 1, title: 't', url: 'u', at: '2026-10-01T00:00:00Z' })
+  expect(taskOf(issue('assigned'))).toBe('work')
+  expect(taskOf(issue('mention'))).toBe(undefined)
+  expect(taskOf(issue('reference'))).toBe(undefined)
+})
+
+test('a task request names the PR, its next step and where to work, and a PR the draft already links is left out', async () => {
+  const m = MESSAGES.en
+  const conflict = { task: { kind: 'conflict' as const, repo: 'o/r', url: 'https://github.com/o/r/pull/1', base: 'develop' }, place: { kind: 'folder' as const, path: '/code/r' } }
+  const issue = { task: { kind: 'work' as const, repo: 'o/i', url: 'https://github.com/o/i/issues/2' }, place: { kind: 'unknown' as const } }
+  const ci = { task: { kind: 'ci-failing' as const, repo: 'o/r', url: 'https://github.com/o/r/pull/3' }, place: { kind: 'here' as const } }
+
+  const text = taskPrompts('draft', [conflict, issue, ci], m)
+  expect(text.startsWith('\n')).toBe(true)
+  expect(text.trim().split('\n')).toHaveLength(6)
+  expect(text).toContain('https://github.com/o/r/pull/1')
+  expect(text).toContain('origin/develop')
+  expect(text).toContain('/code/r')
+  expect(text).toContain('gh repo clone o/i')
+  expect(text).toContain('gh pr checks https://github.com/o/r/pull/3')
+  expect(text).toContain(m.prompt.here)
+
+  expect(taskPrompts('Look at https://github.com/o/r/pull/1', [conflict], m)).toBe('')
 })

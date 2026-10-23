@@ -32,6 +32,15 @@ export const zhTW: Messages = {
     hide: '隱藏',
     review: '審查',
     added: '已加入',
+    task: {
+      changes: '處理留言',
+      'ci-failing': '修正 CI',
+      conflict: '解決衝突',
+      work: '開始處理',
+    },
+    here: '這個資料夾',
+    at: path => `在 ${path}`,
+    noClone: '沒有本機複本',
     ciRunning: ' · CI 執行中',
     newReview: who => `新審查 · ${who}`,
     referenced: (by, target) => `${by} 引用了我的 ${target}`,
@@ -92,7 +101,7 @@ export const zhTW: Messages = {
   },
   toast: {
     back: '延後的卡片回來了',
-    added: n => `已加入 ${n} 個 PR · 按 Esc 將審查請求放入輸入框`,
+    added: n => `已加入 ${n} 張卡片 · 按 Esc 將請求放入輸入框`,
     newRequest: '新的審查請求',
     moreRequests: n => `還有 ${n} 個審查請求`,
     morePrAlerts: n => `我的 PR 還有 ${n} 則通知`,
@@ -110,6 +119,19 @@ export const zhTW: Messages = {
     check: '請特別檢查：',
     since: '我上次審查後的變更：',
     style: '我平常的審查風格：',
+    task: {
+      changes: url => `幫我處理 ${url} 上未解決的審查留言，用 \`gh pr view ${url} --comments\` 讀取。`,
+      'ci-failing': url =>
+        `幫我修正 ${url} 失敗的 CI：用 \`gh pr checks ${url}\` 找出失敗的檢查，用 \`gh run view <run-id> --log-failed\` 查看記錄。`,
+      conflict: (url, base) => `幫我解決 ${url} 的合併衝突：把 ${base ? `origin/${base}` : '它的基礎分支'} 合併到它的分支。`,
+      work: url => `幫我處理 ${url}：閱讀這個 issue，規劃變更，並在新分支上開始。`,
+    },
+    here: '這個資料夾',
+    workIn: (where, isPr) =>
+      isPr
+        ? `在 ${where} 中工作，建立一個新的 worktree 並 checkout 該 PR（\`gh pr checkout\` 會處理 fork）；不要動該資料夾目前的分支。`
+        : `在 ${where} 中工作，建立一個新的 worktree 和新分支；不要動該資料夾目前的分支。`,
+    noClone: repo => `不知道 ${repo} 的本機複本在哪裡：問我它在哪，或建議 \`gh repo clone ${repo}\` 並等我同意。`,
   },
   summaryFailed: reason => `無法產生摘要 (${reason})。`,
   model: {
