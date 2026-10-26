@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.14.1 — 2026-10-26
+
+### Fixed
+
+- A plugin that draws above the prompt beneath this one, such as next-steps' suggested prompts, shows again while the band has a count; the band takes its own row above it.
+
 ## 0.14.0 — 2026-10-26
 
 ### Changed
