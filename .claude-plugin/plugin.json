@@ -10,6 +10,8 @@
   "homepage": "https://github.com/SummerRiversound/review-inbox#readme",
   "repository": "https://github.com/SummerRiversound/review-inbox",
   "license": "MIT",
+  "icon": "./assets/icon.png",
+  "privacyPolicyUrl": "https://github.com/SummerRiversound/review-inbox#what-it-reads-and-runs",
   "keywords": ["github", "pull-request", "code-review", "review-requests", "issues", "inbox", "mod"],
   "types": "./types/index.d.ts",
   "userConfig": {
