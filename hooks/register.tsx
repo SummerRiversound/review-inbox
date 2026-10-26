@@ -71,7 +71,7 @@ import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSession
 import type { Place, ReloadRequest } from './sessions'
 import type { Language, Messages } from './i18n'
 import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
-import type { Page } from './pages'
+import type { Page, Pages } from './pages'
 import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
 import {
@@ -357,7 +357,7 @@ async function fetchTabs(
   save: Save,
 ): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
   const q = tabQueries(config.scope)
-  const tabSearch = <T,>(key: keyof typeof q) => searchAll<T>($, TAB_QUERIES[key], { q: q[key] }, env, SEARCH_LIMIT, trimBodies(BODY_CHARS))
+  const tabSearch = <T,>(key: keyof typeof q): Promise<Pages<T>> => searchAll($, TAB_QUERIES[key], { q: q[key] }, env, SEARCH_LIMIT, trimBodies(BODY_CHARS))
   const [minePrs, assigned, mentioned] = await Promise.all([tabSearch<GqlMyPr>('mine'), tabSearch<GqlTouched>('assigned'), tabSearch<GqlTouched>('mentioned')])
   const me = minePrs.login ?? assigned.login ?? ''
   const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
@@ -374,7 +374,7 @@ async function fetchTabs(
   let references: IssueItem[]
   try {
     // ponytail: at most 500 items touched in the window, newest first; past that the rest are left out
-    const referenced = await searchAll<GqlReferenced>($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500, '.data', REFERENCE_PAGE)
+    const referenced: Pages<GqlReferenced> = await searchAll($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500, '.data', REFERENCE_PAGE)
     references = toReferences(real<GqlReferenced>(referenced.nodes), me)
   } catch {
     // References are the costliest search; when GitHub refuses it, keep the last ones instead of failing every tab.
@@ -390,7 +390,7 @@ async function fetchInbox(
   previous: InboxItem[],
   heartbeat: () => Promise<void>,
 ): Promise<{ items: InboxItem[]; capped: boolean }> {
-  const found = await searchAll<GqlPr>($, INBOX_QUERY, { q: searchQuery(config.scope) }, env, SEARCH_LIMIT, trimBodies(12_000))
+  const found: Pages<GqlPr> = await searchAll($, INBOX_QUERY, { q: searchQuery(config.scope) }, env, SEARCH_LIMIT, trimBodies(12_000))
   const me = found.login ?? ''
   // Search can return non-PR nodes as empty objects.
   const prs = found.nodes.filter((n): n is GqlPr => typeof n.number === 'number')
@@ -454,7 +454,7 @@ async function fetchGroups($: EngineInterface, env: Record<string, string>): Pro
       groups.slice(i, i + 3).map(async group => {
         const q = groupQuery(group)
         try {
-          const found = await searchAll<GqlHit>($, GROUP_QUERY, { q }, env, GROUP_HITS)
+          const found: Pages<GqlHit> = await searchAll($, GROUP_QUERY, { q }, env, GROUP_HITS)
           results[group.id] = { query: q, count: found.count ?? found.nodes.length, hits: toHits(found.nodes) }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -620,7 +620,7 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
   const file = await readJson<StyleFile>($, styleFile(), {})
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
-    const reviewed = await searchAll<GqlReviewed>($, STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
+    const reviewed: Pages<GqlReviewed> = await searchAll($, STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
     const samples = styleSamples(reviewed.nodes, reviewed.login ?? '')
     const prompt = stylePrompt(samples)
     if (prompt === undefined) {
