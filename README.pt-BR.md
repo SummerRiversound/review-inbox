@@ -239,7 +239,7 @@ Uma busca GraphQL retorna todos os PRs aguardando sua revisão com o que os cart
 
 ## Limites
 
-- No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 100 issues atribuídas e 100 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro. Quando uma lista tem mais que isso, a contagem aparece como `100+`. Cada lista é lida de 25 em 25, e uma página em que o GitHub estoura o tempo é pedida de novo com metade do tamanho, então uma conta com muitos PRs fica dentro do limite de tempo do GitHub.
+- No máximo 100 PRs aguardando sua revisão, na ordem de melhor correspondência do GitHub. As outras abas leem até 100 dos seus PRs abertos, 100 issues atribuídas e 100 que mencionam você, e referências de até 500 itens atualizados recentemente, cada lista com a atividade mais recente primeiro. Quando uma lista tem mais que isso, a contagem aparece como `100+`. Cada lista é lida de 25 em 25 (as referências, mais leves, de 100 em 100) e aparece assim que chega, e uma página em que o GitHub estoura o tempo é pedida de novo com metade do tamanho, então uma conta com muitos PRs fica dentro do limite de tempo do GitHub.
 - Uma busca salva mostra os 20 resultados atualizados mais recentemente; a contagem é o total que o GitHub dá para a busca.
 - A aba Notificações lê até 100 notificações dos últimos 30 dias e não consulta com mais frequência do que o intervalo do GitHub permite.
 - Uma referência a um item em que você não mexe há 60 dias passa despercebida.

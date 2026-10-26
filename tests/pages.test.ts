@@ -53,3 +53,10 @@ test('a GitHub gateway page reads as a timeout, other failures as themselves', (
   expect(isGatewayTimeout('HTTP 502: Bad Gateway (https://api.github.com/graphql)')).toBe(true)
   expect(isGatewayTimeout('HTTP 401: Bad credentials')).toBe(false)
 })
+
+test('a search of light nodes can start from a bigger page', async () => {
+  const { asked, fetchPage } = github(250)
+  const read = await readPages(fetchPage, 500, 100)
+  expect(read.nodes).toHaveLength(250)
+  expect(asked).toEqual([100, 100, 100])
+})

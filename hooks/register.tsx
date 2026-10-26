@@ -79,6 +79,7 @@ import {
   AUTHORED_DAYS,
   ORDER,
   REFERENCE_DAYS,
+  REFERENCE_PAGE,
   TAB_QUERIES,
   atLeast,
   BAND_KEYS,
@@ -327,7 +328,7 @@ async function summarizeSince(
 }
 
 // One search, read a page at a time; `jq` cuts each page below gh's output cap.
-function searchAll<T>($: EngineInterface, query: string, vars: Record<string, string>, env: Record<string, string>, limit: number, jq = '.data') {
+function searchAll<T>($: EngineInterface, query: string, vars: Record<string, string>, env: Record<string, string>, limit: number, jq = '.data', pageSize?: number) {
   const fields = Object.entries(vars).flatMap(([name, value]) => ['-f', `${name}=${value}`])
   return readPages<T>(
     async (first, after) =>
@@ -335,8 +336,12 @@ function searchAll<T>($: EngineInterface, query: string, vars: Record<string, st
         await gh($, ['api', 'graphql', '-f', `query=${query}`, ...fields, '-F', `first=${first}`, ...(after ? ['-f', `after=${after}`] : []), '--jq', jq], env),
       ) as Page<T>,
     limit,
+    pageSize,
   )
 }
+
+// Lists fetched so far, merged into the claimed file as each one arrives.
+type Save = (lists: Partial<InboxFile>) => Promise<void>
 
 const trimBodies = (chars: number) => `.data | .search.nodes |= map(if .body then .body |= .[:${chars}] else . end)`
 
@@ -349,6 +354,7 @@ async function fetchTabs(
   $: EngineInterface,
   env: Record<string, string>,
   previous: IssueItem[],
+  save: Save,
 ): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
   const q = tabQueries(config.scope)
   const tabSearch = <T,>(key: keyof typeof q) => searchAll<T>($, TAB_QUERIES[key], { q: q[key] }, env, SEARCH_LIMIT, trimBodies(BODY_CHARS))
@@ -356,24 +362,26 @@ async function fetchTabs(
   const me = minePrs.login ?? assigned.login ?? ''
   const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
     nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
+  const mine = toMyPrs(real<GqlMyPr>(minePrs.nodes), me)
+  const withReferences = (references: IssueItem[]) => toIssues(real<GqlTouched>(assigned.nodes), real<GqlTouched>(mentioned.nodes), references)
+  const capped = { mine: minePrs.capped, issues: assigned.capped || mentioned.capped }
+  const lastReferences = previous.filter(i => i.kind === 'reference')
+  // References are the slowest search, so the other lists show first, beside the last references.
+  await save({ mine, issues: withReferences(lastReferences), capped })
 
   const since = new Date(Date.now() - REFERENCE_DAYS * 86_400_000).toISOString()
   const touchedSince = new Date(Date.now() - AUTHORED_DAYS * 86_400_000).toISOString()
   let references: IssueItem[]
   try {
     // ponytail: at most 500 items touched in the window, newest first; past that the rest are left out
-    const referenced = await searchAll<GqlReferenced>($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500)
+    const referenced = await searchAll<GqlReferenced>($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500, '.data', REFERENCE_PAGE)
     references = toReferences(real<GqlReferenced>(referenced.nodes), me)
   } catch {
     // References are the costliest search; when GitHub refuses it, keep the last ones instead of failing every tab.
-    references = previous.filter(i => i.kind === 'reference')
+    references = lastReferences
   }
 
-  return {
-    mine: toMyPrs(real<GqlMyPr>(minePrs.nodes), me),
-    issues: toIssues(real<GqlTouched>(assigned.nodes), real<GqlTouched>(mentioned.nodes), references),
-    capped: { mine: minePrs.capped, issues: assigned.capped || mentioned.capped },
-  }
+  return { mine, issues: withReferences(references), capped }
 }
 
 async function fetchInbox(
@@ -644,21 +652,43 @@ async function sync($: EngineInterface, force = false) {
     if (settled?.fetchingBy !== sessionToken) return
     await show($, claim)
 
+    // Each list is written as it arrives, which also renews the claim; writes go in order, and none after the fetch ends.
+    let partial: InboxFile = claim
+    let saving = Promise.resolve()
+    let isDone = false
+    const save: Save = lists => {
+      if (isDone) return saving
+      partial = { ...partial, ...lists, capped: { ...partial.capped, ...lists.capped }, fetchingSince: Date.now() }
+      const next = partial
+      // shortcut: a list write that fails is skipped; the final write below still lands, or the fetch fails as before
+      saving = saving
+        .then(async () => {
+          await writeJson($, inboxFile(), next)
+          await show($, next)
+        })
+        .catch(() => undefined)
+      return saving
+    }
+
     let result: InboxFile
     let env: Record<string, string> | undefined
     try {
       env = await ghEnv($)
-      const [tabs, groups, notifications] = await Promise.all([fetchTabs($, env, file.issues ?? []), fetchGroups($, env), fetchActivity($, env, file.activity)])
-      const fetched = await fetchInbox($, env, file.items, () =>
-        writeJson($, inboxFile(), { ...claim, fetchingSince: Date.now() }),
-      )
+      const [tabs, groups, notifications, fetched] = await Promise.all([
+        fetchTabs($, env, file.issues ?? [], save),
+        fetchGroups($, env).then(async found => (await save({ groups: found }), found)),
+        fetchActivity($, env, file.activity).then(async found => (await save({ activity: found }), found)),
+        fetchInbox($, env, file.items, () => save({})).then(async found => (await save({ items: found.items }), found)),
+      ])
       result = { items: fetched.items, ...tabs, groups, activity: notifications, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
       const raw = error instanceof Error ? error.message : String(error)
       const message = isGatewayTimeout(raw) ? m.status.timeout : raw
-      // Keep the last good list and try again in a minute, not after a full refresh interval.
-      result = { items: file.items, mine: file.mine, issues: file.issues, groups: file.groups, activity: file.activity, capped: file.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
+      // Keep the lists this fetch did get, the last good ones otherwise, and try again in a minute, not after a full refresh interval.
+      result = { items: partial.items, mine: partial.mine, issues: partial.issues, groups: partial.groups, activity: partial.activity, capped: partial.capped, fetchedAt: file.fetchedAt ?? Date.now(), retryAt: Date.now() + RETRY_MS, error: message }
     }
+    isDone = true
+    await saving
     await writeJson($, inboxFile(), result)
     await show($, result)
     if (env !== undefined && result.error === undefined) await refreshStyle($, env)

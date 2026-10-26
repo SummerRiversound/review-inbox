@@ -71,6 +71,9 @@ fragment ref on CrossReferencedEvent {
 }`
 
 export const REFERENCE_DAYS = 30
+// A references node is a few small timeline events, so a page of 100 stays well inside GitHub's time limit:
+// measured on one account, 286 items took 3 requests and 6 s instead of 12 requests and 15 s at the default page.
+export const REFERENCE_PAGE = 100
 // A reference does not bump the referenced item's updatedAt, so items are picked from a wider window than the events.
 // ponytail: measured on one account, every missed reference was on an item touched 30-60 days before; older ones are still missed
 export const AUTHORED_DAYS = 60
