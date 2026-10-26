@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.14.0 — 2026-10-26
+
+### Changed
+
+- A refresh fills the drawer list by list as GitHub answers, instead of all at once when the last search is back. The review-request search runs alongside the others, and references are read 100 at a time, which halved their time on a busy account.
+- A refresh that fails partway keeps the lists it did get, beside the error.
+
 ## 0.13.0 — 2026-10-26
 
 ### Added
