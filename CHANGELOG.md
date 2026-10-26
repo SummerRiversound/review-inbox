@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.13.0 — 2026-10-26
+
+### Added
+
+- `Reload them all` beside the older-session warning makes every other session on an older release run `/reload-plugins` by itself, once it is idle; its other plugins reload with it. Only sessions on 0.13.0 or later can answer, so older ones still need `/reload-plugins` typed there once.
+
 ## 0.12.1 — 2026-10-23
 
 ### Changed
