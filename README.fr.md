@@ -6,13 +6,85 @@
 
 Un mod pour [Claude Code](https://claude.com/claude-code) qui garde votre travail GitHub sous les yeux pendant que vous codez : les pull requests qui attendent votre revue, chacune résumée en langage clair avant même que vous l'ouvriez, vos propres PR ouvertes et les revues qu'elles reçoivent, et les issues qui vous sollicitent.
 
+![Le bandeau au-dessus du prompt, puis les trois onglets de la boîte de réception : Revues à faire, Mes PR et Mes issues](docs/images/en/overview.gif)
+
+## Démarrage rapide
+
+Avec [GitHub CLI](https://cli.github.com/) connecté (`gh auth login`), dans le prompt d'une session Claude Code :
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+La dernière ligne ouvre la boîte de réception. Les options et les mises à jour sont dans [Installation](#installation).
+
 - **Bandeau au-dessus du prompt** — une seule ligne qui ne compte que ce qui vous attend : les PR en attente de votre revue, vos PR à traiter, et les issues qui vous sont assignées ou qui vous mentionnent. Sa couleur indique depuis combien de temps attend la plus ancienne demande de revue (jaune à partir de 3 jours, rouge à partir de 14). `Ouvrir` ouvre la boîte de réception. Quand un nombre baisse, il passe au vert un instant.
 - **Boîte de réception des revues** — `/review-inbox`, avec cinq onglets : Revues à faire, Mes PR et Assignations et mentions sont à traiter, Recherches enregistrées et Notifications sont à parcourir. Appuyez sur 1 à 5 quand la boîte de réception a le focus pour aller à l'onglet de ce rang, en partant de la gauche. Le nombre d'un onglet compte ses cartes ; Recherches enregistrées n'en a pas, et Notifications ne compte que les non lues.
 - **Messages éphémères** — un court message quand quelque chose de nouveau arrive pendant que vous travaillez.
 
-![Le bandeau au-dessus du prompt, puis les trois onglets de la boîte de réception : Revues à faire, Mes PR et Mes issues](docs/images/en/overview.gif)
-
 L'interface et les résumés existent en neuf langues ; voir [Langue](#langue).
+
+## Prérequis
+
+- Claude Code 2.1.287 ou ultérieur, les premières versions à prendre en charge les mods (plugins à hooks de fonction). Testé sur 2.1.292. Les mods sont en accès anticipé, et leur API peut changer d'une version à l'autre.
+- [GitHub CLI](https://cli.github.com/) (`gh`) dans votre `PATH`, connecté (`gh auth login`) avec un accès aux dépôts dont vous faites la revue.
+- GitHub Enterprise Server : définissez `GH_HOST` dans l'environnement où Claude Code démarre ; tous les appels `gh` vont alors vers cet hôte.
+
+## Installation
+
+Dans le prompt d'une session Claude Code :
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+L'écran d'installation demande les options ci-dessous ; toutes peuvent rester vides ou à leur valeur par défaut.
+
+### Mise à jour et désinstallation
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+Une mise à jour prend effet après un redémarrage. La désinstallation laisse en place le dossier de cache du mod, `~/.claude/plugins/data/review-inbox` ; supprimez-le vous-même pour effacer les listes et les résumés en cache. Consultez le [journal des modifications](CHANGELOG.md) pour savoir ce que chaque version a changé.
+
+## Configuration
+
+Les options se définissent sur l'écran d'installation et se modifient ensuite dans `/config`. Une modification s'applique immédiatement.
+
+| Option | Par défaut | Rôle |
+| --- | --- | --- |
+| `scope` | vide | Qualificateurs de recherche GitHub ajoutés à chaque recherche (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vide : tout GitHub. |
+| `githubUser` | vide | Le compte `gh` à utiliser quand plusieurs sont connectés (`gh auth token -u <user>`). Vide : le compte actif est utilisé. |
+| `language` | `auto` | `auto`, ou l'un des codes de la section [Langue](#langue). |
+| `refreshMinutes` | `10` | Minutes entre deux récupérations depuis GitHub : 5, 10, 15, 30 ou 60. Toutes les sessions partagent une récupération. |
+| `repoPaths` | vide | Où Claude travaille sur chaque dépôt, pour les boutons d'étape suivante. Voir ci-dessous. |
+| `motion` | `auto` | `off` supprime le clignotement des nombres de la barre. `auto` le supprime aussi quand le réglage de réduction des animations de Claude Code (`prefersReducedMotion`) est activé. |
+| `directActions` | `off` | `on` ajoute des boutons qui écrivent sur GitHub depuis une carte. Voir « Actions GitHub directes » plus bas. |
+
+`scope` accepte tout ce qu'accepte la [recherche d'issues et de PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub :
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+Quand les qualificateurs `org:`, `repo:` et `user:` sont répétés, il suffit que l'un d'eux corresponde. Une demande de revue adressée à une équipe compte comme une demande qui vous est adressée, selon la définition de `review-requested:@me` de GitHub.
+
+`repoPaths` prend des entrées `owner/repo=chemin` séparées par des virgules. `owner/*=chemin/*` couvre tous les dépôts d'un owner, le `*` du chemin valant le nom du dépôt ; un nom exact l'emporte sur un joker, et `~` est votre dossier personnel. Un dossier indiqué ici l'emporte sur le dossier de la session et sur ceux que le mod a retenus.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Onglets
 
@@ -129,66 +201,6 @@ Avec `directActions` sur `on`, les cartes ont aussi des boutons qui écrivent eu
 - Une écriture qui échoue reste sur la carte avec le message de GitHub, et son bouton revient.
 
 Rien n'est mergé directement. Votre PR approuvée sans vérification en cours a un bouton `Merger`, même avec `directActions` sur `off` : il ajoute à votre prompt une demande de vérifier les méthodes de fusion du dépôt et de lancer `gh pr merge`, que vous envoyez avec Entrée et pour laquelle Claude Code demande l'autorisation.
-
-## Prérequis
-
-- Claude Code 2.1.287 ou ultérieur, les premières versions à prendre en charge les mods (plugins à hooks de fonction). Testé sur 2.1.292. Les mods sont en accès anticipé, et leur API peut changer d'une version à l'autre.
-- [GitHub CLI](https://cli.github.com/) (`gh`) dans votre `PATH`, connecté (`gh auth login`) avec un accès aux dépôts dont vous faites la revue.
-- GitHub Enterprise Server : définissez `GH_HOST` dans l'environnement où Claude Code démarre ; tous les appels `gh` vont alors vers cet hôte.
-
-## Installation
-
-Dans le prompt d'une session Claude Code :
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-L'écran d'installation demande les options ci-dessous ; toutes peuvent rester vides ou à leur valeur par défaut.
-
-### Mise à jour et désinstallation
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-Une mise à jour prend effet après un redémarrage. La désinstallation laisse en place le dossier de cache du mod, `~/.claude/plugins/data/review-inbox` ; supprimez-le vous-même pour effacer les listes et les résumés en cache. Consultez le [journal des modifications](CHANGELOG.md) pour savoir ce que chaque version a changé.
-
-## Configuration
-
-Les options se définissent sur l'écran d'installation et se modifient ensuite dans `/config`. Une modification s'applique immédiatement.
-
-| Option | Par défaut | Rôle |
-| --- | --- | --- |
-| `scope` | vide | Qualificateurs de recherche GitHub ajoutés à chaque recherche (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vide : tout GitHub. |
-| `githubUser` | vide | Le compte `gh` à utiliser quand plusieurs sont connectés (`gh auth token -u <user>`). Vide : le compte actif est utilisé. |
-| `language` | `auto` | `auto`, ou l'un des codes de la section [Langue](#langue). |
-| `refreshMinutes` | `10` | Minutes entre deux récupérations depuis GitHub : 5, 10, 15, 30 ou 60. Toutes les sessions partagent une récupération. |
-| `repoPaths` | vide | Où Claude travaille sur chaque dépôt, pour les boutons d'étape suivante. Voir ci-dessous. |
-| `motion` | `auto` | `off` supprime le clignotement des nombres de la barre. `auto` le supprime aussi quand le réglage de réduction des animations de Claude Code (`prefersReducedMotion`) est activé. |
-| `directActions` | `off` | `on` ajoute des boutons qui écrivent sur GitHub depuis une carte. Voir « Actions GitHub directes » plus haut. |
-
-`scope` accepte tout ce qu'accepte la [recherche d'issues et de PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub :
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-Quand les qualificateurs `org:`, `repo:` et `user:` sont répétés, il suffit que l'un d'eux corresponde. Une demande de revue adressée à une équipe compte comme une demande qui vous est adressée, selon la définition de `review-requested:@me` de GitHub.
-
-`repoPaths` prend des entrées `owner/repo=chemin` séparées par des virgules. `owner/*=chemin/*` couvre tous les dépôts d'un owner, le `*` du chemin valant le nom du dépôt ; un nom exact l'emporte sur un joker, et `~` est votre dossier personnel. Un dossier indiqué ici l'emporte sur le dossier de la session et sur ceux que le mod a retenus.
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## Langue
 

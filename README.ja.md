@@ -6,13 +6,85 @@
 
 コーディング中も GitHub での自分の作業を見失わないための [Claude Code](https://claude.com/claude-code) の mod です。自分のレビューを待っているプルリクエスト（それぞれ開く前にわかりやすい言葉で要約します）、オープン中の自分の PR とそれに付いたレビュー、そして自分に声がかかった Issue を表示します。
 
+![入力欄の上の帯と、ドロワーの3つのタブ（要レビュー、自分の PR、自分の Issue）](docs/images/en/overview.gif)
+
+## クイックスタート
+
+[GitHub CLI](https://cli.github.com/) にログインした状態（`gh auth login`）で、Claude Code のプロンプトに入力します。
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+最後の行でドロワーが開きます。オプションと更新方法は [インストール](#インストール) をご覧ください。
+
 - **入力欄の上の帯** — 自分の対応が必要なものだけを数える1行です。自分のレビューを待っている PR、要対応の自分の PR、自分に割り当てられた Issue や自分がメンションされた Issue を数えます。色は、最も長く待っているレビューリクエストの待ち日数を表します（3日から黄色、14日から赤）。`開く` でドロワーが開きます。 数が減ると、一瞬だけ緑色になります。
 - **ドロワー** — `/review-inbox` で開く「レビュー受信トレイ」です。タブは5つあります。「要レビュー」「自分の PR」「割り当て・メンション」は自分が対応するもの、「保存した検索」と「通知」は見て回るためのものです。ドロワーにフォーカスがあるときに 1〜5 を押すと、左から数えてその番号のタブに移ります。タブの数字はカードの件数ですが、「保存した検索」にはなく、「通知」は未読の通知だけを数えます。
 - **トースト通知** — 作業中に新しい項目が届くと、短く知らせます。
 
-![入力欄の上の帯と、ドロワーの3つのタブ（要レビュー、自分の PR、自分の Issue）](docs/images/en/overview.gif)
-
 画面表示と要約は9つの言語に対応しています。詳しくは [言語](#言語) をご覧ください。
+
+## 動作要件
+
+- Claude Code 2.1.287 以降。mod（function-hook プラグイン）に対応した最初のビルドです。2.1.292 で動作を確認しています。mod はアーリーアクセス段階のため、リリース間で API が変わる可能性があります。
+- [GitHub CLI](https://cli.github.com/)（`gh`）が `PATH` 上にあり、レビュー対象のリポジトリにアクセスできるアカウントでログイン済み（`gh auth login`）であること。
+- GitHub Enterprise Server の場合: Claude Code を起動する環境で `GH_HOST` を設定してください。すべての `gh` 呼び出しがそのホストに送られます。
+
+## インストール
+
+Claude Code セッションの入力欄で次を実行します。
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+インストール画面で以下のオプションを尋ねられます。いずれも空欄またはデフォルト値のままでかまいません。
+
+### アップデートとアンインストール
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+アップデートは再起動後に反映されます。アンインストールしても mod のキャッシュフォルダ `~/.claude/plugins/data/review-inbox` は残ります。キャッシュされた一覧と要約も消すには、このフォルダを手動で削除してください。各バージョンの変更内容は [変更履歴](CHANGELOG.md) をご覧ください。
+
+## 設定
+
+インストール画面で設定し、後から `/config` で変更できます。変更はすぐに反映されます。
+
+| オプション | デフォルト | 内容 |
+| --- | --- | --- |
+| `scope` | 空 | すべての検索（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）に追加する GitHub の検索修飾子です。空の場合は GitHub 全体が対象です。 |
+| `githubUser` | 空 | 複数のアカウントでログインしているときに使う `gh` アカウントです（`gh auth token -u <user>`）。空の場合はアクティブなアカウントを使います。 |
+| `language` | `auto` | `auto`、または [言語](#言語) にあるコードのいずれかです。 |
+| `refreshMinutes` | `10` | GitHub から取得し直す間隔（分）です。5、10、15、30、60 のいずれかで、すべてのセッションが1回の取得を共有します。 |
+| `repoPaths` | 空 | 次の作業ボタンで、リポジトリごとに Claude が作業するフォルダです。下を参照してください。 |
+| `motion` | `auto` | `off` にすると帯の数が光りません。`auto` でも、Claude Code の動きを減らす設定（`prefersReducedMotion`）がオンなら光りません。 |
+| `directActions` | `off` | `on` にすると、カードから GitHub へ直接書き込むボタンが付きます。詳しくは下の「GitHub への直接操作」を参照してください。 |
+
+`scope` には、GitHub の [Issue と PR の検索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) で使えるものなら何でも指定できます。
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+`org:`、`repo:`、`user:` の修飾子を複数指定すると、そのいずれかに一致するものが対象になります。チームへのレビューリクエストも、GitHub の `review-requested:@me` の定義どおり、自分へのリクエストとして数えます。
+
+`repoPaths` には `owner/repo=パス` をカンマ区切りで書きます。`owner/*=パス/*` はその owner のすべてのリポジトリに当てはまり、パスの `*` はリポジトリ名になります。完全な名前がワイルドカードより優先され、`~` はホームフォルダです。ここで指定したフォルダは、セッション自身のフォルダや mod が覚えたフォルダより優先されます。
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## タブ
 
@@ -129,66 +201,6 @@ GitHub が通知を渡すのは gh のサインインとクラシックトーク
 - 失敗した書き込みは GitHub のメッセージとともにカードに残り、ボタンが戻ります。
 
 マージは直接行いません。承認済みで実行中のチェックがない自分の PR には、`directActions` がオフでも `マージ` ボタンが付きます。押すと、リポジトリのマージ方法を確認して `gh pr merge` を実行する依頼がプロンプトに入り、Enter で送ると Claude Code が実行の許可を求めます。
-
-## 動作要件
-
-- Claude Code 2.1.287 以降。mod（function-hook プラグイン）に対応した最初のビルドです。2.1.292 で動作を確認しています。mod はアーリーアクセス段階のため、リリース間で API が変わる可能性があります。
-- [GitHub CLI](https://cli.github.com/)（`gh`）が `PATH` 上にあり、レビュー対象のリポジトリにアクセスできるアカウントでログイン済み（`gh auth login`）であること。
-- GitHub Enterprise Server の場合: Claude Code を起動する環境で `GH_HOST` を設定してください。すべての `gh` 呼び出しがそのホストに送られます。
-
-## インストール
-
-Claude Code セッションの入力欄で次を実行します。
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-インストール画面で以下のオプションを尋ねられます。いずれも空欄またはデフォルト値のままでかまいません。
-
-### アップデートとアンインストール
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-アップデートは再起動後に反映されます。アンインストールしても mod のキャッシュフォルダ `~/.claude/plugins/data/review-inbox` は残ります。キャッシュされた一覧と要約も消すには、このフォルダを手動で削除してください。各バージョンの変更内容は [変更履歴](CHANGELOG.md) をご覧ください。
-
-## 設定
-
-インストール画面で設定し、後から `/config` で変更できます。変更はすぐに反映されます。
-
-| オプション | デフォルト | 内容 |
-| --- | --- | --- |
-| `scope` | 空 | すべての検索（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）に追加する GitHub の検索修飾子です。空の場合は GitHub 全体が対象です。 |
-| `githubUser` | 空 | 複数のアカウントでログインしているときに使う `gh` アカウントです（`gh auth token -u <user>`）。空の場合はアクティブなアカウントを使います。 |
-| `language` | `auto` | `auto`、または [言語](#言語) にあるコードのいずれかです。 |
-| `refreshMinutes` | `10` | GitHub から取得し直す間隔（分）です。5、10、15、30、60 のいずれかで、すべてのセッションが1回の取得を共有します。 |
-| `repoPaths` | 空 | 次の作業ボタンで、リポジトリごとに Claude が作業するフォルダです。下を参照してください。 |
-| `motion` | `auto` | `off` にすると帯の数が光りません。`auto` でも、Claude Code の動きを減らす設定（`prefersReducedMotion`）がオンなら光りません。 |
-| `directActions` | `off` | `on` にすると、カードから GitHub へ直接書き込むボタンが付きます。詳しくは上の「GitHub への直接操作」を参照してください。 |
-
-`scope` には、GitHub の [Issue と PR の検索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) で使えるものなら何でも指定できます。
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-`org:`、`repo:`、`user:` の修飾子を複数指定すると、そのいずれかに一致するものが対象になります。チームへのレビューリクエストも、GitHub の `review-requested:@me` の定義どおり、自分へのリクエストとして数えます。
-
-`repoPaths` には `owner/repo=パス` をカンマ区切りで書きます。`owner/*=パス/*` はその owner のすべてのリポジトリに当てはまり、パスの `*` はリポジトリ名になります。完全な名前がワイルドカードより優先され、`~` はホームフォルダです。ここで指定したフォルダは、セッション自身のフォルダや mod が覚えたフォルダより優先されます。
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## 言語
 
