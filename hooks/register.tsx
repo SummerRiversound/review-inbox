@@ -514,7 +514,7 @@ async function settle($: EngineInterface, id: string, at?: number) {
     if (pending.kind === 'unsubscribe') await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}/subscription`], env)
     await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}`], env)
     const thread = (await read($, activity)).threads.find(t => t.id === id)
-    if (thread) await setHidden($, h => ({ ...h, [threadKey(thread)]: thread.updatedAt }))
+    if (thread) await setHidden($, hideMap => ({ ...h, [threadKey(thread)]: thread.updatedAt }))
   } catch (error) {
     await update($, settleErrors, errors => ({ ...errors, [id]: error instanceof Error ? error.message : String(error) }))
   } finally {
@@ -617,7 +617,7 @@ function toast($: EngineInterface, text: string) {
 
 // Run by the session that just fetched; a failure keeps the last style and tries again a day later.
 async function refreshStyle($: EngineInterface, env: Record<string, string>) {
-  const file = await readJson<StyleFile>($, styleFile(), {})
+  const file = await readJson($, styleFile(), {} as StyleFile)
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
     const reviewed: Pages<GqlReviewed> = await searchAll($, STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
@@ -638,7 +638,7 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
 
 // Every session runs this; only the one that finds the shared file stale and wins the claim goes to GitHub.
 async function sync($: EngineInterface, force = false) {
-  const file = await readJson<InboxFile>($, inboxFile(), { items: [] })
+  const file = await readJson($, inboxFile(), { items: [] } as InboxFile)
   if (file === undefined) return
   if (isFetching || !shouldFetch(file, Date.now(), force, config.refreshMs)) return show($, file)
 
@@ -648,7 +648,7 @@ async function sync($: EngineInterface, force = false) {
     const claim = { ...file, fetchingSince: Date.now(), fetchingBy: sessionToken }
     await writeJson($, inboxFile(), claim)
     await $.clock.sleep(500)
-    const settled = await readJson<InboxFile>($, inboxFile(), { items: [] })
+    const settled = await readJson($, inboxFile(), { items: [] } as InboxFile)
     if (settled?.fetchingBy !== sessionToken) return
     await show($, claim)
 
@@ -718,9 +718,9 @@ async function show($: EngineInterface, file: InboxFile) {
         ? { kind: 'error' as const, message: file.error, updatedAt: file.fetchedAt }
         : { kind: 'ready' as const, updatedAt: file.fetchedAt },
   )
-  const hiddenNow = await readJson<Record<string, string>>($, hiddenFile(), {})
+  const hiddenNow = await readJson($, hiddenFile(), {} as Record<string, string>)
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
-  const notesNow = await readJson<Record<string, Note>>($, notesFile(), {})
+  const notesNow = await readJson($, notesFile(), {} as Record<string, Note>)
   if (notesNow !== undefined) await update($, notes, () => notesNow)
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
@@ -729,7 +729,7 @@ async function show($: EngineInterface, file: InboxFile) {
   const isFirstLook = shownKeys === undefined
   // A stale file is about to be fetched again; taking it as the baseline would announce its news one by one after the fetch.
   if (isFirstLook && Date.now() - file.fetchedAt > config.refreshMs) return
-  const last = isFirstLook ? await readJson<Shown>($, shownFile(), {}) : undefined
+  const last = isFirstLook ? await readJson($, shownFile(), {} as Shown) : undefined
   const fresh = newArrivals(shownKeys ?? last?.reviews, file.items)
   const prNews = prs ? prAlerts(shownPrKeys ?? last?.prs, prs) : []
   const newIssues = issueList ? issueAlerts(shownIssueKeys ?? last?.issues, issueList) : []
@@ -793,7 +793,7 @@ async function flashDrops($: EngineInterface) {
 
 // Read as the drawer opens, not while it is up, so a card stays marked until it closes.
 async function loadSeen($: EngineInterface) {
-  const seen = await readJson<{ at?: number }>($, seenFile(), {})
+  const seen = await readJson($, seenFile(), {} as { at?: number })
   await update($, seenAt, () => seen?.at ?? 0)
 }
 
@@ -915,7 +915,7 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   const chosen = keys.flatMap(key => byKey.get(key) ?? [])
   if (keys.length > 0) {
     const { text } = await $.prompt.read()
-    const style = (await readJson<StyleFile>($, styleFile(), {}))?.profile
+    const style = (await readJson($, styleFile(), {} as StyleFile))?.profile
     const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
@@ -934,11 +934,11 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
 
 // Whether each kind of card is out of view: hidden until its news, or snoozed until its day or its news.
 function awayTests(hiddenMap: Record<string, string>, notesMap: Record<string, Note>, now: number) {
-  const away = (key: string, test: (h: Record<string, string>) => boolean) => test(hiddenMap) || isSnoozed(notesMap[key], key, now, test)
+  const away = (key: string, test: (hideMap: Record<string, string>) => boolean) => test(hiddenMap) || isSnoozed(notesMap[key], key, now, test)
   return {
-    review: (i: InboxItem) => away(itemKey(i), h => isHidden(h, i)),
-    pr: (pr: MyPr) => away(prHideKey(pr), h => isPrHidden(h, pr)),
-    issue: (i: IssueItem) => away(issueHideKey(i), h => isIssueHidden(h, i)),
+    review: (i: InboxItem) => away(itemKey(i), hideMap => isHidden(hideMap, i)),
+    pr: (pr: MyPr) => away(prHideKey(pr), hideMap => isPrHidden(hideMap, pr)),
+    issue: (i: IssueItem) => away(issueHideKey(i), hideMap => isIssueHidden(hideMap, i)),
   }
 }
 
@@ -953,7 +953,7 @@ async function liveKeys($: EngineInterface) {
 
 // Read-modify-write on its own file, like a hide.
 async function setNotes($: EngineInterface, change: (n: Record<string, Note>) => Record<string, Note>) {
-  const current = await readJson<Record<string, Note>>($, notesFile(), {})
+  const current = await readJson($, notesFile(), {} as Record<string, Note>)
   if (current === undefined) {
     $.ui.toast(m.toast.retry)
     return
@@ -987,7 +987,7 @@ async function unsnooze($: EngineInterface, keys: string[]) {
 
 // Reloads this session once when a newer release asks; the command waits until the session is idle.
 async function answerReload($: EngineInterface) {
-  const request = await readJson<ReloadRequest | undefined>($, RELOAD_FILE, undefined)
+  const request = await readJson($, RELOAD_FILE, undefined as ReloadRequest | undefined)
   if (!request || !shouldReload(request, version, loadedAt)) return
   // Answered, even if the reload is refused or another session's clock runs ahead.
   loadedAt = Math.max(Date.now(), request.at)
@@ -997,7 +997,7 @@ async function answerReload($: EngineInterface) {
 // Tells the other sessions what this one is on, and reads what they are on.
 // shortcut: two sessions writing in the same instant can drop one entry until its next check-in, 30 seconds on; lock the file if that shows
 async function checkIn($: EngineInterface, leaving = false) {
-  const file = await readJson<Record<string, Presence>>($, SESSIONS_FILE, {})
+  const file = await readJson($, SESSIONS_FILE, {} as Record<string, Presence>)
   if (file === undefined) return
   const { [selfId]: old, ...others } = liveSessions(file, Date.now())
   let next = others
@@ -1019,7 +1019,7 @@ async function checkIn($: EngineInterface, leaving = false) {
 // Remembers which folder holds each of this session's repositories, so a card in another session can name it.
 // shortcut: a folder moved or deleted is dropped only when a card's fill finds it gone; prune the file if it grows stale
 async function rememberFolder($: EngineInterface, remotes: string[], commonDir: () => Promise<string>) {
-  const file = await readJson<RepoPaths>($, REPOS_FILE, {})
+  const file = await readJson($, REPOS_FILE, {} as RepoPaths)
   if (file === undefined) return
   home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
   const top = remotes.length > 0 ? mainCheckout(await commonDir(), home) : undefined
@@ -1030,8 +1030,8 @@ async function rememberFolder($: EngineInterface, remotes: string[], commonDir: 
 }
 
 // Read-modify-write on its own file, so a hide never races a fetch rewriting the inbox.
-async function setHidden($: EngineInterface, change: (h: Record<string, string>) => Record<string, string>) {
-  const current = await readJson<Record<string, string>>($, hiddenFile(), {})
+async function setHidden($: EngineInterface, change: (hideMap: Record<string, string>) => Record<string, string>) {
+  const current = await readJson($, hiddenFile(), {} as Record<string, string>)
   if (current === undefined) {
     $.ui.toast(m.toast.retry)
     return
@@ -1506,7 +1506,7 @@ export const register: Register = (on, options) => {
                 key={`hide-${item.repo}-${item.number}`}
                 label={m.card.hide}
                 dimColor
-                onPress={() => void setHidden($, h => ({ ...h, [itemKey(item)]: item.headSha }))}
+                onPress={() => void setHidden($, hideMap => ({ ...h, [itemKey(item)]: item.headSha }))}
               />,
             )}
             {noteEditor(itemKey(item), () => item.headSha)}
@@ -1570,7 +1570,7 @@ export const register: Register = (on, options) => {
               key={`hide-${pr.url}`}
               label={m.card.hide}
               dimColor
-              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
+              onPress={() => void setHidden($, hideMap => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
             />,
           )}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
@@ -1609,7 +1609,7 @@ export const register: Register = (on, options) => {
               key={`hide-${issueKey(issue)}`}
               label={m.card.hide}
               dimColor
-              onPress={() => void setHidden($, h => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
+              onPress={() => void setHidden($, hideMap => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
             />,
           )}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
@@ -1672,7 +1672,7 @@ export const register: Register = (on, options) => {
             label={m.sections.hidden(keys.length)}
             dimColor
             onPress={async () => {
-              await setHidden($, h => Object.fromEntries(Object.entries(h).filter(([k]) => !keys.includes(k))))
+              await setHidden($, hideMap => Object.fromEntries(Object.entries(hideMap).filter(([k]) => !keys.includes(k))))
               await unsnooze($, keys)
             }}
           />
