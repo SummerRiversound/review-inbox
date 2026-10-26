@@ -129,6 +129,19 @@ test('a hidden PR of mine leaves its tab, and show all brings it back', async ($
   await ui.unmount()
 })
 
+test('hiding a second PR keeps the first one hidden', async ($, on) => {
+  const ui = await opened($, on, [pr(1, 'changes'), pr(2, 'waiting'), pr(3, 'waiting')], [], 'mine')
+
+  await ui.press({ key: 'more-pr:u1' })
+  await ui.press({ key: 'hide-u1' })
+  await ui.press({ key: 'more-pr:u2' })
+  await ui.press({ key: 'hide-u2' })
+  expect(await shown(ui, /#1/)).toBe(false)
+  expect(await shown(ui, /#2/)).toBe(false)
+  expect(await shown(ui, /#3/)).toBe(true)
+  await ui.unmount()
+})
+
 test('my issues are split into assigned, mentions and references, and an issue can be hidden', async ($, on) => {
   const ui = await opened($, on, [], [issue(1, 'mention'), issue(2, 'assigned'), { ...issue(3, 'reference'), by: 'kim', target: 'o/r#9' }], 'issues')
 

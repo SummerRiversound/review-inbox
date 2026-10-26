@@ -20,12 +20,15 @@ export const isGatewayTimeout = (message: string) => /HTTP 50[234]|invalid chara
 
 export const smallerPage = (size: number) => (size > MIN_PAGE ? Math.max(MIN_PAGE, Math.floor(size / 2)) : undefined)
 
+// What a paged search read: its nodes, whether more were left, and the login and count when asked.
+export type Pages<T> = { login?: string; count?: number; nodes: Partial<T>[]; capped: boolean }
+
 // Pages until GitHub has no more or `limit` nodes are read; `capped` says there were more, `count` how many when the query asks.
 export async function readPages<T>(
   fetchPage: (first: number, after?: string) => Promise<Page<T>>,
   limit: number,
   size = PAGE_SIZE,
-): Promise<{ login?: string; count?: number; nodes: Partial<T>[]; capped: boolean }> {
+): Promise<Pages<T>> {
   const nodes: Partial<T>[] = []
   let after: string | undefined
   let login: string | undefined
