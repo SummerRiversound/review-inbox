@@ -18,6 +18,7 @@ const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '
 // The name every release before formats were numbered reads and writes.
 const LEGACY_INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}.json`
 const SESSIONS = '/home/me/.claude/plugins/data/review-inbox/sessions.json'
+const RELOAD = '/home/me/.claude/plugins/data/review-inbox/reload.json'
 const REPOS = '/home/me/.claude/plugins/data/review-inbox/repos.json'
 const SHOWN = `/home/me/.claude/plugins/data/review-inbox/shown-${cacheKey('', '')}.json`
 
@@ -317,6 +318,38 @@ test('the drawer names the other sessions on an older release with how to update
   expect(await shown(ui, /2 sessions on an older version \(dhub2\)/)).toBe(true)
   expect(await shown(ui, /web/)).toBe(false)
   expect(JSON.parse(files.get(SESSIONS)!).self.version).toBe('0.12.0')
+  await ui.unmount()
+})
+
+test('Reload them all leaves a request from this release for the older sessions, and this session does not reload for it', async ($, on) => {
+  const reloads: string[] = []
+  on('command.run', { command: 'reload-plugins' }, async ($, e) => {
+    reloads.push(e.command)
+    return { text: '' }
+  })
+  const sessions: Record<string, Presence> = { old: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [], version: '0.11.0' } }
+  const ui = await opened($, on, [], [], 'mine', { sessions, version: '0.12.0' })
+  expect((await ui.find({ key: 'reload-all' }))?.props.label).toBe('Reload them all')
+  await ui.press({ key: 'reload-all' })
+  expect(JSON.parse(files.get(RELOAD)!)).toMatchObject({ version: '0.12.0' })
+  expect((await ui.find({ key: 'reload-all' }))?.props.label).toBe('Asked')
+  await clock.advance(30_000)
+  expect(reloads).toEqual([])
+  await ui.unmount()
+})
+
+test('a session on an older release reloads once when a newer one asks after it loaded', async ($, on) => {
+  const reloads: string[] = []
+  on('command.run', { command: 'reload-plugins' }, async ($, e) => {
+    reloads.push(e.command)
+    return { text: '' }
+  })
+  const ui = await opened($, on, [], [], 'mine', { version: '0.11.0' })
+  files.set(RELOAD, JSON.stringify({ version: '0.12.0', at: Date.now() + 1_000 }))
+  await clock.advance(30_000)
+  expect(reloads).toEqual(['reload-plugins'])
+  await clock.advance(30_000)
+  expect(reloads).toEqual(['reload-plugins'])
   await ui.unmount()
 })
 
