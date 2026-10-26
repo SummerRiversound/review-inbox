@@ -1141,12 +1141,13 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.viewport) terminalColumns = e.viewport.columns
-    if (e.props.hasSurvey) return next(e)
+    const below = await next(e)
+    if (e.props.hasSurvey) return below
     const away = awayTests(await read($, hidden), await read($, notes), Date.now())
     const reviews = (await read($, items)).filter(i => !i.isDraft && !away.review(i))
     const band = await bandNow($)
     const counts = bandLabels(band, m, await read($, capped))
-    if (counts.length === 0) return next(e)
+    if (counts.length === 0) return below
     // bandLabels keeps this order and leaves out the same zeros.
     const keys = BAND_KEYS.filter(k => band[k] > 0)
     const flashing = await read($, dropped)
@@ -1156,20 +1157,23 @@ export const register: Register = (on, options) => {
     const oldest = reviews.length > 0 ? Math.max(...reviews.map(i => waitingDays(i.requestedAt, now))) : undefined
 
     return (
-      <Box flexDirection="row" justifyContent="space-between">
-        <Box flexDirection="row">
-          <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
-          <Text bold>
-            {counts.map((label, i) => (
-              <Text key={keys[i]} color={flashing.includes(keys[i]!) ? 'success' : undefined}>
-                {i > 0 ? ' · ' : ''}
-                {label}
-              </Text>
-            ))}
-          </Text>
-          {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
+      <Box flexDirection="column">
+        <Box flexDirection="row" justifyContent="space-between">
+          <Box flexDirection="row">
+            <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
+            <Text bold>
+              {counts.map((label, i) => (
+                <Text key={keys[i]} color={flashing.includes(keys[i]!) ? 'success' : undefined}>
+                  {i > 0 ? ' · ' : ''}
+                  {label}
+                </Text>
+              ))}
+            </Text>
+            {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
+          </Box>
+          <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
         </Box>
-        <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
+        {below}
       </Box>
     )
   })
