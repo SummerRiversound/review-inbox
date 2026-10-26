@@ -514,7 +514,7 @@ async function settle($: EngineInterface, id: string, at?: number) {
     if (pending.kind === 'unsubscribe') await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}/subscription`], env)
     await gh($, ['api', '-X', 'DELETE', `notifications/threads/${id}`], env)
     const thread = (await read($, activity)).threads.find(t => t.id === id)
-    if (thread) await setHidden($, hideMap => ({ ...h, [threadKey(thread)]: thread.updatedAt }))
+    if (thread) await setHidden($, hideMap => ({ ...hideMap, [threadKey(thread)]: thread.updatedAt }))
   } catch (error) {
     await update($, settleErrors, errors => ({ ...errors, [id]: error instanceof Error ? error.message : String(error) }))
   } finally {
@@ -1506,7 +1506,7 @@ export const register: Register = (on, options) => {
                 key={`hide-${item.repo}-${item.number}`}
                 label={m.card.hide}
                 dimColor
-                onPress={() => void setHidden($, hideMap => ({ ...h, [itemKey(item)]: item.headSha }))}
+                onPress={() => void setHidden($, hideMap => ({ ...hideMap, [itemKey(item)]: item.headSha }))}
               />,
             )}
             {noteEditor(itemKey(item), () => item.headSha)}
@@ -1570,7 +1570,7 @@ export const register: Register = (on, options) => {
               key={`hide-${pr.url}`}
               label={m.card.hide}
               dimColor
-              onPress={() => void setHidden($, hideMap => ({ ...h, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
+              onPress={() => void setHidden($, hideMap => ({ ...hideMap, ...Object.fromEntries([prHide(pr, Date.now())]) }))}
             />,
           )}
           {noteEditor(prHideKey(pr), () => prHide(pr, Date.now())[1])}
@@ -1609,7 +1609,7 @@ export const register: Register = (on, options) => {
               key={`hide-${issueKey(issue)}`}
               label={m.card.hide}
               dimColor
-              onPress={() => void setHidden($, hideMap => ({ ...h, ...Object.fromEntries([issueHide(issue)]) }))}
+              onPress={() => void setHidden($, hideMap => ({ ...hideMap, ...Object.fromEntries([issueHide(issue)]) }))}
             />,
           )}
           {noteEditor(issueHideKey(issue), () => issueHide(issue)[1])}
