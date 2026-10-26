@@ -58,6 +58,8 @@ async function opened(
   on('session.id', async () => ({ value: 'self' }))
   on('session.cwd', async () => ({ value: '/work/review-inbox' }))
   on('ui.panes', async () => ({ value: [] }))
+  // Stands for the engine, which draws an empty row above the prompt when no plugin beneath the band draws there.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e) => h($.ui.resolve(e).Box, null))
   on('command.register', async () => ({ value: { command: 'review-inbox' } }))
   const store = new Map([[INBOX, JSON.stringify({ items: more.items ?? [], mine, issues, groups: more.groups ?? {}, activity: more.activity, fetchedAt: Date.now() })]])
   if (more.sessions) store.set(SESSIONS, JSON.stringify(more.sessions))
@@ -464,6 +466,21 @@ test('a saved search counted in the band adds Saved searches N to it; the others
 
   expect(await shown(band, /My PRs to act on 1/)).toBe(true)
   expect(await shown(band, /Saved searches 3/)).toBe(true)
+  await band.unmount()
+})
+
+test('the band keeps what a plugin beneath it draws above the prompt', async ($, on) => {
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return h(Text, null, 'next: run the tests')
+  })
+  const pane = await opened($, on, [pr(1, 'changes')], [], 'mine')
+  await pane.unmount()
+
+  const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+
+  expect(await shown(band, /My PRs to act on 1/)).toBe(true)
+  expect(await shown(band, /next: run the tests/)).toBe(true)
   await band.unmount()
 })
 
