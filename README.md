@@ -239,7 +239,7 @@ One GraphQL search returns every PR waiting for your review with what the cards 
 
 ## Limits
 
-- At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
+- At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time (references 100, as their items are small), each list shows as soon as it arrives, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
 - A saved search shows its 20 most recently updated matches; its count is GitHub's total for the search.
 - The Notifications tab reads up to 100 notifications from the last 30 days, and asks no more often than GitHub's poll interval allows.
 - A reference to an item you have not touched in 60 days is missed.

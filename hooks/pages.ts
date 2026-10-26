@@ -24,9 +24,9 @@ export const smallerPage = (size: number) => (size > MIN_PAGE ? Math.max(MIN_PAG
 export async function readPages<T>(
   fetchPage: (first: number, after?: string) => Promise<Page<T>>,
   limit: number,
+  size = PAGE_SIZE,
 ): Promise<{ login?: string; count?: number; nodes: Partial<T>[]; capped: boolean }> {
   const nodes: Partial<T>[] = []
-  let size = PAGE_SIZE
   let after: string | undefined
   let login: string | undefined
   let count: number | undefined

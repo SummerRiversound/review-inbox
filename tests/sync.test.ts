@@ -55,3 +55,68 @@ for (const hasMv of [true, false]) {
     expect([...files.keys()]).toEqual([INBOX])
   })
 }
+
+const page = (nodes: unknown[]) => JSON.stringify({ viewer: { login: 'me' }, search: { pageInfo: { hasNextPage: false }, nodes } })
+const myGqlPr = {
+  repository: { nameWithOwner: 'o/r' }, number: 1, title: 't', url: 'u1', isDraft: false, createdAt: '2026-10-01T00:00:00Z',
+  reviewDecision: null, mergeable: 'MERGEABLE', commits: { nodes: [] }, reviews: { nodes: [] },
+}
+
+// A session with nothing fetched yet, whose review-request search fails, or answers only when `answer` is called.
+function slowReviews(on: On, reviews: 'hang' | 'fail') {
+  const clock = mock.clock(on)
+  mock.env(on, { HOME: '/home/me' })
+  on('settings.read', async () => ({ value: {} }))
+  on('session.start', async () => ({ cwd: '/work' }))
+  on('session.id', async () => ({ value: 'self' }))
+  on('ui.panes', async () => ({ value: [] }))
+  on('command.register', async () => ({ value: undefined }))
+  const files = new Map<string, string>()
+  on('fs.exists', async ($, e) => ({ value: files.has(e.path) }))
+  on('fs.read', async ($, e) => {
+    if (!files.has(e.path)) throw new Error(`ENOENT: ${e.path}`)
+    return { value: files.get(e.path)! }
+  })
+  on('fs.write', async ($, e) => {
+    files.set(e.path, e.text)
+    return { value: undefined }
+  })
+  let answer = () => {}
+  on('process.run', async ($, e) => {
+    const args = e.argv.join(' ')
+    if (!args.startsWith('gh api graphql')) return { value: ran(1, 'offline') }
+    if (args.includes('q=is:pr is:open review-requested:@me')) {
+      if (reviews === 'fail') return { value: ran(1, 'offline') }
+      await new Promise<void>(resolve => (answer = resolve))
+    }
+    const nodes = args.includes('is:pr is:open author:@me') ? [myGqlPr] : []
+    return { value: { ...ran(0), stdout: page(nodes) } }
+  })
+  return { clock, inbox: () => JSON.parse(files.get(INBOX) ?? '{}'), answer: () => answer() }
+}
+
+test('a list GitHub has answered is shown while a slower one is still being fetched', async ($, on) => {
+  const { clock, inbox, answer } = slowReviews(on, 'hang')
+
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 10; i++) await clock.advance(1_000)
+
+  expect(inbox().mine.map((pr: { url: string }) => pr.url)).toEqual(['u1'])
+  expect(inbox().fetchingSince).toBeDefined()
+  expect(inbox().fetchedAt).toBeUndefined()
+
+  answer()
+  for (let i = 0; i < 3; i++) await clock.advance(1_000)
+  expect(inbox().fetchedAt).toBeDefined()
+  expect(inbox().fetchingSince).toBeUndefined()
+})
+
+test('a fetch that fails partway keeps the lists it did get, with the error', async ($, on) => {
+  const { clock, inbox } = slowReviews(on, 'fail')
+
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 10; i++) await clock.advance(1_000)
+
+  expect(inbox().error).toBe('offline')
+  expect(inbox().mine.map((pr: { url: string }) => pr.url)).toEqual(['u1'])
+})
