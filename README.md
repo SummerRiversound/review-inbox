@@ -6,13 +6,85 @@
 
 A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
 
+![The band above the prompt, then the drawer's three tabs: To review, My PRs and My issues](docs/images/en/overview.gif)
+
+## Quick start
+
+With [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`), at the prompt of a Claude Code session:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+The last line opens the drawer. Options and updates are under [Install](#install).
+
 - **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer. A count that goes down shows in green for a moment.
 - **Drawer** — `/review-inbox`, with five tabs: To review, My PRs and Assigned & mentioned hold what to act on, then Saved searches and Notifications are there to browse. Press 1 to 5 while the drawer has focus to switch to that tab, counting from the left. The number on a tab counts its cards; Saved searches has none, and Notifications counts the unread.
 - **Toasts** — a short notice when something new arrives while you work.
 
-![The band above the prompt, then the drawer's three tabs: To review, My PRs and My issues](docs/images/en/overview.gif)
-
 The interface and the summaries come in nine languages; see [Language](#language).
+
+## Requirements
+
+- Claude Code 2.1.287 or later, the first builds with mods (function-hook plugins). Tested on 2.1.292. Mods are in early access, and their API may change between releases.
+- [GitHub CLI](https://cli.github.com/) (`gh`) on your `PATH`, logged in (`gh auth login`) with access to the repositories you review.
+- GitHub Enterprise Server: set `GH_HOST` in the environment Claude Code starts in; every `gh` call goes to that host.
+
+## Install
+
+At the prompt of a Claude Code session:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+The install screen asks for the options below; all of them can stay empty or at their default.
+
+### Update and uninstall
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+An update applies after a restart. Uninstalling leaves the mod's cache folder, `~/.claude/plugins/data/review-inbox`, in place; delete it yourself to remove the cached lists and summaries. See the [changelog](CHANGELOG.md) for what each version changed.
+
+## Configuration
+
+Set on the install screen; change them later in `/config`. A change applies right away.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `scope` | empty | GitHub search qualifiers added to every search (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Empty means all of GitHub. |
+| `githubUser` | empty | The `gh` account to use when several are logged in (`gh auth token -u <user>`). Empty uses the active account. |
+| `language` | `auto` | `auto`, or one of the codes in [Language](#language). |
+| `refreshMinutes` | `10` | Minutes between fetches from GitHub: 5, 10, 15, 30 or 60. All sessions share one fetch. |
+| `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
+| `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
+| `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions below. |
+
+`scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+Repeated `org:`, `repo:` and `user:` qualifiers match any of them. A team review request counts as a request for you, as GitHub's `review-requested:@me` defines it.
+
+`repoPaths` takes comma-separated `owner/repo=path` entries. `owner/*=path/*` covers every repository of an owner, with `*` in the path standing for the repository's name; an exact name wins over a wildcard, and `~` is your home folder. A folder named here wins over the session's own folder and the ones the mod remembers.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Tabs
 
@@ -129,66 +201,6 @@ With `directActions` set to `on`, cards also get buttons that write to GitHub th
 - A write that fails stays on the card with GitHub's message, and its button comes back.
 
 Nothing merges directly. Your approved PR with no checks running gets a `Merge` button, with `directActions` off too: it adds a request to your prompt to check the repository's merge methods and run `gh pr merge`, which you send with Enter and Claude Code asks permission to run.
-
-## Requirements
-
-- Claude Code 2.1.287 or later, the first builds with mods (function-hook plugins). Tested on 2.1.292. Mods are in early access, and their API may change between releases.
-- [GitHub CLI](https://cli.github.com/) (`gh`) on your `PATH`, logged in (`gh auth login`) with access to the repositories you review.
-- GitHub Enterprise Server: set `GH_HOST` in the environment Claude Code starts in; every `gh` call goes to that host.
-
-## Install
-
-At the prompt of a Claude Code session:
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-The install screen asks for the options below; all of them can stay empty or at their default.
-
-### Update and uninstall
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-An update applies after a restart. Uninstalling leaves the mod's cache folder, `~/.claude/plugins/data/review-inbox`, in place; delete it yourself to remove the cached lists and summaries. See the [changelog](CHANGELOG.md) for what each version changed.
-
-## Configuration
-
-Set on the install screen; change them later in `/config`. A change applies right away.
-
-| Option | Default | What it does |
-| --- | --- | --- |
-| `scope` | empty | GitHub search qualifiers added to every search (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Empty means all of GitHub. |
-| `githubUser` | empty | The `gh` account to use when several are logged in (`gh auth token -u <user>`). Empty uses the active account. |
-| `language` | `auto` | `auto`, or one of the codes in [Language](#language). |
-| `refreshMinutes` | `10` | Minutes between fetches from GitHub: 5, 10, 15, 30 or 60. All sessions share one fetch. |
-| `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
-| `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
-| `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions above. |
-
-`scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-Repeated `org:`, `repo:` and `user:` qualifiers match any of them. A team review request counts as a request for you, as GitHub's `review-requested:@me` defines it.
-
-`repoPaths` takes comma-separated `owner/repo=path` entries. `owner/*=path/*` covers every repository of an owner, with `*` in the path standing for the repository's name; an exact name wins over a wildcard, and `~` is your home folder. A folder named here wins over the session's own folder and the ones the mod remembers.
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## Language
 

@@ -6,13 +6,85 @@
 
 Un mod de [Claude Code](https://claude.com/claude-code) que mantiene a la vista tu trabajo en GitHub mientras programas: los pull requests que esperan tu revisión, cada uno resumido en lenguaje sencillo antes de que lo abras; tus propios PR abiertos y las revisiones que reciben, y las incidencias en las que te involucran.
 
+![La franja sobre el prompt y, después, las tres pestañas de la bandeja: Por revisar, Mis PR y Mis incidencias](docs/images/en/overview.gif)
+
+## Inicio rápido
+
+Con [GitHub CLI](https://cli.github.com/) con la sesión iniciada (`gh auth login`), en el prompt de una sesión de Claude Code:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+La última línea abre la bandeja. Las opciones y las actualizaciones están en [Instalación](#instalación).
+
 - **Franja sobre el prompt** — una línea que cuenta solo lo que requiere tu atención: PR que esperan tu revisión, tus PR por atender e incidencias asignadas a ti o que te mencionan. Su color indica cuánto lleva esperando la solicitud de revisión más antigua (amarillo a partir de 3 días, rojo a partir de 14). `Abrir` abre la bandeja. Cuando un número baja, se pone verde un instante.
 - **Bandeja** — `/review-inbox`, con cinco pestañas: Por revisar, Mis PR y Asignadas y mencionadas son lo que hay que atender; Búsquedas guardadas y Notificaciones sirven para explorar. Pulsa del 1 al 5 mientras la bandeja tiene el foco para ir a esa pestaña, contando desde la izquierda. El número de una pestaña cuenta sus tarjetas; Búsquedas guardadas no lleva ninguno, y Notificaciones cuenta solo las no leídas.
 - **Avisos** — una notificación breve cuando llega algo nuevo mientras trabajas.
 
-![La franja sobre el prompt y, después, las tres pestañas de la bandeja: Por revisar, Mis PR y Mis incidencias](docs/images/en/overview.gif)
-
 La interfaz y los resúmenes están disponibles en nueve idiomas; consulta [Idioma](#idioma).
+
+## Requisitos
+
+- Claude Code 2.1.287 o posterior, las primeras compilaciones con mods (plugins de hooks de función). Probado en 2.1.292. Los mods están en acceso anticipado y su API puede cambiar entre versiones.
+- [GitHub CLI](https://cli.github.com/) (`gh`) en tu `PATH`, con la sesión iniciada (`gh auth login`) y acceso a los repositorios que revisas.
+- GitHub Enterprise Server: define `GH_HOST` en el entorno desde el que se inicia Claude Code; todas las llamadas a `gh` van a ese host.
+
+## Instalación
+
+En el prompt de una sesión de Claude Code:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+La pantalla de instalación pide las opciones que se describen más abajo; puedes dejarlas todas vacías o con su valor predeterminado.
+
+### Actualizar y desinstalar
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+Las actualizaciones se aplican tras reiniciar. Al desinstalar, la carpeta de caché del mod, `~/.claude/plugins/data/review-inbox`, se queda donde está; bórrala a mano para eliminar las listas y los resúmenes en caché. Consulta el [registro de cambios](CHANGELOG.md) para ver qué cambió en cada versión.
+
+## Configuración
+
+Se definen en la pantalla de instalación; puedes cambiarlas después en `/config`. Los cambios se aplican al instante.
+
+| Opción | Valor predeterminado | Qué hace |
+| --- | --- | --- |
+| `scope` | vacío | Calificadores de búsqueda de GitHub que se añaden a todas las búsquedas (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vacío significa todo GitHub. |
+| `githubUser` | vacío | La cuenta de `gh` que se usa cuando hay varias con la sesión iniciada (`gh auth token -u <user>`). Si está vacío, se usa la cuenta activa. |
+| `language` | `auto` | `auto` o uno de los códigos de [Idioma](#idioma). |
+| `refreshMinutes` | `10` | Minutos entre una consulta a GitHub y la siguiente: 5, 10, 15, 30 o 60. Todas las sesiones comparten una consulta. |
+| `repoPaths` | vacío | Dónde trabaja Claude en cada repositorio, para los botones del siguiente paso. Ver abajo. |
+| `motion` | `auto` | `off` quita el destello de los números de la barra. `auto` también lo quita cuando el ajuste de movimiento reducido de Claude Code (`prefersReducedMotion`) está activado. |
+| `directActions` | `off` | `on` añade botones que escriben en GitHub desde una tarjeta. Consulta «Acciones directas en GitHub» más abajo. |
+
+`scope` admite todo lo que acepte la [búsqueda de incidencias y PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub:
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+Si repites los calificadores `org:`, `repo:` y `user:`, basta con que coincida cualquiera de ellos. Una solicitud de revisión a un equipo cuenta como una solicitud para ti, tal como lo define `review-requested:@me` de GitHub.
+
+`repoPaths` admite entradas `owner/repo=ruta` separadas por comas. `owner/*=ruta/*` abarca todos los repositorios de un owner, y el `*` de la ruta es el nombre del repositorio; un nombre exacto gana sobre un comodín, y `~` es tu carpeta personal. Una carpeta indicada aquí gana sobre la carpeta de la propia sesión y las que recuerda el mod.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Pestañas
 
@@ -129,66 +201,6 @@ Con `directActions` en `on`, las tarjetas también tienen botones que escriben e
 - Una escritura que falla se queda en la tarjeta con el mensaje de GitHub, y su botón vuelve.
 
 Nada se fusiona directamente. Tu PR aprobado sin comprobaciones en curso tiene un botón `Merge`, también con `directActions` en `off`: añade a tu prompt una petición para comprobar los métodos de fusión del repositorio y ejecutar `gh pr merge`, que envías con Enter y para la que Claude Code pide permiso.
-
-## Requisitos
-
-- Claude Code 2.1.287 o posterior, las primeras compilaciones con mods (plugins de hooks de función). Probado en 2.1.292. Los mods están en acceso anticipado y su API puede cambiar entre versiones.
-- [GitHub CLI](https://cli.github.com/) (`gh`) en tu `PATH`, con la sesión iniciada (`gh auth login`) y acceso a los repositorios que revisas.
-- GitHub Enterprise Server: define `GH_HOST` en el entorno desde el que se inicia Claude Code; todas las llamadas a `gh` van a ese host.
-
-## Instalación
-
-En el prompt de una sesión de Claude Code:
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-La pantalla de instalación pide las opciones que se describen más abajo; puedes dejarlas todas vacías o con su valor predeterminado.
-
-### Actualizar y desinstalar
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-Las actualizaciones se aplican tras reiniciar. Al desinstalar, la carpeta de caché del mod, `~/.claude/plugins/data/review-inbox`, se queda donde está; bórrala a mano para eliminar las listas y los resúmenes en caché. Consulta el [registro de cambios](CHANGELOG.md) para ver qué cambió en cada versión.
-
-## Configuración
-
-Se definen en la pantalla de instalación; puedes cambiarlas después en `/config`. Los cambios se aplican al instante.
-
-| Opción | Valor predeterminado | Qué hace |
-| --- | --- | --- |
-| `scope` | vacío | Calificadores de búsqueda de GitHub que se añaden a todas las búsquedas (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Vacío significa todo GitHub. |
-| `githubUser` | vacío | La cuenta de `gh` que se usa cuando hay varias con la sesión iniciada (`gh auth token -u <user>`). Si está vacío, se usa la cuenta activa. |
-| `language` | `auto` | `auto` o uno de los códigos de [Idioma](#idioma). |
-| `refreshMinutes` | `10` | Minutos entre una consulta a GitHub y la siguiente: 5, 10, 15, 30 o 60. Todas las sesiones comparten una consulta. |
-| `repoPaths` | vacío | Dónde trabaja Claude en cada repositorio, para los botones del siguiente paso. Ver abajo. |
-| `motion` | `auto` | `off` quita el destello de los números de la barra. `auto` también lo quita cuando el ajuste de movimiento reducido de Claude Code (`prefersReducedMotion`) está activado. |
-| `directActions` | `off` | `on` añade botones que escriben en GitHub desde una tarjeta. Consulta «Acciones directas en GitHub» más arriba. |
-
-`scope` admite todo lo que acepte la [búsqueda de incidencias y PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub:
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-Si repites los calificadores `org:`, `repo:` y `user:`, basta con que coincida cualquiera de ellos. Una solicitud de revisión a un equipo cuenta como una solicitud para ti, tal como lo define `review-requested:@me` de GitHub.
-
-`repoPaths` admite entradas `owner/repo=ruta` separadas por comas. `owner/*=ruta/*` abarca todos los repositorios de un owner, y el `*` de la ruta es el nombre del repositorio; un nombre exacto gana sobre un comodín, y `~` es tu carpeta personal. Una carpeta indicada aquí gana sobre la carpeta de la propia sesión y las que recuerda el mod.
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## Idioma
 

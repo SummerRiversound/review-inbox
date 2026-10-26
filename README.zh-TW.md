@@ -6,13 +6,85 @@
 
 一個 [Claude Code](https://claude.com/claude-code) mod，讓你寫程式時也能隨時掌握 GitHub 上的工作：等待你審查的 pull request（開啟前就先用淺白的文字摘要好）、你自己開啟中的 PR 與它們收到的審查，以及牽涉到你的議題。
 
+![輸入框上方的資訊列，接著是收件匣的三個分頁：待審查、我的 PR 和我的議題](docs/images/en/overview.gif)
+
+## 快速開始
+
+登入 [GitHub CLI](https://cli.github.com/)（`gh auth login`）後，在 Claude Code 工作階段的提示列輸入：
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+最後一行會打開收件匣。選項與更新方式請參閱[安裝](#安裝)。
+
 - **輸入框上方的資訊列** — 一行文字，只計算需要你處理的項目：等待你審查的 PR、你的 PR 中待處理的項目，以及指派給你或提及你的議題。顏色代表最久的審查請求已等待多久（3 天起為黃色，14 天起為紅色）。按 `開啟` 會開啟收件匣。 數字減少時會短暫變成綠色。
 - **審查收件匣** — `/review-inbox`，共有五個分頁：待審查、我的 PR 和指派與提及是要處理的項目，已儲存的搜尋和 GitHub 通知則是用來瀏覽的。焦點在收件匣時按 1 到 5，即可由左至右切換到對應的分頁。分頁上的數字是卡片數量；已儲存的搜尋沒有數字，GitHub 通知只計算未讀的。
 - **通知** — 你工作時有新動態，就會跳出一則簡短的通知。
 
-![輸入框上方的資訊列，接著是收件匣的三個分頁：待審查、我的 PR 和我的議題](docs/images/en/overview.gif)
-
 介面和摘要支援九種語言，請參閱[語言](#語言)。
+
+## 系統需求
+
+- Claude Code 2.1.287 或更新版本，也就是最早支援 mod（function-hook 外掛）的版本。已在 2.1.292 上測試。mod 目前仍處於搶先體驗（early access）階段，API 可能在不同版本之間變更。
+- [GitHub CLI](https://cli.github.com/)（`gh`）必須在你的 `PATH` 中，並已登入（`gh auth login`）可存取你要審查之儲存庫的帳號。
+- GitHub Enterprise Server：在啟動 Claude Code 的環境中設定 `GH_HOST`，所有 `gh` 呼叫都會送往該主機。
+
+## 安裝
+
+在 Claude Code 工作階段的輸入框中執行：
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+安裝畫面會詢問下方的選項，全部都可以留空或維持預設值。
+
+### 更新與解除安裝
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+更新會在重新啟動後生效。解除安裝後，mod 的快取資料夾 `~/.claude/plugins/data/review-inbox` 仍會保留；若要移除快取的清單和摘要，請自行刪除。各版本的變更內容請見[變更記錄](CHANGELOG.md)。
+
+## 設定
+
+在安裝畫面設定，之後可在 `/config` 中修改。修改會立即生效。
+
+| 選項 | 預設值 | 用途 |
+| --- | --- | --- |
+| `scope` | 空白 | 加在每次搜尋（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）上的 GitHub 搜尋限定詞。空白表示搜尋整個 GitHub。 |
+| `githubUser` | 空白 | 登入多個帳號時要使用的 `gh` 帳號（`gh auth token -u <user>`）。空白則使用目前作用中的帳號。 |
+| `language` | `auto` | `auto`，或[語言](#語言)中列出的代碼之一。 |
+| `refreshMinutes` | `10` | 從 GitHub 重新取得的間隔（分鐘）：5、10、15、30 或 60。所有工作階段共用一次取得。 |
+| `repoPaths` | 空白 | 下一步按鈕為每個儲存庫讓 Claude 工作的資料夾。見下文。 |
+| `motion` | `auto` | 設為 `off` 時，提示列上方那一行的數字不再閃爍。設為 `auto` 時，如果 Claude Code 的減少動態效果設定（`prefersReducedMotion`）已開啟，也不閃爍。 |
+| `directActions` | `off` | 設為 `on` 時，卡片上會有直接寫入 GitHub 的按鈕。詳見下方的「直接寫入 GitHub」。 |
+
+`scope` 可以填入 GitHub [議題與 PR 搜尋](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)接受的任何條件：
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+重複使用 `org:`、`repo:` 和 `user:` 限定詞時，符合其中任何一個即可。依照 GitHub 對 `review-requested:@me` 的定義，送給團隊的審查請求也算是給你的請求。
+
+`repoPaths` 以逗號分隔多個 `owner/repo=路徑`。`owner/*=路徑/*` 適用於該 owner 的所有儲存庫，路徑中的 `*` 代表儲存庫名稱；完整名稱優先於萬用字元，`~` 是家目錄。這裡指定的資料夾優先於工作階段自己的資料夾和 mod 記住的資料夾。
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## 分頁
 
@@ -129,66 +201,6 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 - 失敗的寫入會和 GitHub 的訊息一起留在卡片上，按鈕也會回來。
 
 不會直接合併。已核准且沒有正在執行的檢查的你的 PR，即使 `directActions` 關閉，也會有 `合併` 按鈕：按下後，提示列會加入一則請求，讓 Claude 先確認儲存庫允許的合併方式再執行 `gh pr merge`；你按 Enter 送出後，Claude Code 會請求執行權限。
-
-## 系統需求
-
-- Claude Code 2.1.287 或更新版本，也就是最早支援 mod（function-hook 外掛）的版本。已在 2.1.292 上測試。mod 目前仍處於搶先體驗（early access）階段，API 可能在不同版本之間變更。
-- [GitHub CLI](https://cli.github.com/)（`gh`）必須在你的 `PATH` 中，並已登入（`gh auth login`）可存取你要審查之儲存庫的帳號。
-- GitHub Enterprise Server：在啟動 Claude Code 的環境中設定 `GH_HOST`，所有 `gh` 呼叫都會送往該主機。
-
-## 安裝
-
-在 Claude Code 工作階段的輸入框中執行：
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-安裝畫面會詢問下方的選項，全部都可以留空或維持預設值。
-
-### 更新與解除安裝
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-更新會在重新啟動後生效。解除安裝後，mod 的快取資料夾 `~/.claude/plugins/data/review-inbox` 仍會保留；若要移除快取的清單和摘要，請自行刪除。各版本的變更內容請見[變更記錄](CHANGELOG.md)。
-
-## 設定
-
-在安裝畫面設定，之後可在 `/config` 中修改。修改會立即生效。
-
-| 選項 | 預設值 | 用途 |
-| --- | --- | --- |
-| `scope` | 空白 | 加在每次搜尋（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）上的 GitHub 搜尋限定詞。空白表示搜尋整個 GitHub。 |
-| `githubUser` | 空白 | 登入多個帳號時要使用的 `gh` 帳號（`gh auth token -u <user>`）。空白則使用目前作用中的帳號。 |
-| `language` | `auto` | `auto`，或[語言](#語言)中列出的代碼之一。 |
-| `refreshMinutes` | `10` | 從 GitHub 重新取得的間隔（分鐘）：5、10、15、30 或 60。所有工作階段共用一次取得。 |
-| `repoPaths` | 空白 | 下一步按鈕為每個儲存庫讓 Claude 工作的資料夾。見下文。 |
-| `motion` | `auto` | 設為 `off` 時，提示列上方那一行的數字不再閃爍。設為 `auto` 時，如果 Claude Code 的減少動態效果設定（`prefersReducedMotion`）已開啟，也不閃爍。 |
-| `directActions` | `off` | 設為 `on` 時，卡片上會有直接寫入 GitHub 的按鈕。詳見上方的「直接寫入 GitHub」。 |
-
-`scope` 可以填入 GitHub [議題與 PR 搜尋](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)接受的任何條件：
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-重複使用 `org:`、`repo:` 和 `user:` 限定詞時，符合其中任何一個即可。依照 GitHub 對 `review-requested:@me` 的定義，送給團隊的審查請求也算是給你的請求。
-
-`repoPaths` 以逗號分隔多個 `owner/repo=路徑`。`owner/*=路徑/*` 適用於該 owner 的所有儲存庫，路徑中的 `*` 代表儲存庫名稱；完整名稱優先於萬用字元，`~` 是家目錄。這裡指定的資料夾優先於工作階段自己的資料夾和 mod 記住的資料夾。
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## 語言
 

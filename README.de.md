@@ -6,13 +6,85 @@
 
 Eine Mod für [Claude Code](https://claude.com/claude-code), die Ihre GitHub-Arbeit beim Programmieren sichtbar hält: Pull Requests, die auf Ihr Review warten – jeder in verständlicher Sprache zusammengefasst, bevor Sie ihn öffnen –, Ihre eigenen offenen PRs mit den Reviews, die sie erhalten, und die Issues, in die Sie einbezogen werden.
 
+![Die Leiste über dem Prompt, danach die drei Tabs des Panels: Zu reviewen, Meine PRs und Meine Issues](docs/images/en/overview.gif)
+
+## Schnellstart
+
+Mit angemeldeter [GitHub CLI](https://cli.github.com/) (`gh auth login`) im Prompt einer Claude-Code-Sitzung:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+Die letzte Zeile öffnet das Panel. Optionen und Updates stehen unter [Installation](#installation).
+
 - **Leiste über dem Prompt** – eine Zeile, die nur zählt, was Ihr Zutun erfordert: PRs, die auf Ihr Review warten, Ihre PRs, bei denen etwas zu tun ist, und Issues, die Ihnen zugewiesen sind oder Sie erwähnen. Ihre Farbe zeigt, wie lange die älteste Review-Anfrage schon wartet (gelb ab 3 Tagen, rot ab 14). `Öffnen` öffnet das Panel. Sinkt eine Zahl, wird sie kurz grün.
 - **Panel „Review-Posteingang“** – `/review-inbox`, mit fünf Tabs: Zu reviewen, Meine PRs und Zugewiesen & erwähnt zeigen, was Sie erledigen müssen; Gespeicherte Suchen und Benachrichtigungen sind zum Stöbern da. Drücken Sie 1 bis 5, solange das Panel den Fokus hat, um von links gezählt zu diesem Tab zu wechseln. Die Zahl am Tab zählt seine Karten; Gespeicherte Suchen hat keine, und Benachrichtigungen zählt die ungelesenen.
 - **Benachrichtigungen** – ein kurzer Hinweis, wenn während der Arbeit etwas Neues eintrifft.
 
-![Die Leiste über dem Prompt, danach die drei Tabs des Panels: Zu reviewen, Meine PRs und Meine Issues](docs/images/en/overview.gif)
-
 Oberfläche und Zusammenfassungen gibt es in neun Sprachen; siehe [Sprache](#sprache).
+
+## Voraussetzungen
+
+- Claude Code 2.1.287 oder neuer, die ersten Builds mit Mods (Function-Hook-Plugins). Getestet mit 2.1.292. Mods befinden sich im Early Access, und ihre API kann sich zwischen Releases ändern.
+- [GitHub CLI](https://cli.github.com/) (`gh`) im `PATH`, angemeldet (`gh auth login`) und mit Zugriff auf die Repositories, die Sie reviewen.
+- GitHub Enterprise Server: Setzen Sie `GH_HOST` in der Umgebung, in der Claude Code startet; jeder `gh`-Aufruf geht dann an diesen Host.
+
+## Installation
+
+Im Prompt einer Sitzung von Claude Code:
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+Der Installationsbildschirm fragt die unten beschriebenen Optionen ab; alle können leer bleiben oder ihren Standardwert behalten.
+
+### Aktualisieren und deinstallieren
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+Ein Update wird nach einem Neustart wirksam. Beim Deinstallieren bleibt der Cache-Ordner der Mod, `~/.claude/plugins/data/review-inbox`, erhalten; löschen Sie ihn selbst, um die zwischengespeicherten Listen und Zusammenfassungen zu entfernen. Was sich in den einzelnen Versionen geändert hat, steht im [Changelog](CHANGELOG.md).
+
+## Konfiguration
+
+Die Optionen werden auf dem Installationsbildschirm gesetzt und lassen sich später in `/config` ändern. Eine Änderung gilt sofort.
+
+| Option | Standard | Beschreibung |
+| --- | --- | --- |
+| `scope` | leer | GitHub-Suchqualifizierer, die an jede Suche angehängt werden (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Leer bedeutet: ganz GitHub. |
+| `githubUser` | leer | Das `gh`-Konto, das verwendet wird, wenn mehrere angemeldet sind (`gh auth token -u <user>`). Leer verwendet das aktive Konto. |
+| `language` | `auto` | `auto` oder einer der Codes unter [Sprache](#sprache). |
+| `refreshMinutes` | `10` | Minuten zwischen zwei Abrufen von GitHub: 5, 10, 15, 30 oder 60. Alle Sitzungen teilen sich einen Abruf. |
+| `repoPaths` | leer | Wo Claude für die Schaltflächen zum nächsten Schritt an jedem Repository arbeitet. Siehe unten. |
+| `motion` | `auto` | `off` schaltet das Aufleuchten der Zahlen in der Leiste ab. `auto` schaltet es ebenfalls ab, wenn die Einstellung für reduzierte Bewegung von Claude Code (`prefersReducedMotion`) an ist. |
+| `directActions` | `off` | `on` fügt Schaltflächen hinzu, die von einer Karte aus auf GitHub schreiben. Siehe „Direkte GitHub-Aktionen“ unten. |
+
+`scope` akzeptiert alles, was die [Issue- und PR-Suche](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) von GitHub akzeptiert:
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+Wiederholte Qualifizierer `org:`, `repo:` und `user:` treffen zu, sobald einer von ihnen passt. Eine Team-Review-Anfrage zählt als Anfrage an Sie, so wie GitHubs `review-requested:@me` es definiert.
+
+`repoPaths` nimmt durch Kommas getrennte Einträge `owner/repo=Pfad`. `owner/*=Pfad/*` gilt für alle Repositorys eines Owners, wobei `*` im Pfad für den Namen des Repositorys steht; ein genauer Name hat Vorrang vor einem Platzhalter, und `~` ist Ihr Home-Ordner. Ein hier genannter Ordner hat Vorrang vor dem Ordner der Sitzung und den Ordnern, die sich die Mod gemerkt hat.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## Tabs
 
@@ -129,66 +201,6 @@ Steht `directActions` auf `on`, bekommen Karten zusätzlich Schaltflächen, die 
 - Ein fehlgeschlagener Schreibvorgang bleibt mit der Meldung von GitHub auf der Karte, und seine Schaltfläche kommt zurück.
 
 Direkt gemergt wird nie. Ihr genehmigter PR ohne laufende Prüfungen bekommt eine Schaltfläche `Mergen`, auch wenn `directActions` aus ist: Sie fügt Ihrem Prompt die Bitte hinzu, die Merge-Methoden des Repositorys zu prüfen und `gh pr merge` auszuführen; Sie senden sie mit Enter, und Claude Code fragt nach der Erlaubnis.
-
-## Voraussetzungen
-
-- Claude Code 2.1.287 oder neuer, die ersten Builds mit Mods (Function-Hook-Plugins). Getestet mit 2.1.292. Mods befinden sich im Early Access, und ihre API kann sich zwischen Releases ändern.
-- [GitHub CLI](https://cli.github.com/) (`gh`) im `PATH`, angemeldet (`gh auth login`) und mit Zugriff auf die Repositories, die Sie reviewen.
-- GitHub Enterprise Server: Setzen Sie `GH_HOST` in der Umgebung, in der Claude Code startet; jeder `gh`-Aufruf geht dann an diesen Host.
-
-## Installation
-
-Im Prompt einer Sitzung von Claude Code:
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-Der Installationsbildschirm fragt die unten beschriebenen Optionen ab; alle können leer bleiben oder ihren Standardwert behalten.
-
-### Aktualisieren und deinstallieren
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-Ein Update wird nach einem Neustart wirksam. Beim Deinstallieren bleibt der Cache-Ordner der Mod, `~/.claude/plugins/data/review-inbox`, erhalten; löschen Sie ihn selbst, um die zwischengespeicherten Listen und Zusammenfassungen zu entfernen. Was sich in den einzelnen Versionen geändert hat, steht im [Changelog](CHANGELOG.md).
-
-## Konfiguration
-
-Die Optionen werden auf dem Installationsbildschirm gesetzt und lassen sich später in `/config` ändern. Eine Änderung gilt sofort.
-
-| Option | Standard | Beschreibung |
-| --- | --- | --- |
-| `scope` | leer | GitHub-Suchqualifizierer, die an jede Suche angehängt werden (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Leer bedeutet: ganz GitHub. |
-| `githubUser` | leer | Das `gh`-Konto, das verwendet wird, wenn mehrere angemeldet sind (`gh auth token -u <user>`). Leer verwendet das aktive Konto. |
-| `language` | `auto` | `auto` oder einer der Codes unter [Sprache](#sprache). |
-| `refreshMinutes` | `10` | Minuten zwischen zwei Abrufen von GitHub: 5, 10, 15, 30 oder 60. Alle Sitzungen teilen sich einen Abruf. |
-| `repoPaths` | leer | Wo Claude für die Schaltflächen zum nächsten Schritt an jedem Repository arbeitet. Siehe unten. |
-| `motion` | `auto` | `off` schaltet das Aufleuchten der Zahlen in der Leiste ab. `auto` schaltet es ebenfalls ab, wenn die Einstellung für reduzierte Bewegung von Claude Code (`prefersReducedMotion`) an ist. |
-| `directActions` | `off` | `on` fügt Schaltflächen hinzu, die von einer Karte aus auf GitHub schreiben. Siehe „Direkte GitHub-Aktionen“ oben. |
-
-`scope` akzeptiert alles, was die [Issue- und PR-Suche](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) von GitHub akzeptiert:
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-Wiederholte Qualifizierer `org:`, `repo:` und `user:` treffen zu, sobald einer von ihnen passt. Eine Team-Review-Anfrage zählt als Anfrage an Sie, so wie GitHubs `review-requested:@me` es definiert.
-
-`repoPaths` nimmt durch Kommas getrennte Einträge `owner/repo=Pfad`. `owner/*=Pfad/*` gilt für alle Repositorys eines Owners, wobei `*` im Pfad für den Namen des Repositorys steht; ein genauer Name hat Vorrang vor einem Platzhalter, und `~` ist Ihr Home-Ordner. Ein hier genannter Ordner hat Vorrang vor dem Ordner der Sitzung und den Ordnern, die sich die Mod gemerkt hat.
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## Sprache
 

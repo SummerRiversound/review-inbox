@@ -6,13 +6,85 @@
 
 一个 [Claude Code](https://claude.com/claude-code) mod，让你在写代码时随时看到自己在 GitHub 上的工作：等待你审查的 pull request（每个都会在你打开之前先用通俗的语言做好摘要）、你自己处于打开状态的 PR 及其收到的审查，以及需要你参与的议题。
 
+![输入框上方的横条，随后是抽屉的三个标签页：待审查、我的 PR 和我的议题](docs/images/en/overview.gif)
+
+## 快速开始
+
+登录 [GitHub CLI](https://cli.github.com/)（`gh auth login`）后，在 Claude Code 会话的提示符处输入：
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+最后一行打开抽屉。选项和更新方法见[安装](#安装)。
+
 - **输入框上方的横条**：只用一行统计需要你处理的内容，包括等待你审查的 PR、你的 PR 中有待处理事项的，以及分配给你或提及你的议题。横条的颜色表示最早的审查请求已经等了多久（满 3 天变黄，满 14 天变红）。点击 `打开` 可打开抽屉。 数字减少时会短暂变成绿色。
 - **抽屉**：使用 `/review-inbox` 打开，有五个标签页：待审查、我的 PR 和分配与提及用来处理，已保存的搜索和 GitHub 通知用来浏览。抽屉获得焦点时按 1 到 5，即可从左往右切换到对应的标签页。标签页上的数字是卡片数；已保存的搜索没有数字，GitHub 通知的数字只统计未读。
 - **通知**：工作时有新内容到达，会弹出一条简短的提示。
 
-![输入框上方的横条，随后是抽屉的三个标签页：待审查、我的 PR 和我的议题](docs/images/en/overview.gif)
-
 界面和摘要支持九种语言，详见[语言](#语言)。
+
+## 环境要求
+
+- Claude Code 2.1.287 或更高版本，这是最早支持 mod（函数钩子插件）的版本。已在 2.1.292 上测试。mod 目前处于早期体验阶段，其 API 可能在不同版本之间发生变化。
+- [GitHub CLI](https://cli.github.com/)（`gh`）已加入 `PATH` 并已登录（`gh auth login`），且有权访问你要审查的仓库。
+- GitHub Enterprise Server：在启动 Claude Code 的环境中设置 `GH_HOST`，所有 `gh` 调用都会发往该主机。
+
+## 安装
+
+在 Claude Code 会话的输入框中执行：
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+安装界面会询问下列选项，这些选项都可以留空或保持默认值。
+
+### 更新与卸载
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+更新在重启后生效。卸载不会删除 mod 的缓存文件夹 `~/.claude/plugins/data/review-inbox`；如需清除缓存的列表和摘要，请自行删除该文件夹。各版本的变更见[更新日志](CHANGELOG.md)。
+
+## 配置
+
+在安装界面中设置，之后可在 `/config` 中修改。修改立即生效。
+
+| 选项 | 默认值 | 作用 |
+| --- | --- | --- |
+| `scope` | 空 | 附加到每一次搜索（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）上的 GitHub 搜索限定符。为空表示搜索整个 GitHub。 |
+| `githubUser` | 空 | 登录了多个账号时要使用的 `gh` 账号（`gh auth token -u <user>`）。为空时使用当前活动账号。 |
+| `language` | `auto` | `auto`，或[语言](#语言)中列出的代码之一。 |
+| `refreshMinutes` | `10` | 从 GitHub 重新获取的间隔（分钟）：5、10、15、30 或 60。所有会话共用一次获取。 |
+| `repoPaths` | 空 | 下一步按钮为每个仓库让 Claude 工作的文件夹。见下文。 |
+| `motion` | `auto` | 设为 `off` 时，提示栏上方那一行的数字不再闪烁。设为 `auto` 时，如果 Claude Code 的减少动态效果设置（`prefersReducedMotion`）已开启，也不闪烁。 |
+| `directActions` | `off` | 设为 `on` 时，卡片上会有直接写入 GitHub 的按钮。详见下面的“直接写入 GitHub”。 |
+
+`scope` 可以填写 GitHub [议题和 PR 搜索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)支持的任何内容：
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+重复使用 `org:`、`repo:` 和 `user:` 限定符时，匹配其中任意一个即可。按照 GitHub 对 `review-requested:@me` 的定义，向团队发出的审查请求也算作对你的请求。
+
+`repoPaths` 用逗号分隔多个 `owner/repo=路径`。`owner/*=路径/*` 适用于该 owner 的所有仓库，路径中的 `*` 代表仓库名；精确名称优先于通配符，`~` 是主文件夹。这里指定的文件夹优先于会话自己的文件夹和 mod 记住的文件夹。
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## 标签页
 
@@ -129,66 +201,6 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 - 失败的写入会和 GitHub 的消息一起留在卡片上，按钮也会回来。
 
 不会直接合并。已批准且没有正在运行的检查的你的 PR，即使 `directActions` 关闭，也会有 `合并` 按钮：按下后，提示栏里会加入一条请求，让 Claude 先确认仓库允许的合并方式再运行 `gh pr merge`；你按 Enter 发送后，Claude Code 会请求运行权限。
-
-## 环境要求
-
-- Claude Code 2.1.287 或更高版本，这是最早支持 mod（函数钩子插件）的版本。已在 2.1.292 上测试。mod 目前处于早期体验阶段，其 API 可能在不同版本之间发生变化。
-- [GitHub CLI](https://cli.github.com/)（`gh`）已加入 `PATH` 并已登录（`gh auth login`），且有权访问你要审查的仓库。
-- GitHub Enterprise Server：在启动 Claude Code 的环境中设置 `GH_HOST`，所有 `gh` 调用都会发往该主机。
-
-## 安装
-
-在 Claude Code 会话的输入框中执行：
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-安装界面会询问下列选项，这些选项都可以留空或保持默认值。
-
-### 更新与卸载
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-更新在重启后生效。卸载不会删除 mod 的缓存文件夹 `~/.claude/plugins/data/review-inbox`；如需清除缓存的列表和摘要，请自行删除该文件夹。各版本的变更见[更新日志](CHANGELOG.md)。
-
-## 配置
-
-在安装界面中设置，之后可在 `/config` 中修改。修改立即生效。
-
-| 选项 | 默认值 | 作用 |
-| --- | --- | --- |
-| `scope` | 空 | 附加到每一次搜索（`review-requested:@me`、`author:@me`、`assignee:@me`、`mentions:@me`）上的 GitHub 搜索限定符。为空表示搜索整个 GitHub。 |
-| `githubUser` | 空 | 登录了多个账号时要使用的 `gh` 账号（`gh auth token -u <user>`）。为空时使用当前活动账号。 |
-| `language` | `auto` | `auto`，或[语言](#语言)中列出的代码之一。 |
-| `refreshMinutes` | `10` | 从 GitHub 重新获取的间隔（分钟）：5、10、15、30 或 60。所有会话共用一次获取。 |
-| `repoPaths` | 空 | 下一步按钮为每个仓库让 Claude 工作的文件夹。见下文。 |
-| `motion` | `auto` | 设为 `off` 时，提示栏上方那一行的数字不再闪烁。设为 `auto` 时，如果 Claude Code 的减少动态效果设置（`prefersReducedMotion`）已开启，也不闪烁。 |
-| `directActions` | `off` | 设为 `on` 时，卡片上会有直接写入 GitHub 的按钮。详见上面的“直接写入 GitHub”。 |
-
-`scope` 可以填写 GitHub [议题和 PR 搜索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)支持的任何内容：
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-重复使用 `org:`、`repo:` 和 `user:` 限定符时，匹配其中任意一个即可。按照 GitHub 对 `review-requested:@me` 的定义，向团队发出的审查请求也算作对你的请求。
-
-`repoPaths` 用逗号分隔多个 `owner/repo=路径`。`owner/*=路径/*` 适用于该 owner 的所有仓库，路径中的 `*` 代表仓库名；精确名称优先于通配符，`~` 是主文件夹。这里指定的文件夹优先于会话自己的文件夹和 mod 记住的文件夹。
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## 语言
 

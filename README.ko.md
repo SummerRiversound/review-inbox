@@ -6,13 +6,85 @@
 
 내 GitHub 일을 Claude Code 안에서 보여 주는 mod입니다. 내 리뷰를 기다리는 PR은 열어 보기 전에 쉬운 말로 요약해 보여 주고, 내가 연 PR과 거기 달린 리뷰, 나를 부르는 이슈도 함께 보여 줍니다.
 
+![입력창 위 한 줄과 목록 창의 세 탭(리뷰 대기, 내 PR, 내 이슈)](docs/images/ko/overview.gif)
+
+## 빠르게 시작하기
+
+[GitHub CLI](https://cli.github.com/)에 로그인(`gh auth login`)한 상태에서 Claude Code 프롬프트에 입력합니다.
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+/review-inbox
+```
+
+마지막 줄이 목록 창을 엽니다. 옵션과 업데이트 방법은 [설치](#설치)에 있습니다.
+
 - **입력창 위 한 줄** — 지금 내가 처리할 것만 셉니다. 내 리뷰를 기다리는 PR, 할 일이 생긴 내 PR, 나에게 할당되었거나 나를 언급한 이슈입니다. 색은 가장 오래 기다린 리뷰 요청의 경과일입니다(3일부터 노랑, 14일부터 빨강). `열기`를 누르면 목록 창이 열립니다. 숫자가 줄어들면 잠깐 초록색으로 바뀝니다.
 - **목록 창** — `/review-inbox`. 탭은 다섯 개입니다. 리뷰 대기, 내 PR, 할당·언급은 처리할 것, 저장한 검색과 GitHub 알림은 둘러볼 것입니다. 목록 창에 포커스가 있을 때 1~5를 누르면 왼쪽부터 그 순서의 탭으로 갑니다. 탭의 숫자는 카드 개수이고, 저장한 검색에는 없으며 GitHub 알림은 읽지 않은 알림만 셉니다.
 - **알림** — 작업 중 새 항목이 생기면 짧게 알립니다.
 
-![입력창 위 한 줄과 목록 창의 세 탭(리뷰 대기, 내 PR, 내 이슈)](docs/images/ko/overview.gif)
-
 화면과 요약은 9개 언어로 표시할 수 있습니다. [언어 설정](#언어-설정)을 참고하십시오.
+
+## 요구 사항
+
+- Claude Code 2.1.287 이상(mod를 지원하는 첫 빌드). 2.1.292에서 검증하였습니다. mod는 early access 단계라 릴리스 사이에 API가 바뀔 수 있습니다.
+- [GitHub CLI](https://cli.github.com/)(`gh`)가 `PATH`에 있고, 리뷰하는 저장소에 접근할 수 있는 계정으로 로그인(`gh auth login`)되어 있어야 합니다.
+- GitHub Enterprise Server를 쓰는 경우 Claude Code를 실행하는 환경에 `GH_HOST`를 설정하십시오. 모든 `gh` 호출이 그 호스트로 갑니다.
+
+## 설치
+
+Claude Code 세션의 입력창에서 실행합니다.
+
+```text
+/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
+/plugin install review-inbox@review-inbox
+```
+
+설치 화면에서 아래 옵션을 묻습니다. 모두 비워 두거나 기본값으로 두어도 됩니다.
+
+### 업데이트와 삭제
+
+```sh
+claude plugin marketplace update review-inbox
+claude plugin update review-inbox@review-inbox
+claude plugin uninstall review-inbox@review-inbox
+```
+
+업데이트는 재시작 후에 적용됩니다. 삭제해도 mod의 캐시 폴더 `~/.claude/plugins/data/review-inbox`는 남습니다. 저장된 목록과 요약까지 지우려면 이 폴더를 직접 삭제하십시오. 버전별 변경 사항은 [CHANGELOG](CHANGELOG.md)에 있습니다.
+
+## 설정
+
+설치 화면에서 정하고, 이후 `/config`에서 바꿀 수 있습니다. 바꾸면 바로 적용됩니다.
+
+| 옵션 | 기본값 | 역할 |
+| --- | --- | --- |
+| `scope` | 비어 있음 | 모든 검색(`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`)에 덧붙이는 GitHub 검색 조건입니다. 비워 두면 GitHub 전체를 봅니다. |
+| `githubUser` | 비어 있음 | 여러 계정에 로그인한 경우 사용할 `gh` 계정입니다(`gh auth token -u <user>`). 비워 두면 활성 계정을 씁니다. |
+| `language` | `auto` | `auto` 또는 [언어 설정](#언어-설정)의 언어 코드 중 하나입니다. |
+| `refreshMinutes` | `10` | GitHub에서 다시 가져오는 간격(분)입니다. 5, 10, 15, 30, 60 중 하나이며, 모든 세션이 한 번의 조회를 함께 씁니다. |
+| `repoPaths` | 비어 있음 | 다음 할 일 버튼이 저장소마다 Claude가 작업할 폴더입니다. 아래를 보세요. |
+| `motion` | `auto` | `off`면 입력창 위 한 줄의 숫자가 깜빡이지 않습니다. `auto`일 때도 Claude Code의 움직임 줄이기 설정(`prefersReducedMotion`)이 켜져 있으면 깜빡이지 않습니다. |
+| `directActions` | `off` | `on`이면 카드에서 GitHub에 직접 쓰는 버튼을 붙입니다. 자세한 내용은 아래 "GitHub 직접 실행"에 있습니다. |
+
+`scope`에는 GitHub [이슈·PR 검색](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)이 받는 조건을 그대로 씁니다.
+
+```text
+org:my-org
+org:my-org org:other-org
+repo:owner/name repo:owner/other
+org:my-org -repo:my-org/noisy-repo
+user:my-username
+```
+
+`org:`, `repo:`, `user:`를 여러 번 쓰면 그중 하나에 해당하는 항목을 모두 봅니다. 팀에 온 리뷰 요청도 GitHub의 `review-requested:@me` 정의대로 나에게 온 요청으로 셉니다.
+
+`repoPaths`에는 `owner/repo=경로`를 쉼표로 이어 적습니다. `owner/*=경로/*`는 그 owner의 모든 저장소에 적용되고, 경로의 `*`는 저장소 이름으로 바뀝니다. 정확한 이름이 와일드카드보다 우선하고, `~`는 홈 폴더입니다. 여기 적은 폴더가 세션 자신의 폴더나 mod가 기억한 폴더보다 우선합니다.
+
+```text
+my-org/*=~/code/*
+my-org/legacy=~/old/legacy-app
+```
 
 ## 탭 구성
 
@@ -129,66 +201,6 @@ GitHub는 gh 로그인과 classic 토큰에만 알림을 줍니다. 권한이 �
 - 실패한 쓰기는 GitHub 메시지와 함께 카드에 남고, 버튼이 다시 나타납니다.
 
 머지는 직접 하지 않습니다. 승인되고 실행 중인 검사가 없는 내 PR에는 `directActions`가 꺼져 있어도 `머지` 버튼이 붙습니다. 누르면 저장소의 머지 방식을 확인하고 `gh pr merge`를 실행하라는 요청이 입력창에 들어가고, Enter로 보내면 Claude Code가 실행 권한을 묻습니다.
-
-## 요구 사항
-
-- Claude Code 2.1.287 이상(mod를 지원하는 첫 빌드). 2.1.292에서 검증하였습니다. mod는 early access 단계라 릴리스 사이에 API가 바뀔 수 있습니다.
-- [GitHub CLI](https://cli.github.com/)(`gh`)가 `PATH`에 있고, 리뷰하는 저장소에 접근할 수 있는 계정으로 로그인(`gh auth login`)되어 있어야 합니다.
-- GitHub Enterprise Server를 쓰는 경우 Claude Code를 실행하는 환경에 `GH_HOST`를 설정하십시오. 모든 `gh` 호출이 그 호스트로 갑니다.
-
-## 설치
-
-Claude Code 세션의 입력창에서 실행합니다.
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-설치 화면에서 아래 옵션을 묻습니다. 모두 비워 두거나 기본값으로 두어도 됩니다.
-
-### 업데이트와 삭제
-
-```sh
-claude plugin marketplace update review-inbox
-claude plugin update review-inbox@review-inbox
-claude plugin uninstall review-inbox@review-inbox
-```
-
-업데이트는 재시작 후에 적용됩니다. 삭제해도 mod의 캐시 폴더 `~/.claude/plugins/data/review-inbox`는 남습니다. 저장된 목록과 요약까지 지우려면 이 폴더를 직접 삭제하십시오. 버전별 변경 사항은 [CHANGELOG](CHANGELOG.md)에 있습니다.
-
-## 설정
-
-설치 화면에서 정하고, 이후 `/config`에서 바꿀 수 있습니다. 바꾸면 바로 적용됩니다.
-
-| 옵션 | 기본값 | 역할 |
-| --- | --- | --- |
-| `scope` | 비어 있음 | 모든 검색(`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`)에 덧붙이는 GitHub 검색 조건입니다. 비워 두면 GitHub 전체를 봅니다. |
-| `githubUser` | 비어 있음 | 여러 계정에 로그인한 경우 사용할 `gh` 계정입니다(`gh auth token -u <user>`). 비워 두면 활성 계정을 씁니다. |
-| `language` | `auto` | `auto` 또는 [언어 설정](#언어-설정)의 언어 코드 중 하나입니다. |
-| `refreshMinutes` | `10` | GitHub에서 다시 가져오는 간격(분)입니다. 5, 10, 15, 30, 60 중 하나이며, 모든 세션이 한 번의 조회를 함께 씁니다. |
-| `repoPaths` | 비어 있음 | 다음 할 일 버튼이 저장소마다 Claude가 작업할 폴더입니다. 아래를 보세요. |
-| `motion` | `auto` | `off`면 입력창 위 한 줄의 숫자가 깜빡이지 않습니다. `auto`일 때도 Claude Code의 움직임 줄이기 설정(`prefersReducedMotion`)이 켜져 있으면 깜빡이지 않습니다. |
-| `directActions` | `off` | `on`이면 카드에서 GitHub에 직접 쓰는 버튼을 붙입니다. 자세한 내용은 위 "GitHub 직접 실행"에 있습니다. |
-
-`scope`에는 GitHub [이슈·PR 검색](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)이 받는 조건을 그대로 씁니다.
-
-```text
-org:my-org
-org:my-org org:other-org
-repo:owner/name repo:owner/other
-org:my-org -repo:my-org/noisy-repo
-user:my-username
-```
-
-`org:`, `repo:`, `user:`를 여러 번 쓰면 그중 하나에 해당하는 항목을 모두 봅니다. 팀에 온 리뷰 요청도 GitHub의 `review-requested:@me` 정의대로 나에게 온 요청으로 셉니다.
-
-`repoPaths`에는 `owner/repo=경로`를 쉼표로 이어 적습니다. `owner/*=경로/*`는 그 owner의 모든 저장소에 적용되고, 경로의 `*`는 저장소 이름으로 바뀝니다. 정확한 이름이 와일드카드보다 우선하고, `~`는 홈 폴더입니다. 여기 적은 폴더가 세션 자신의 폴더나 mod가 기억한 폴더보다 우선합니다.
-
-```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
-```
 
 ## 언어 설정
 
