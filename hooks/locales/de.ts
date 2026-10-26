@@ -74,6 +74,8 @@ export const de: Messages = {
     updated: minutes => (minutes < 1 ? 'Gerade aktualisiert' : `Vor ${minutes} Min. aktualisiert`),
     firstFetch: 'Daten werden von GitHub abgerufen. Beim ersten Mal dauert das etwa eine Minute.',
     timeout: 'GitHub hat zu lange gebraucht; grenze die Einstellung Search scope ein, z. B. org:my-org',
+    reloadAll: 'Alle neu laden',
+    reloadAsked: 'Angefragt',
     older: (n, folders) => `${n} ${n === 1 ? 'Sitzung' : 'Sitzungen'} mit älterer Version (${folders}): dort /reload-plugins ausführen`,
   },
   empty: {

@@ -71,6 +71,8 @@ export const ko: Messages = {
     updated: minutes => (minutes < 1 ? '방금 갱신' : `${minutes}분 전 갱신`),
     firstFetch: 'GitHub에서 목록을 가져오고 있습니다. 처음에는 1분 정도 걸립니다.',
     timeout: 'GitHub 응답 시간이 초과됐습니다. Search scope 설정을 좁혀 보세요 (예: org:my-org)',
+    reloadAll: '모두 다시 불러오기',
+    reloadAsked: '요청함',
     older: (n, folders) => `옛 버전 세션 ${n}개 (${folders}) · 그 세션에서 /reload-plugins를 실행하세요`,
   },
   empty: {

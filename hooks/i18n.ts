@@ -82,6 +82,8 @@ const en = {
     updated: (minutes: number) => (minutes < 1 ? 'Updated just now' : `Updated ${minutes} min ago`),
     firstFetch: 'Fetching from GitHub. The first time takes about a minute.',
     timeout: 'GitHub timed out; narrow the Search scope setting, e.g. org:my-org',
+    reloadAll: 'Reload them all',
+    reloadAsked: 'Asked',
     older: (n: number, folders: string) => `${n} ${n === 1 ? 'session' : 'sessions'} on an older version (${folders}): run /reload-plugins there`,
   },
   empty: {

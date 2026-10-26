@@ -20,6 +20,15 @@ export function olderSessions(sessions: Record<string, Presence>, selfId: string
     .map(([, s]) => s.folder)
 }
 
+// A request from a newer release, in reload.json, for the sessions behind it to reload.
+export type ReloadRequest = { version: string; at: number }
+
+// Only a session loaded before the request answers it, so each answers once and one opened since never does.
+export function shouldReload(request: ReloadRequest | undefined, version: string | undefined, loadedAt: number): boolean {
+  if (!request || !version || request.at <= loadedAt) return false
+  return version.localeCompare(request.version, undefined, { numeric: true }) < 0
+}
+
 // The sessions working on a PR: checked out on its branch in its repository, or asked about it by link.
 export function workingOn(sessions: Record<string, Presence>, pr: { repo: string; url: string; branch?: string }): string[] {
   return Object.entries(sessions)

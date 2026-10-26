@@ -206,6 +206,8 @@ declare module 'claude-code' {
       repos: RepoPaths
       // The active tab shows only this session's repositories.
       onlyHere: boolean
+      // The release this session last pressed Reload them all on, so a later release asks afresh.
+      reloadAsked: string
       // A band count that just went down, shown in the success color for a moment.
       dropped: string[]
       // actions.json as last read: my buttons and search groups, and the entries left out.

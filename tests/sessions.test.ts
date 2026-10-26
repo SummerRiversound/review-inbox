@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Presence } from '../types'
-import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
+import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, shouldReload, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
 
 const at = Date.UTC(2026, 9, 20, 12)
 const presence = (over: Partial<Presence>): Presence => ({ at, folder: 'review-inbox', remotes: [], prs: [], ...over })
@@ -94,4 +94,14 @@ test('a session on an older release, or from before releases were written, is na
   }
   expect(olderSessions(sessions, 'self', '0.12.0')).toEqual(['dhub2', 'prevention_system'])
   expect(olderSessions(sessions, 'self', undefined)).toEqual([])
+})
+
+test('a session reloads for a request from a newer release made after it loaded, never for one from its own or an older release', () => {
+  const request = { version: '0.12.2', at: 2_000 }
+  expect(shouldReload(request, '0.12.1', 1_000)).toBe(true)
+  expect(shouldReload(request, '0.12.2', 1_000)).toBe(false)
+  expect(shouldReload(request, '0.12.10', 1_000)).toBe(false)
+  expect(shouldReload(request, '0.12.1', 2_000)).toBe(false)
+  expect(shouldReload(request, undefined, 1_000)).toBe(false)
+  expect(shouldReload(undefined, '0.12.1', 1_000)).toBe(false)
 })

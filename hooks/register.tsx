@@ -67,8 +67,8 @@ import {
 import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
-import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, thisRepos, workingOn } from './sessions'
-import type { Place } from './sessions'
+import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from './sessions'
+import type { Place, ReloadRequest } from './sessions'
 import type { Language, Messages } from './i18n'
 import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
 import type { Page } from './pages'
@@ -137,6 +137,7 @@ const repos = atom({ plugin: 'review-inbox', key: 'repos' } as const, {} as Repo
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
 const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
 const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, false)
+const reloadAsked = atom({ plugin: 'review-inbox', key: 'reloadAsked' } as const, '')
 const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
 const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], groups: [], errors: [] } as Actions)
 const groupResults = atom({ plugin: 'review-inbox', key: 'groups' } as const, {} as Record<string, GroupResult>)
@@ -185,6 +186,8 @@ let toastFreeAt = 0
 const sessionToken = Math.random().toString(36).slice(2)
 // The session's own id, which a reload keeps, and the PRs its prompts linked to.
 let selfId = ''
+// When this load of the module started; a reload request older than this is not for it.
+let loadedAt = 0
 let linked: string[] = []
 // This session's release, from plugin.json, so other sessions can tell it is current.
 let version: string | undefined
@@ -243,6 +246,7 @@ const shownFile = () => `shown-${cacheKey(config.githubUser, config.scope)}.json
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
+const RELOAD_FILE = 'reload.json'
 // Also one for every account: a folder holds the same repository whoever is signed in.
 const REPOS_FILE = 'repos.json'
 
@@ -951,6 +955,15 @@ async function unsnooze($: EngineInterface, keys: string[]) {
   )
 }
 
+// Reloads this session once when a newer release asks; the command waits until the session is idle.
+async function answerReload($: EngineInterface) {
+  const request = await readJson<ReloadRequest | undefined>($, RELOAD_FILE, undefined)
+  if (!request || !shouldReload(request, version, loadedAt)) return
+  // Answered, even if the reload is refused or another session's clock runs ahead.
+  loadedAt = Math.max(Date.now(), request.at)
+  await $.command.run({ command: 'reload-plugins' })
+}
+
 // Tells the other sessions what this one is on, and reads what they are on.
 // shortcut: two sessions writing in the same instant can drop one entry until its next check-in, 30 seconds on; lock the file if that shows
 async function checkIn($: EngineInterface, leaving = false) {
@@ -1035,12 +1048,14 @@ export const register: Register = (on, options) => {
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
     selfId = await $.session.id()
+    loadedAt = Date.now()
     version = await $.fs
       .read(`${$.plugin.root}/.claude-plugin/plugin.json`)
       .then(text => (JSON.parse(text) as { version?: string }).version)
       .catch(() => undefined)
     $.clock.after(1_000, () => void checkIn($).catch(() => undefined))
     $.clock.every(SYNC_MS, () => void checkIn($).catch(() => undefined))
+    $.clock.every(SYNC_MS, () => void answerReload($).catch(() => undefined))
     $.clock.every(1_000, () => {
       if (!wanted) return
       const force = wanted === 'fetch'
@@ -1147,6 +1162,7 @@ export const register: Register = (on, options) => {
     const allIssues = await read($, issues)
     const live = liveSessions(await read($, sessions), now)
     const older = olderSessions(live, selfId, version)
+    const asked = version !== undefined && (await read($, reloadAsked)) === version
     // This session's repositories come first in every group; the scope buttons narrow the tabs to them.
     const here = thisRepos(live[selfId], ghRepo)
     const shownReviews = hereFirst(everything.filter(i => !away.review(i)), here)
@@ -1759,7 +1775,20 @@ export const register: Register = (on, options) => {
               }} />
           </Box>
         </Box>
-        {older.length > 0 && <Text color="warning">{m.status.older(older.length, [...new Set(older)].join(', '))}</Text>}
+        {older.length > 0 && (
+          <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+            <Text color="warning">{m.status.older(older.length, [...new Set(older)].join(', '))}</Text>
+            <Button
+              key="reload-all"
+              label={asked ? m.status.reloadAsked : m.status.reloadAll}
+              dimColor
+              onPress={async () => {
+                await writeJson($, RELOAD_FILE, { version, at: Date.now() })
+                await update($, reloadAsked, () => version ?? '')
+              }}
+            />
+          </Box>
+        )}
         {Input && (
           <Box marginTop={1}>
             <Input
