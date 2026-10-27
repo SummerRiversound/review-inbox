@@ -206,6 +206,7 @@ export const ja: Messages = {
     pending: '自動レビュー: 保留中のレビューが GitHub にあります',
     failed: (reason: string) => `自動レビュー失敗: ${reason}`,
     unreadable: 'レビュアーの回答を読み取れませんでした',
+    refine: "セッションで仕上げる",
     open: "GitHub で開く",
     retry: 'もう一度試す',
     stopped: 'レビューが中断されました',
@@ -216,6 +217,7 @@ export const ja: Messages = {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,
     addGroup: (path: string) => `レビュー受信トレイに保存した検索を1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,
     review: (url: string) => `${url} をレビューして。`,
+    refine: (url: string, sha: string) => `${url} にある自分の保留中のレビューを一緒に仕上げよう。head ${sha} をレビューしたもの。本文とコメントは \`gh api\` で読み、決めたとおりにそこで直して。`,
     pending: (id: number, repo: string, number: number) =>
       `この PR には自分の保留中のレビュー ${id} があり、それがある間 GitHub は新しいレビューを受け付けない。そのレビューを直して使って。判定を伝えたら \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(または APPROVE、REQUEST_CHANGES)で提出するか削除して。新しいレビューは作らないで。`,
     check: '特に確認してほしい点: ',

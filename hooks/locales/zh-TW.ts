@@ -206,6 +206,7 @@ export const zhTW: Messages = {
     pending: '自動審查：你的待送出審查已在 GitHub 上',
     failed: (reason: string) => `自動審查失敗：${reason}`,
     unreadable: '無法讀取審查者的回答',
+    refine: "在工作階段中完善",
     open: "在 GitHub 上開啟",
     retry: '重試',
     stopped: '審查已中斷',
@@ -216,6 +217,7 @@ export const zhTW: Messages = {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,
     addGroup: path => `幫我的審查收件匣新增一個已儲存的搜尋：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,
     review: url => `幫我審查一下 ${url}。`,
+    refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待送出審查；它審查的是 head ${sha}。用 \`gh api\` 讀取它的內文和留言，並照我們談好的在那裡修改。`,
     pending: (id: number, repo: string, number: number) =>
       `這個 PR 上有我的待送出審查 ${id}，它存在時 GitHub 不接受新的審查：請在它上面修改。等我說了結論再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）送出，或者刪除它；不要新建審查。`,
     check: '請特別檢查：',

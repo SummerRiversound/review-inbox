@@ -97,7 +97,7 @@ import {
   toDetail,
   waitingDays,
 } from './inbox'
-import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
+import type { GqlPr, PendingReview, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
 import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from './sessions'
@@ -140,6 +140,7 @@ import {
   toIssues,
   toMyPrs,
   toReferences,
+  workWhere,
 } from './tabs'
 import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
 
@@ -1173,10 +1174,10 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
     const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
     const jobs = (await read($, autoReview)).jobs
     const reviewsOn = chosen.flatMap(c => c.review ?? [])
-    const pending: Record<string, number> = {}
+    const pending: Record<string, PendingReview> = {}
     for (const i of reviewsOn) {
       const job = jobs[itemKey(i)]
-      if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = job.reviewId
+      if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = { id: job.reviewId, where: workWhere(await placeFor($, i.repo), i.repo, true, m) }
     }
     const reviews = reviewPrompts(text, reviewsOn, m, style, pending)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
@@ -1779,6 +1780,9 @@ export const register: Register = (on, options) => {
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
       const isAdded = addedKeys.includes(itemKey(item))
+      // With my pending review on the PR, the request works on that review rather than starting one.
+      const auto = autoMap[itemKey(item)]
+      const isPending = auto?.kind === 'done' && !!auto.reviewId
       return (
         <Box key={`card-${item.repo}-${item.number}`} flexDirection="row" marginBottom={1}>
           <Box width={1} flexShrink={0} backgroundColor={item.isDraft ? 'inactive' : ageColor(days)} />
@@ -1843,7 +1847,7 @@ export const register: Register = (on, options) => {
                 {moreButton(itemKey(item))}
                 <Button
                   key={`review-${itemKey(item)}`}
-                  label={isAdded ? m.card.added : m.card.review}
+                  label={isAdded ? m.card.added : isPending ? m.auto.refine : m.card.review}
                   {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
                   onPress={() => void addCard($, itemKey(item))}
                 />

@@ -218,6 +218,7 @@ const en = {
     pending: 'Auto review: your pending review is on GitHub',
     failed: (reason: string) => `Auto review failed: ${reason}`,
     unreadable: "the reviewer's answer could not be read",
+    refine: "Refine in session",
     open: "Open on GitHub",
     retry: 'Try again',
     stopped: 'the review was stopped',
@@ -228,6 +229,7 @@ const en = {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
     addGroup: (path: string) => `Add a saved search to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,
     review: (url: string) => `Review ${url}.`,
+    refine: (url: string, sha: string) => `Refine my pending review on ${url} with me; it reviews head ${sha}. Read its body and comments with \`gh api\` and change them there as we agree.`,
     pending: (id: number, repo: string, number: number) =>
       `My pending review ${id} is on this PR, and GitHub takes no new review while it exists: work on that one. Submit it with \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (or APPROVE, REQUEST_CHANGES) only once I say which, or delete it; do not create another review.`,
     check: 'Check in particular: ',

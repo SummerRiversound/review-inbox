@@ -206,6 +206,7 @@ export const ko: Messages = {
     pending: '자동 리뷰: GitHub에 내 임시 리뷰가 있음',
     failed: (reason: string) => `자동 리뷰 실패: ${reason}`,
     unreadable: '리뷰어의 답을 읽지 못함',
+    refine: "세션에서 다듬기",
     open: "GitHub에서 열기",
     retry: '다시 시도',
     stopped: '리뷰가 중단됨',
@@ -216,6 +217,7 @@ export const ko: Messages = {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,
     addGroup: path => `리뷰 인박스에 저장한 검색을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,
     review: url => `${url} 리뷰해 줘.`,
+    refine: (url: string, sha: string) => `${url}에 있는 내 임시 리뷰를 같이 다듬자. head ${sha}를 리뷰한 거야. 본문과 코멘트는 \`gh api\`로 읽고, 우리가 정한 대로 거기서 고쳐.`,
     pending: (id: number, repo: string, number: number) =>
       `이 PR에 내 임시 리뷰 ${id}가 있고, 그게 있는 동안 GitHub는 새 리뷰를 받지 않아. 그 리뷰를 고쳐서 써. 내가 판정을 말하면 그때 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(또는 APPROVE, REQUEST_CHANGES)로 제출하거나 지워. 리뷰를 새로 만들지는 마.`,
     check: '특히 확인할 점: ',

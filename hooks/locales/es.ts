@@ -209,6 +209,7 @@ export const es: Messages = {
     pending: 'Revisión automática: tu revisión pendiente está en GitHub',
     failed: (reason: string) => `Falló la revisión automática: ${reason}`,
     unreadable: 'no se pudo leer la respuesta del revisor',
+    refine: "Pulir en la sesión",
     open: "Abrir en GitHub",
     retry: 'Reintentar',
     stopped: 'la revisión se detuvo',
@@ -219,6 +220,7 @@ export const es: Messages = {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,
     addGroup: (path: string) => `Añade una búsqueda guardada a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarla en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
     review: (url: string) => `Revisa ${url}.`,
+    refine: (url: string, sha: string) => `Pule conmigo mi revisión pendiente en ${url}; revisa el head ${sha}. Lee su texto y sus comentarios con \`gh api\` y cámbialos ahí según lo acordemos.`,
     pending: (id: number, repo: string, number: number) =>
       `Mi revisión pendiente ${id} está en este PR, y GitHub no acepta otra mientras exista: trabaja sobre esa. Envíala con \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (o APPROVE, REQUEST_CHANGES) solo cuando te diga cuál, o bórrala; no crees otra revisión.`,
     check: 'Fíjate especialmente en: ',

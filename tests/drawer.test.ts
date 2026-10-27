@@ -988,6 +988,18 @@ test('with Direct GitHub actions on, a card with my pending review offers Post a
   await ui.unmount()
 })
 
+// The test kit has no drawer close, so what the close fills is pinned in the inbox tests.
+test('Refine in session takes the place of Review on a card with my pending review, and adds the card like Review', AUTO_ON, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem, item(6)], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  expect(await label('review-o/r#6')).toBe('Review with Claude')
+  expect(await label('review-o/r#5')).toBe('Refine in session')
+  await ui.press({ key: 'review-o/r#5' })
+  expect(await label('review-o/r#5')).toBe('Added')
+  await ui.unmount()
+})
+
 test("the reviewer's agent type is kept out of the model's listing", AUTO_ON, async ($, on) => {
   const ui = await opened($, on, [], [], 'review')
   const offer = await $.agent.offer({ agent: 'review-inbox:auto-reviewer', description: 'd', source: 'plugin', provider: { plugin: 'review-inbox', tier: 'user' } } as never)

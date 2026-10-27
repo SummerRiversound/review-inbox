@@ -206,6 +206,7 @@ export const zhCN: Messages = {
     pending: '自动审查：你的待提交审查已在 GitHub 上',
     failed: (reason: string) => `自动审查失败：${reason}`,
     unreadable: '无法读取审查者的回答',
+    refine: "在会话中完善",
     open: "在 GitHub 上打开",
     retry: '重试',
     stopped: '审查已中断',
@@ -216,6 +217,7 @@ export const zhCN: Messages = {
     addButton: (path, names) => `给我的审查收件箱添加一个按钮：编辑 ${path}，如果不存在就创建为 {"buttons": []}。每一项是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 里可以用 {{.Name}} 的形式使用 ${names}。先问我这个按钮要做什么。`,
     addGroup: path => `给我的审查收件箱添加一个已保存的搜索：编辑 ${path}，如果不存在就创建为 {"groups": []}，已有的 "buttons" 保持不变。每一项是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示栏里显示数量就加上 "countInBand": true；query 使用 GitHub 搜索语法。先问我想找什么。`,
     review: url => `帮我审查一下 ${url}。`,
+    refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待提交审查；它审查的是 head ${sha}。用 \`gh api\` 读取它的正文和评论，并按我们商定的在那里修改。`,
     pending: (id: number, repo: string, number: number) =>
       `这个 PR 上有我的待提交审查 ${id}，它存在时 GitHub 不接受新的审查：请在它上面修改。等我说了结论再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）提交，或者删除它；不要新建审查。`,
     check: '重点检查：',

@@ -210,6 +210,7 @@ export const de: Messages = {
     pending: 'Automatisches Review: Ihr ausstehendes Review liegt auf GitHub',
     failed: (reason: string) => `Automatisches Review fehlgeschlagen: ${reason}`,
     unreadable: 'die Antwort des Reviewers war nicht lesbar',
+    refine: "In der Sitzung überarbeiten",
     open: "Auf GitHub öffnen",
     retry: 'Erneut versuchen',
     stopped: 'das Review wurde abgebrochen',
@@ -220,6 +221,7 @@ export const de: Messages = {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,
     addGroup: path => `Füge meinem Review-Posteingang eine gespeicherte Suche hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,
     review: url => `Bitte reviewe ${url}.`,
+    refine: (url: string, sha: string) => `Überarbeite mit mir mein ausstehendes Review auf ${url}; es prüft den Head ${sha}. Lies Text und Kommentare mit \`gh api\` und ändere sie dort so, wie wir es abstimmen.`,
     pending: (id: number, repo: string, number: number) =>
       `Auf diesem PR liegt mein ausstehendes Review ${id}, und solange es da ist, nimmt GitHub kein neues an: arbeite damit. Reiche es mit \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (oder APPROVE, REQUEST_CHANGES) erst ein, wenn ich sage welches, oder lösche es; lege kein weiteres Review an.`,
     check: 'Achte besonders auf: ',
