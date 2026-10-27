@@ -894,6 +894,8 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
 }
 
 let isTicking = false
+// The running job this session last found quiet, as `key@startedAt`.
+let quietRun: string | undefined
 const LIVE = ['pending', 'running', 'waiting']
 
 // Every session looks at the shared file on the sync timer; only a local read until a job is due. One review runs at a time across sessions.
@@ -912,12 +914,15 @@ async function tickAuto($: EngineInterface) {
       const [key, job] = running
       // The session whose agent list has the run renews it, a reload of the mod included; one gone quiet is requeued.
       const isMine = job.agentId !== undefined && (await $.agent.list()).some(a => a.id === job.agentId && LIVE.includes(a.status))
+      const run = `${key}@${job.startedAt}`
+      const isQuiet = !isMine && Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS
       if (isMine) await setJob($, key, { runner: sessionToken, heartbeatAt: Date.now() })
-      // Its session closed: back to the front of the queue, not counted as an attempt.
-      else if (Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS) {
+      // Its session closed: back to the front of the queue, not counted as an attempt. Quiet on two ticks in a row, as after a sleep every run is quiet until its session renews it.
+      else if (isQuiet && quietRun === run) {
         await removeRun($, job)
         await setJob($, key, { ...IDLE, manual: true }, job.headSha)
       }
+      quietRun = isQuiet ? run : undefined
       return
     }
     const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))

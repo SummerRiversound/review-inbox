@@ -933,6 +933,18 @@ test("a run another session holds is left alone while it renews it, and once it 
   await ui.unmount()
 })
 
+test('a run that looks quiet once, as every run does after the machine sleeps, is not started again when its session renews it next', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const quiet = { status: 'running' as const, runner: 'other', agentId: 'x', startedAt: Date.now() - 600_000 }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ ...quiet, heartbeatAt: Date.now() - 180_000 }) }, run: autoGithub({}) })
+  await clock.advance(30_000)
+  files.set(AUTO, queued({ ...quiet, heartbeatAt: Date.now() }))
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].runner).toBe('other')
+  await ui.unmount()
+})
+
 test('an answer that does not parse is tried once more, then the card says so and offers Try again', AUTO_ON, async ($, on) => {
   const got = agents(on, () => [`a${got.spawns.length}`])
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({}) })
