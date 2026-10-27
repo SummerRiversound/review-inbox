@@ -195,6 +195,7 @@ const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
 const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
+const autoAsking = atom({ plugin: 'review-inbox', key: 'autoAsking' } as const, null as number | null)
 // The autoReview setting itself; the switch atop the Review tab can turn auto review the other way.
 let autoOption = false
 
@@ -726,13 +727,29 @@ async function syncEnabled($: EngineInterface) {
   const next = config.auto.isOn ? { ...file, enabledAt: Date.now() } : off
   await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
-  if (config.auto.isOn) toast($, m.auto.turnedOn(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`))
+  toast($, config.auto.isOn ? m.auto.turnedOn : m.auto.turnedOff)
 }
 
 // Pressed in one session, it holds in all of them: the shared file carries it.
 async function switchAuto($: EngineInterface) {
   await editAuto($, file => ({ ...file, switch: { isOn: !switchedOn(file, autoOption), option: autoOption } }))
   await syncEnabled($)
+}
+
+// Turning it on spends tokens and shows on others' PRs, so it asks first, as a card's writes do; off needs no asking.
+async function pressSwitch($: EngineInterface) {
+  if (config.auto.isOn) return switchAuto($)
+  const at = await $.clock.now()
+  await update($, autoAsking, () => at)
+  void $.ui.focus({ requestId: PANE, key: 'auto-cancel' }).catch(() => undefined)
+  $.clock.after(CONFIRM_MS, () => void update($, autoAsking, a => (a === at ? null : a)))
+}
+
+async function confirmSwitch($: EngineInterface) {
+  const at = await read($, autoAsking)
+  if (at === null || (await $.clock.now()) - at < CONFIRM_GUARD_MS) return
+  await update($, autoAsking, () => null)
+  await switchAuto($)
 }
 
 // A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
@@ -1638,6 +1655,7 @@ export const register: Register = (on, options) => {
     const newDot = (updatedAt: string | undefined) =>
       seen > 0 && updatedAt !== undefined && Date.parse(updatedAt) > seen && <Text color="suggestion">● </Text>
     const asking = await read($, confirming)
+    const askingAuto = await read($, autoAsking)
     const directResults = await read($, directs)
     // A card's writes to GitHub, its confirm row in their place while one is asked; `extra` is the Merge button, which the setting does not hide.
     const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren, suggested?: DirectAction) => {
@@ -2335,14 +2353,26 @@ export const register: Register = (on, options) => {
 
             {active === 'review' && (
               <Box flexDirection="column">
-                <Box>
-                  <Button
-                    key="auto-switch"
-                    label={config.auto.isOn ? m.auto.switchOn : m.auto.switchOff}
-                    {...(config.auto.isOn ? { variant: 'primary' as const } : { dimColor: true })}
-                    onPress={() => void switchAuto($).catch(() => undefined)}
-                  />
-                </Box>
+                {askingAuto !== null ? (
+                  <Box flexDirection="column">
+                    <Text color="warning">{m.auto.ask(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`)}</Text>
+                    {config.auto.large && <Text color="warning">{m.auto.askLarge}</Text>}
+                    {config.auto.backlog && <Text color="warning">{m.auto.askBacklog}</Text>}
+                    <Box flexDirection="row" justifyContent="flex-end" gap={1}>
+                      <Button key="auto-cancel" label={m.direct.cancel} onPress={() => void update($, autoAsking, () => null)} />
+                      <Button key="auto-confirm" label={m.auto.turnOn} variant="primary" onPress={() => void confirmSwitch($).catch(() => undefined)} />
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box>
+                    <Button
+                      key="auto-switch"
+                      label={config.auto.isOn ? m.auto.switchOn : m.auto.switchOff}
+                      {...(config.auto.isOn ? { variant: 'primary' as const } : { dimColor: true })}
+                      onPress={() => void pressSwitch($).catch(() => undefined)}
+                    />
+                  </Box>
+                )}
                 {unhide(everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}

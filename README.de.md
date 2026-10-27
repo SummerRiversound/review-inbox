@@ -66,7 +66,7 @@ Die Optionen werden auf dem Installationsbildschirm gesetzt und lassen sich spä
 | `repoPaths` | leer | Wo Claude für die Schaltflächen zum nächsten Schritt an jedem Repository arbeitet. Siehe unten. |
 | `motion` | `auto` | `off` schaltet das Aufleuchten der Zahlen in der Leiste ab. `auto` schaltet es ebenfalls ab, wenn die Einstellung für reduzierte Bewegung von Claude Code (`prefersReducedMotion`) an ist. |
 | `directActions` | `off` | `on` fügt Schaltflächen hinzu, die von einer Karte aus auf GitHub schreiben. Siehe „Direkte GitHub-Aktionen“ unten. |
-| `autoReview` | `off` | `on` reviewt PRs, die Sie anfragen, im Hintergrund und hält jedes Review als Ihr ausstehendes Review bereit, bis Sie es posten. **Es verbraucht deutlich mehr Tokens.** Die Schaltfläche `Automatisches Review` oben im Tab Zu reviewen schaltet es ebenfalls ein und aus. Siehe „Automatisches Review“ unten. |
+| `autoReview` | `off` | `on` reviewt PRs, die Sie anfragen, im Hintergrund und hält jedes Review als Ihr ausstehendes Review bereit, bis Sie es posten. **Es verbraucht deutlich mehr Tokens.** Die Schaltfläche `Automatisches Review` oben im Tab Zu reviewen schaltet es ebenfalls ein und aus und fragt vor dem Einschalten nach. Siehe „Automatisches Review“ unten. |
 | `autoReviewModel` | `sonnet` | Das Modell, auf dem der Reviewer läuft: `sonnet` oder `opus`, das gründlicher reviewt und mehr kostet. |
 | `autoReviewDaily` | `5` | Höchstzahl automatischer Reviews, die pro Tag starten: 3, 5, 10, 20 oder `unlimited`. `Erneut versuchen` auf einer Karte wird nicht mitgezählt. |
 | `autoReviewSkills` | leer | Skills, die in den Reviewer geladen werden, durch Kommas getrennt, etwa Ihr Review-Playbook. Leer lädt keine. |

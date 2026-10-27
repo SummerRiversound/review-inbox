@@ -66,7 +66,7 @@ Se definen en la pantalla de instalación; puedes cambiarlas después en `/confi
 | `repoPaths` | vacío | Dónde trabaja Claude en cada repositorio, para los botones del siguiente paso. Ver abajo. |
 | `motion` | `auto` | `off` quita el destello de los números de la barra. `auto` también lo quita cuando el ajuste de movimiento reducido de Claude Code (`prefersReducedMotion`) está activado. |
 | `directActions` | `off` | `on` añade botones que escriben en GitHub desde una tarjeta. Consulta «Acciones directas en GitHub» más abajo. |
-| `autoReview` | `off` | `on` revisa en segundo plano los PR que te piden revisión y guarda cada revisión como tu revisión pendiente hasta que la publiques. **Gasta bastantes más tokens.** El botón `Revisión automática` arriba de la pestaña Por revisar también la activa y la desactiva. Consulta «Revisión automática» más abajo. |
+| `autoReview` | `off` | `on` revisa en segundo plano los PR que te piden revisión y guarda cada revisión como tu revisión pendiente hasta que la publiques. **Gasta bastantes más tokens.** El botón `Revisión automática` arriba de la pestaña Por revisar también la activa y la desactiva, y pide confirmación antes de activarla. Consulta «Revisión automática» más abajo. |
 | `autoReviewModel` | `sonnet` | El modelo con el que se ejecuta el revisor: `sonnet` u `opus`, que revisa con más profundidad y cuesta más. |
 | `autoReviewDaily` | `5` | Máximo de revisiones automáticas que empiezan en un día: 3, 5, 10, 20 o `unlimited`. `Reintentar` en una tarjeta no cuenta. |
 | `autoReviewSkills` | vacío | Skills que se cargan en el revisor, separadas por comas, como tu playbook de revisión. Vacío no carga ninguna. |

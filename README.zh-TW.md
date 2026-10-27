@@ -66,7 +66,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 空白 | 下一步按鈕為每個儲存庫讓 Claude 工作的資料夾。見下文。 |
 | `motion` | `auto` | 設為 `off` 時，提示列上方那一行的數字不再閃爍。設為 `auto` 時，如果 Claude Code 的減少動態效果設定（`prefersReducedMotion`）已開啟，也不閃爍。 |
 | `directActions` | `off` | 設為 `on` 時，卡片上會有直接寫入 GitHub 的按鈕。詳見下方的「直接寫入 GitHub」。 |
-| `autoReview` | `off` | 設為 `on` 時，會在背景審查請求你的 PR，並把每份審查保留為你的待送出審查，直到你發布為止。**會明顯多用 token。**也可以用待審查分頁頂端的 `自動審查` 按鈕開關。 請見下方的自動審查。 |
+| `autoReview` | `off` | 設為 `on` 時，會在背景審查請求你的 PR，並把每份審查保留為你的待送出審查，直到你發布為止。**會明顯多用 token。**也可以用待審查分頁頂端的 `自動審查` 按鈕開關，開啟前會先確認。 請見下方的自動審查。 |
 | `autoReviewModel` | `sonnet` | 審查者使用的模型：`sonnet` 或 `opus`；`opus` 審查得更深入，花費也更高。 |
 | `autoReviewDaily` | `5` | 一天內最多開始的自動審查數：3、5、10、20 或 `unlimited`。卡片上的 `重試` 不計入。 |
 | `autoReviewSkills` | 空白 | 載入到審查者的技能，以逗號分隔，例如你的審查手冊。空白表示不載入任何技能。 |
