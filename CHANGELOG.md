@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.15.1 — 2026-10-27
+
+### Added
+
+- An `Auto review` button atop the To review tab turns auto review on or off for all your sessions. A later change to `autoReview` in `/config` wins over it.
+- `autoReviewLarge` and `autoReviewBacklog`, both `on` by default. Set either to `off` to leave PRs over 50 files or 2,000 changed lines, or requests made before auto review was on, to you.
+
+### Changed
+
+- PRs over the size limits and requests from before auto review was on are now reviewed too, within `autoReviewDaily`. Drafts and PRs opened by bots are still skipped.
+- The `Run auto review` button is gone from cards; `Try again` and `Review again` stay.
+
 ## 0.15.0 — 2026-10-27
 
 ### Added
