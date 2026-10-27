@@ -211,12 +211,13 @@ test('a new head keeps my pending review of the old one for carrying, and a PR g
   expect(trackHeads(next, [item(1, { headSha: 'h1c' })], 6).jobs['o/r#1']!.prev!.headSha).toBe('h1')
 })
 
-test('a carried review names the new commit in its marker and moves a whole-file comment into the body', () => {
+test('a carried review keeps each line comment at its diff position, names the new commit, and moves a whole-file comment into the body', () => {
+  // GitHub lists a pending review's comments by diff position alone; the same content gives the same positions on the new head.
   const moved = carried('Body\n\n<!-- review-inbox auto-review sha=old key=k -->', [
-    { path: 'a.ts', line: 3, side: 'LEFT', body: 'x' },
-    { path: 'b.ts', line: null, side: null, body: 'y' },
+    { path: 'a.ts', position: 3, body: 'x' },
+    { path: 'b.ts', position: null, body: 'y' },
   ], 'old', 'new')
-  expect(moved).toEqual({ body: 'Body\n\n<!-- review-inbox auto-review sha=new key=k -->\n\n- `b.ts` y', comments: [{ path: 'a.ts', line: 3, side: 'LEFT', body: 'x' }] })
+  expect(moved).toEqual({ body: 'Body\n\n<!-- review-inbox auto-review sha=new key=k -->\n\n- `b.ts` y', comments: [{ path: 'a.ts', position: 3, body: 'x' }] })
 })
 
 test("a re-request asks for what changed since my last review, and the style line goes in when there is one", () => {

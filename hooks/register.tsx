@@ -61,7 +61,7 @@ import {
   tokensOf,
   trackHeads,
 } from './autoreview'
-import type { AutoSettings, GhComment, GhReview, PrFile, ReviewComment } from './autoreview'
+import type { AutoSettings, GhComment, GhReview, PrFile } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -778,7 +778,7 @@ async function carryReview($: EngineInterface, key: string, item: InboxItem, pre
   const body = (await gh($, reviewBodyArgs(item, prev.reviewId), env)).replace(/\n$/, '')
   const comments = jsonLines<GhComment>(await gh($, reviewCommentsArgs(item, prev.reviewId), env))
   const moved = carried(body, comments, prev.headSha, item.headSha)
-  const create = (head: string, review: { body: string; comments: ReviewComment[] }) => gh($, createArgs(item), env, createInput(head, review.body, review.comments))
+  const create = (head: string, review: ReturnType<typeof carried>) => gh($, createArgs(item), env, createInput(head, review.body, review.comments))
   // GitHub takes no second pending review, so the old one goes first; a refused create puts it back where it was.
   await gh($, deleteReviewArgs(item, prev.reviewId), env)
   const id = await create(item.headSha, moved).catch(async (error: unknown) => {

@@ -726,7 +726,7 @@ const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   // My pending review 9 on h4, as I left it on GitHub.
   if (args === 'gh api repos/o/r/pulls/5/reviews/9 --jq .body') return { exitCode: 0, stdout: 'Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h4 key=k -->\n' }
   if (args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews/9/comments'))
-    return { exitCode: 0, stdout: `${JSON.stringify({ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** mine' })}\n${JSON.stringify({ path: 'b.ts', line: null, side: null, body: 'whole file' })}\n` }
+    return { exitCode: 0, stdout: `${JSON.stringify({ path: 'a.ts', position: 2, body: '**major** mine' })}\n${JSON.stringify({ path: 'b.ts', position: null, body: 'whole file' })}\n` }
   if (args.startsWith('gh api -X DELETE repos/o/r/pulls/5/reviews/')) {
     g.deleted?.push(args)
     return { exitCode: 0 }
@@ -850,7 +850,7 @@ test('a rebase with the same content carries my pending review to the new head, 
   expect(g.deleted).toEqual(['gh api -X DELETE repos/o/r/pulls/5/reviews/9'])
   const sent = JSON.parse(g.created![0]!)
   expect(sent.commit_id).toBe('h5')
-  expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** mine' }])
+  expect(sent.comments).toEqual([{ path: 'a.ts', position: 2, body: '**major** mine' }])
   expect(sent.body).toBe('Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h5 key=k -->\n\n- `b.ts` whole file')
   const job = JSON.parse(files.get(AUTO)!)
   expect([job.jobs['o/r#5'].status, job.jobs['o/r#5'].reviewId, job.jobs['o/r#5'].carriedFrom, job.started]).toEqual(['done', 77, 'h4', undefined])
