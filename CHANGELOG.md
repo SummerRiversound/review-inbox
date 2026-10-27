@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.14.2 — 2026-10-27
+
+### Fixed
+
+- The review-style line in review requests no longer tells Claude to open with praise. The weekly description leaves out greetings, thanks, praise and how comments are laid out, and a style learned under the older description is learned again on the next refresh, with no style line until then.
+
 ## 0.14.1 — 2026-10-26
 
 ### Fixed
