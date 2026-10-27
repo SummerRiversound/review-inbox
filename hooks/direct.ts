@@ -41,8 +41,6 @@ export function writeArgs(action: Exclude<DirectAction, 'rerun'>, target: Direct
   const path = `repos/${target.repo}`
   switch (action) {
     case 'approve':
-      // GitHub takes no new review while my pending one exists, so an approve submits that one.
-      if (target.reviewId) return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews/${target.reviewId}/events`, '-f', 'event=APPROVE']
       // Pinned to the commit I looked at, with no body: GitHub's own default is an empty approval.
       return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews`, '-f', 'event=APPROVE', '-f', `commit_id=${target.sha}`]
     case 'post-comment':

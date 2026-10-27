@@ -975,12 +975,12 @@ test('new commits since the review stop a post and keep the pending review, whil
   await ui.unmount()
 })
 
-test('with Direct GitHub actions on, Approve on a card with my pending review submits that review', { options: { autoReview: 'on', directActions: 'on' } }, async ($, on) => {
+test('with Direct GitHub actions on, a card with my pending review offers Post and approve in place of Approve, which GitHub would refuse', { options: { autoReview: 'on', directActions: 'on' } }, async ($, on) => {
   const sent: string[] = []
   const pending = queued({ status: 'done', reviewId: 9 })
   const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: pending }, run: github(sent, 'h5') })
 
-  expect(await ui.find({ key: 'direct-post-comment-o/r#5' })).toBeDefined()
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
   await ui.press({ key: 'direct-post-approve-o/r#5' })
   await clock.advance(300)
   await ui.press({ key: 'direct-confirm-o/r#5' })
