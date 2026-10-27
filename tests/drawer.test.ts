@@ -692,11 +692,10 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await tick()
   expect(got.spawns).toHaveLength(0)
 
-  // The warning says what it costs and who sees it; Cancel, or ten seconds, leaves it off.
+  // The warning says what it costs and where the details are set; Cancel, or ten seconds, leaves it off.
   await ui.press({ key: 'auto-switch' })
-  expect(await shown(ui, /Turn on auto review\? .*noticeably more tokens.*Daily limit: 5.*👀/)).toBe(true)
-  expect(await shown(ui, /PRs over 50 files or 2,000 changed lines are reviewed too/)).toBe(true)
-  expect(await shown(ui, /Requests already waiting are reviewed too/)).toBe(true)
+  expect(await shown(ui, /^Turn on auto review\? .* uses more tokens\.$/)).toBe(true)
+  expect(await shown(ui, /^Change the details in \/config\.$/)).toBe(true)
   await ui.press({ key: 'auto-cancel' })
   expect(await ui.find({ key: 'auto-confirm' })).toBeUndefined()
   await ui.press({ key: 'auto-switch' })

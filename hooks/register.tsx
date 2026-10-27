@@ -2355,9 +2355,8 @@ export const register: Register = (on, options) => {
               <Box flexDirection="column">
                 {askingAuto !== null ? (
                   <Box flexDirection="column">
-                    <Text color="warning">{m.auto.ask(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`)}</Text>
-                    {config.auto.large && <Text color="warning">{m.auto.askLarge}</Text>}
-                    {config.auto.backlog && <Text color="warning">{m.auto.askBacklog}</Text>}
+                    <Text color="warning">{m.auto.ask}</Text>
+                    <Text dimColor>{m.auto.askSettings}</Text>
                     <Box flexDirection="row" justifyContent="flex-end" gap={1}>
                       <Button key="auto-cancel" label={m.direct.cancel} onPress={() => void update($, autoAsking, () => null)} />
                       <Button key="auto-confirm" label={m.auto.turnOn} variant="primary" onPress={() => void confirmSwitch($).catch(() => undefined)} />
