@@ -3,7 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
-import { contentKey } from '../hooks/autoreview'
+import { contentKey, switchedOn } from '../hooks/autoreview'
 import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
 import { prSeenKeys } from '../hooks/tabs'
 
@@ -654,7 +654,7 @@ const AUTO = `/home/me/.claude/plugins/data/review-inbox/autoreview-${cacheKey('
 const AUTO_ON = { options: { autoReview: 'on' } }
 const recent = (number: number): InboxItem => ({ ...item(number), headSha: `h${number}`, requestedAt: new Date(Date.now() - 60_000).toISOString() })
 
-test('turning auto review on records when, says once what it costs, and an older request waits for Run auto review', AUTO_ON, async ($, on) => {
+test('turning auto review on records when, says once what it costs, and an older request is reviewed too', AUTO_ON, async ($, on) => {
   const toasts: string[] = []
   on('ui.toast', async ($, e) => {
     toasts.push(e.text)
@@ -669,10 +669,36 @@ test('turning auto review on records when, says once what it costs, and an older
   expect(toasts.filter(t => t.startsWith('Auto review is on'))).toEqual([
     'Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: 5.',
   ])
-  expect(await shown(ui, /Requested before auto review was turned on/)).toBe(true)
-  await ui.press({ key: 'auto-run-o/r#5' })
-  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].manual).toBe(true)
   expect(await shown(ui, /Auto review: next in line/)).toBe(true)
+  await ui.unmount()
+})
+
+test('with autoReviewBacklog off an older request says why on its card and has no button to start it', { options: { autoReview: 'on', autoReviewBacklog: 'off' } }, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', {
+    items: [item(5)],
+    files: { [AUTO]: JSON.stringify({ jobs: { 'o/r#5': { headSha: 'a', firstSeenAt: Date.now() - 3_600_000 } } }) },
+  })
+  expect(await shown(ui, /Requested before auto review was turned on/)).toBe(true)
+  expect(await ui.find({ key: 'auto-run-o/r#5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the switch atop the Review tab turns auto review on for every session, and a later change in the settings wins over it', async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [] }) })
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+
+  await ui.press({ key: 'auto-switch' })
+  const file = JSON.parse(files.get(AUTO)!)
+  expect([file.switch, file.enabledAt > 0]).toEqual([{ isOn: true, option: false }, true])
+  expect(await shown(ui, /Auto review: next in line/)).toBe(true)
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+
+  // The settings turned on since the press: the switch no longer speaks, and the settings say on.
+  expect(switchedOn({ ...file, switch: { isOn: false, option: false } }, true)).toBe(true)
+  expect(switchedOn({ ...file, switch: { isOn: false, option: true } }, true)).toBe(false)
   await ui.unmount()
 })
 

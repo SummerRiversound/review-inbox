@@ -93,6 +93,8 @@ export type AutoJob = {
 export type AutoReviewFile = {
   // When a session first read the setting as on; requests older than this start only by hand.
   enabledAt?: number
+  // The switch atop the Review tab: on or off as pressed, while the setting stays `option`.
+  switch?: { isOn: boolean; option: boolean }
   // Reviews started on `day` (a local date), for the daily limit.
   day?: string
   started?: number

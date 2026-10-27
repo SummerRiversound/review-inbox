@@ -205,7 +205,8 @@ const en = {
     settling: (minutes: number) => `Auto review starts in about ${minutes} min, once the commits settle`,
     queued: (ahead: number) => (ahead === 0 ? 'Auto review: next in line' : `Auto review: ${ahead} ahead in line`),
     capped: "Auto review: today's limit reached, it starts tomorrow",
-    run: 'Run auto review',
+    switchOn: 'Auto review: on',
+    switchOff: 'Auto review: off',
     turnedOn: (limit: string) =>
       `Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: ${limit}.`,
     unlimited: 'none',

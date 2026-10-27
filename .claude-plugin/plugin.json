@@ -67,7 +67,7 @@
     "autoReview": {
       "type": "string",
       "title": "Auto review",
-      "description": "on reviews each PR that asks for you directly in the background, one at a time, once its commits have been still for 30 minutes, and keeps the result as your pending review until you post it from the card. Each review runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens",
+      "description": "on reviews each PR that asks for you directly in the background, one at a time, once its commits have been still for 30 minutes, and keeps the result as your pending review until you post it from the card. The Auto review button atop the Review tab turns it on or off too, until this setting changes. Each review runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens",
       "options": ["off", "on"],
       "default": "off"
     },
@@ -81,7 +81,7 @@
     "autoReviewDaily": {
       "type": "string",
       "title": "Auto reviews a day",
-      "description": "Most reviews auto review starts in a day; Run auto review on a card is not counted",
+      "description": "Most reviews auto review starts in a day; Try again on a card is not counted",
       "options": ["3", "5", "10", "20", "unlimited"],
       "default": "5"
     },
@@ -90,6 +90,20 @@
       "title": "Auto review skills",
       "description": "Skills loaded into the reviewer, comma-separated, such as a review playbook; empty loads none",
       "default": ""
+    },
+    "autoReviewLarge": {
+      "type": "string",
+      "title": "Auto review large PRs",
+      "description": "on also reviews PRs over 50 files or 2,000 changed lines, which can take many more tokens; off leaves them alone",
+      "options": ["on", "off"],
+      "default": "on"
+    },
+    "autoReviewBacklog": {
+      "type": "string",
+      "title": "Auto review older requests",
+      "description": "on also reviews requests made before auto review was turned on, a few a day as autoReviewDaily allows; off leaves them alone",
+      "options": ["on", "off"],
+      "default": "on"
     }
   }
 }

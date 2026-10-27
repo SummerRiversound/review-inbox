@@ -66,10 +66,12 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 空白 | 下一步按鈕為每個儲存庫讓 Claude 工作的資料夾。見下文。 |
 | `motion` | `auto` | 設為 `off` 時，提示列上方那一行的數字不再閃爍。設為 `auto` 時，如果 Claude Code 的減少動態效果設定（`prefersReducedMotion`）已開啟，也不閃爍。 |
 | `directActions` | `off` | 設為 `on` 時，卡片上會有直接寫入 GitHub 的按鈕。詳見下方的「直接寫入 GitHub」。 |
-| `autoReview` | `off` | 設為 `on` 時，會在背景審查請求你的 PR，並把每份審查保留為你的待送出審查，直到你發布為止。**會明顯多用 token。** 請見下方的自動審查。 |
+| `autoReview` | `off` | 設為 `on` 時，會在背景審查請求你的 PR，並把每份審查保留為你的待送出審查，直到你發布為止。**會明顯多用 token。**也可以用待審查分頁頂端的 `自動審查` 按鈕開關。 請見下方的自動審查。 |
 | `autoReviewModel` | `sonnet` | 審查者使用的模型：`sonnet` 或 `opus`；`opus` 審查得更深入，花費也更高。 |
-| `autoReviewDaily` | `5` | 一天內最多開始的自動審查數：3、5、10、20 或 `unlimited`。卡片上的 `執行自動審查` 不計入。 |
+| `autoReviewDaily` | `5` | 一天內最多開始的自動審查數：3、5、10、20 或 `unlimited`。卡片上的 `重試` 不計入。 |
 | `autoReviewSkills` | 空白 | 載入到審查者的技能，以逗號分隔，例如你的審查手冊。空白表示不載入任何技能。 |
+| `autoReviewLarge` | `on` | 設為 `on` 時，超過 50 個檔案或 2,000 行變更的 PR 也會審查，會多用很多 token。設為 `off` 則略過。 |
+| `autoReviewBacklog` | `on` | 設為 `on` 時，開啟自動審查之前提出的請求也會審查，依 `autoReviewDaily` 允許的數量每天審查幾個。設為 `off` 則略過。 |
 
 `scope` 可以填入 GitHub [議題與 PR 搜尋](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)接受的任何條件：
 
@@ -212,7 +214,7 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 > **會明顯多用 token。** 每次審查都會執行一個子代理，讀取 diff 和程式碼，並帶著你的 CLAUDE.md、你的 hooks 和 `autoReviewSkills` 中的技能：每個 PR 數萬個 token，使用 `opus` 時更多。卡片會顯示每次審查的花費，`autoReviewDaily` 則限制一天最多開始幾次。
 
-- **什麼會觸發審查。** 直接指名給你（不是給團隊）的請求，且該 PR 不是草稿、也不是機器人開啟的，並在它的 head commit 靜止 30 分鐘之後。所有工作階段合計，同一時間只進行一個審查。你的其他機器看到這個 👀 就會略過該 PR；審查中途停下的機器留下的 👀，一小時後由其他機器接手。在你開啟此功能之前提出的請求，以及超過 50 個檔案或 2,000 行變更的 PR，要等你按卡片上的 `執行自動審查`。沒有到期的項目時什麼都不會執行：不會詢問模型，也不會啟動代理。
+- **什麼會觸發審查。** 直接指名給你（不是給團隊）的請求，且該 PR 不是草稿、也不是機器人開啟的，並在它的 head commit 靜止 30 分鐘之後。所有工作階段合計，同一時間只進行一個審查。你的其他機器看到這個 👀 就會略過該 PR；審查中途停下的機器留下的 👀，一小時後由其他機器接手。在你開啟此功能之前提出的請求，以及超過 50 個檔案或 2,000 行變更的 PR，也會審查；把 `autoReviewBacklog` 或 `autoReviewLarge` 設為 `off` 則略過。待審查分頁頂端的 `自動審查` 按鈕會在所有工作階段中開關自動審查；之後在 `/config` 中修改 `autoReview` 時以設定為準。沒有到期的項目時什麼都不會執行：不會詢問模型，也不會啟動代理。
 - **讀取什麼。** 審查者只有唯讀工具（`Read`、`Grep`、`Glob`），沒有 shell。mod 會把 PR 的 diff 寫進執行資料夾，重新請求時還會寫入你上次審查後的 diff；如果它知道儲存庫的資料夾（下一步按鈕使用的那個），也會在那裡把 head commit 簽出為分離的 worktree，並在審查儲存後移除。
 - **寫入什麼。** 結果會以你的**待送出審查**寫到 GitHub，只有你看得到：留言放在它們所指的行上，diff 以外的內容放在審查內文。卡片會顯示建議的結論、依嚴重程度分類的發現、前三項和花費。
 - **發布。** `以留言發布`、`發布並核准` 和 `發布並要求變更`（建議的那個以顏色標示）會像直接寫入 GitHub 一樣先在卡片上詢問，再送出待送出審查。`在 GitHub 上開啟` 會打開 PR 的檔案頁，可以先在那裡編輯。`在工作階段中完善` 取代 `請 Claude 審查`，請 Claude 和你一起處理那份審查，等你說出要用哪個結論才送出。`捨棄` 會刪除它。這些按鈕在沒有 `directActions` 時也會顯示。
