@@ -66,6 +66,10 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 空 | 次の作業ボタンで、リポジトリごとに Claude が作業するフォルダです。下を参照してください。 |
 | `motion` | `auto` | `off` にすると帯の数が光りません。`auto` でも、Claude Code の動きを減らす設定（`prefersReducedMotion`）がオンなら光りません。 |
 | `directActions` | `off` | `on` にすると、カードから GitHub へ直接書き込むボタンが付きます。詳しくは下の「GitHub への直接操作」を参照してください。 |
+| `autoReview` | `off` | `on` にすると、自分にリクエストされた PR をバックグラウンドでレビューし、投稿するまで各レビューを自分の保留中のレビューとして保持します。**トークンを目に見えて多く使います。** 下の「自動レビュー」を参照してください。 |
+| `autoReviewModel` | `sonnet` | レビュアーが使うモデルです。`sonnet` か `opus` で、`opus` はより深くレビューしますが費用がかかります。 |
+| `autoReviewDaily` | `5` | 1日に開始する自動レビューの上限です。3、5、10、20、`unlimited` のいずれかです。カードの `自動レビューを実行` は数えません。 |
+| `autoReviewSkills` | 空 | レビュアーに読み込むスキルをカンマ区切りで指定します（自分のレビュー用プレイブックなど）。空の場合は何も読み込みません。 |
 
 `scope` には、GitHub の [Issue と PR の検索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) で使えるものなら何でも指定できます。
 
@@ -202,6 +206,19 @@ GitHub が通知を渡すのは gh のサインインとクラシックトーク
 
 マージは直接行いません。承認済みで実行中のチェックがない自分の PR には、`directActions` がオフでも `マージ` ボタンが付きます。押すと、リポジトリのマージ方法を確認して `gh pr merge` を実行する依頼がプロンプトに入り、Enter で送ると Claude Code が実行の許可を求めます。
 
+### 自動レビュー
+
+`autoReview` を `on` にすると、自分に直接レビューが依頼された PR を Claude がバックグラウンドで読むので、カードを開いたときにはレビューができあがっています。ボタンを押すまで作成者に見えるのは、レビューの実行中に PR に付ける自分の 👀 リアクションだけです。
+
+> **トークンを目に見えて多く使います。** レビューのたびにサブエージェントが差分とコードを読み、自分の CLAUDE.md、フック、`autoReviewSkills` のスキルを使います。1つの PR で数万トークンかかり、`opus` ではさらに増えます。カードには各レビューの費用が表示され、`autoReviewDaily` が1日に開始する数を制限します。
+
+- **開始の条件。** 自分に直接（チームではなく）出されたリクエストで、ドラフトではなくボットが作成したものでもない PR が対象で、head コミットが30分間変わらなかったときに始まります。自分のセッション全体で、同時に実行するレビューは1つです。この 👀 を見た自分の別のマシンは、その PR を飛ばします。レビューの途中で止まったマシンが残した 👀 は、1時間たつと別のマシンが引き継ぎます。オンにする前のリクエストと、50ファイルまたは変更2,000行を超える PR は、カードの `自動レビューを実行` を待ちます。対象がないときは何も実行せず、モデルの呼び出しもエージェントの起動もありません。
+- **読むもの。** レビュアーが使えるのは読み取り専用のツール（`Read`、`Grep`、`Glob`）だけで、シェルは使えません。mod は PR の差分を実行フォルダに書き出し、再リクエストでは前回の自分のレビュー以降の差分も書き出します。そのリポジトリのフォルダ（次の作業ボタンが使うフォルダ）がわかっている場合は、そこに head コミットを detached worktree としてチェックアウトし、レビューを保存するときに削除します。
+- **書き込むもの。** 結果は自分だけに見える**保留中のレビュー**として GitHub に書き込みます。コメントは対象の行に付け、差分の外にあるものはレビューの本文に入れます。カードには、提案された判定、重大度別の指摘、上位3件、費用が表示されます。
+- **投稿。** `コメントとして投稿`、`投稿して承認`、`投稿して変更を依頼` のうち、提案された判定のボタンは色付きで表示されます。`GitHub への直接操作` と同じようにカード上で確認を求めたうえで、保留中のレビューを提出します。`GitHub で開く` は PR のファイル画面を開くので、先に自分で編集できます。`セッションで仕上げる` は `Claude にレビューを依頼` の代わりに表示され、そのレビューを一緒に仕上げるよう Claude に依頼します。提出するのは、どの判定にするか自分が伝えてからです。`破棄` はレビューを削除します。これらは `directActions` がオフでも表示されます。
+- **新しいコミット。** 実行中のレビューは、PR に新しいコミットが追加されたとき、クローズまたはマージされたとき、自分へのリクエストがなくなったときに止まります。内容が変わらない rebase の場合は、Claude に頼まずに、自分の編集を含む保留中のレビューを新しいコミットへ移します。それ以外の新しいコミットでは、保留中のレビューは元のコミットに残り、カードに「今投稿すると消えたコードのレビューになる」と表示して `もう一度レビュー` を案内します。カードを描画した後に PR が動いていた場合、投稿は拒否されます。
+- **失敗。** 読み取れない回答は1回だけやり直し、それでもだめならカードが理由と `もう一度試す` を表示します。タスク一覧から止めたレビューは `もう一度試す` を待ちます。セッションが閉じられたレビューは、キューの先頭からやり直します。
+
 ## 言語
 
 帯、ドロワー、トースト通知、入力欄に入るレビュー依頼、そしてモデルが書く要約とレビュースタイルの説明は、すべて同じ1つの言語で表示されます。
@@ -227,14 +244,15 @@ GitHub が通知を渡すのは gh のサインインとクラシックトーク
 
 ## 読み取るものと実行するもの
 
-この mod は、自分の `gh` を通してのみ GitHub にアクセスします。要約を作成するために PR のテキストを、レビュースタイルを説明するために週に1回自分のレビューコメントを Claude に送り、ファイルは自身のキャッシュフォルダにのみ書き込みます。以下は、mod がアクセスするものとその理由の一覧で、`claude plugin validate .` がこの mod について表示する内容と一致します。
+この mod は、自分の `gh` を通してのみ GitHub にアクセスします。要約を作成するために PR のテキストを、レビュースタイルを説明するために週に1回自分のレビューコメントを Claude に送り、ファイルは自身のキャッシュフォルダにのみ書き込みます。以下は、mod がアクセスするものとその理由の一覧で、`claude plugin validate .` がこの mod について表示する内容と一致します。`autoReview` が `on` のときは、さらに Claude に PR のレビューを依頼し、各レビューを自分の保留中のレビューとして GitHub に保存し、レビューの実行中はそのリポジトリのフォルダに worktree を追加します。
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **`gh` の実行**: 一覧の取得と、週に1回の最近のレビューコメントの取得に `gh api graphql` を、再リクエストされた PR には `gh api repos/<owner>/<repo>/compare/<from>...<to>` を、`githubUser` が設定されている場合は `gh auth token -u <githubUser>` を実行します。通知タブには `gh api notifications` を、`完了` や `購読解除` を押したときは `gh api -X DELETE notifications/threads/<id>`（購読解除ではその前に `/subscription` も）を実行します。`directActions` が `on` のときにボタンを押すと、アカウント名のために `gh api user`、最新コミットの確認のために `gh api repos/<owner>/<repo>/pulls/<n>` を実行し、続けて `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` と `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`、または `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` のいずれかを実行します。mod 自身がこれ以外のネットワーク呼び出しを行うことはありません。
-- **`git` の実行**: 30秒ごとにセッションのフォルダで `git branch --show-current` と `git remote -v` を実行して自分の PR のブランチにいるセッションを探し、`git rev-parse --path-format=absolute --git-common-dir` でそのリポジトリの元のフォルダを覚えます。
+- **`gh` の実行**: 一覧の取得と、週に1回の最近のレビューコメントの取得に `gh api graphql` を、再リクエストされた PR には `gh api repos/<owner>/<repo>/compare/<from>...<to>` を、`githubUser` が設定されている場合は `gh auth token -u <githubUser>` を実行します。通知タブには `gh api notifications` を、`完了` や `購読解除` を押したときは `gh api -X DELETE notifications/threads/<id>`（購読解除ではその前に `/subscription` も）を実行します。`directActions` が `on` のときにボタンを押すと、アカウント名のために `gh api user`、最新コミットの確認のために `gh api repos/<owner>/<repo>/pulls/<n>` を実行し、続けて `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` と `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`、または `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` のいずれかを実行します。`autoReview` が `on` のときは、各レビューの前後に `gh api …/pulls/<n>/reviews` と `…/pulls/<n>/files` を、さらに `gh pr diff` を実行し、自分の保留中のレビューとして保存するために、レビューを標準入力で渡して `gh api -X POST …/pulls/<n>/reviews` を実行します。新しいコミットへ移すときは、`…/reviews/<id>` と `…/reviews/<id>/comments` を読み、`gh api -X DELETE …/reviews/<id>` を実行してから作り直します。レビューの前後に `gh api -i -X POST …/issues/<n>/reactions`（`content=eyes`）と `gh api -X DELETE …/issues/<n>/reactions/<id>` でその 👀 を付けて外します。カードのボタンは、head コミットを確認した後に `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE`、`REQUEST_CHANGES`）または `gh api -X DELETE …/reviews/<id>` を実行します。mod 自身がこれ以外のネットワーク呼び出しを行うことはありません。
+- **`git` の実行**: 30秒ごとにセッションのフォルダで `git branch --show-current` と `git remote -v` を実行して自分の PR のブランチにいるセッションを探し、`git rev-parse --path-format=absolute --git-common-dir` でそのリポジトリの元のフォルダを覚えます。`autoReview` が `on` でリポジトリのフォルダがわかっているときは、レビューごとにそこで `git fetch origin pull/<n>/head` と `git worktree add --detach` を実行し、レビューが終わると `git worktree remove --force` を実行します。
 - **Claude への依頼**（`sonnet` モデル）: 要約ごとに、PR のリポジトリ名、タイトル、説明（先頭12,000文字）、変更されたファイルのパス（最大80件）、変更規模を送ります。再リクエストされた PR では、前回の自分のレビュー以降の各コミットメッセージの1行目と、最大60件のファイルパスも送ります。これは Claude Code の使用量に含まれます。各 PR の要約は head コミットと言語の組み合わせごとに1回作成し、要約に失敗した場合の試行はコミットごとに最大3回までです。また週に1回、レビュースタイルを説明するために、最近レビューした PR（最大30件）に自分が残したレビューコメントを送ります。コメントはそれぞれ500文字で切り詰め、最大60件、合計12,000文字までです。5件未満の場合は何も送りません。
-- **ファイルの書き込み**: キャッシュフォルダ `~/.claude/plugins/data/review-inbox` の中にのみ書き込みます（`CLAUDE_CONFIG_DIR` が設定されている場合は `~/.claude` の代わりにそれを使います）。`inbox-<hash>-f<n>.json` には一覧と要約、`hidden-<hash>.json` には非表示にした PR、`notes-<hash>.json` にはメモと延期（言語に関係なくアカウントとスコープごとに1ファイル）、`sessions.json` には生きている各セッションのフォルダ名、mod のバージョン、ブランチ、GitHub リモート、プロンプトに入った PR リンク（アカウントに関係なく1ファイル）、 `repos.json` にはセッションが開かれた GitHub リポジトリごとの元のフォルダ（次の作業ボタンが表示するフォルダ）、 `style-<hash>.json` にはレビュースタイルの説明を保存します。各ファイルは隣に一時ファイルとして書いてから `mv` で置き換えるため、書きかけのファイルを他のセッションが読むことはありません。Windows のように `mv` がない環境では、その場で直接書き込みます。自分で作った `actions.json` があればそこから読むだけで、書き込みはしません。
+- **サブエージェントの起動**: `autoReview` が `on` のときだけです。`auto-reviewer` を一度に1つ、`autoReviewModel` のモデルで、読み取り専用のツール、自分の CLAUDE.md、フック、`autoReviewSkills` を使って動かします。Claude Code の使用量に含まれます。このエージェントの種類は、自分の Claude が選ぶ候補の一覧には含まれません。止めるときは `TaskStop` を使います。
+- **ファイルの書き込み**: キャッシュフォルダ `~/.claude/plugins/data/review-inbox` の中にのみ書き込みます（`CLAUDE_CONFIG_DIR` が設定されている場合は `~/.claude` の代わりにそれを使います）。`inbox-<hash>-f<n>.json` には一覧と要約、`hidden-<hash>.json` には非表示にした PR、`notes-<hash>.json` にはメモと延期（言語に関係なくアカウントとスコープごとに1ファイル）、`sessions.json` には生きている各セッションのフォルダ名、mod のバージョン、ブランチ、GitHub リモート、プロンプトに入った PR リンク（アカウントに関係なく1ファイル）、 `repos.json` にはセッションが開かれた GitHub リポジトリごとの元のフォルダ（次の作業ボタンが表示するフォルダ）、 `style-<hash>.json` にはレビュースタイルの説明を保存します。各ファイルは隣に一時ファイルとして書いてから `mv` で置き換えるため、書きかけのファイルを他のセッションが読むことはありません。Windows のように `mv` がない環境では、その場で直接書き込みます。自分で作った `actions.json` があればそこから読むだけで、書き込みはしません。`autoreview-<hash>.json` には各 PR の自動レビューでの状況と直近の結果を、`runs/` には実行フォルダを保存します。実行フォルダはレビューが終わると `rm -rf` で削除します。
 - **環境変数の読み取り**: そのフォルダを見つけるために `CLAUDE_CONFIG_DIR`、`HOME`、`USERPROFILE` を、`gh` と同じくこのセッションのリポジトリを知るために `GH_REPO` を読みます。`LC_ALL`、`LC_MESSAGES`、`LANG` は `language` が `auto` のときだけ読みます。環境変数を設定することはありません。
 - **Claude Code の設定の読み取り**: `language` が `auto` のときだけ `language` キーを、`motion` が `auto` のときだけ `prefersReducedMotion` キーを読みます。
 - **入力欄の読み取りと入力**: ドロワーの開閉時だけ行います。ドロワーを開くときは、すでに依頼している PR に印を付けるために下書きを読み、閉じるときは、追加した PR の依頼を下書きの後ろに改行して追加します。
@@ -259,6 +277,8 @@ GitHub が通知を渡すのは gh のサインインとクラシックトーク
 - レビューしたコミットが force-push で書き換えられた後は、再リクエストされた PR に「前回の自分のレビュー以降」の行が表示されません。
 - レビュースタイルは、`scope` の範囲内で GitHub の検索が `reviewed-by:@me -author:@me` に対して返す PR から学習するため、自分が作成した PR に書いたコメントは含まれません。レビューの外で PR の会話に書いたコメントは含まれません。
 - `失敗した CI を再実行` が再実行するのは GitHub Actions だけです。ほかの CI サービスのチェックはそのサービス側で再実行してください。複数の PR の一括承認と、コメント付きの承認はありません。
+- 自動レビューは GitHub 上にある状態の PR をレビューします。テストやビルドは実行しません。移したレビューは、すべてのファイルのパッチが同じ場合にだけ新しいコミットへ移るので、同じファイルが変わったベースへの rebase は、もう一度レビューします。
+- `autoReviewDaily` で保留になったレビューは、新しいコミットへ移す処理も一緒に保留されます。`rm -rf` は POSIX 専用なので、WSL なしの Windows では実行フォルダがキャッシュフォルダに残ります。
 
 ## トラブルシューティング
 

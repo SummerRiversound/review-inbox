@@ -3,6 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
+import { contentKey } from '../hooks/autoreview'
 import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
 import { prSeenKeys } from '../hooks/tabs'
 
@@ -48,7 +49,7 @@ async function opened(
     // The version this session's plugin.json states.
     version?: string
     // Answers a command, joined by spaces; anything it leaves fails as if missing.
-    run?: (args: string) => { exitCode: number; stdout?: string; stderr?: string } | undefined
+    run?: (args: string, stdin?: string) => { exitCode: number; stdout?: string; stderr?: string } | undefined
   } = {},
 ) {
   clock = mock.clock(on)
@@ -75,7 +76,7 @@ async function opened(
     return { value: undefined }
   })
   on('process.run', async ($, e) => {
-    const answer = more.run?.(e.argv.join(' '))
+    const answer = more.run?.(e.argv.join(' '), e.init?.stdin)
     if (!answer) throw new Error('mv: command not found')
     return { value: { exitCode: answer.exitCode, stdout: answer.stdout ?? '', stderr: answer.stderr ?? '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
@@ -646,5 +647,494 @@ test('Assign me is sent at once and its Undo takes it back', DIRECT, async ($, o
   await ui.press({ key: 'direct-undo-issue:mention:i1:' })
   expect(sent.at(-1)).toBe('-X DELETE repos/o/i/issues/1/assignees -f assignees[]=me')
   expect(await ui.find({ key: 'direct-assign-issue:mention:i1:' })).toBeDefined()
+  await ui.unmount()
+})
+
+const AUTO = `/home/me/.claude/plugins/data/review-inbox/autoreview-${cacheKey('', '')}.json`
+const AUTO_ON = { options: { autoReview: 'on' } }
+const recent = (number: number): InboxItem => ({ ...item(number), headSha: `h${number}`, requestedAt: new Date(Date.now() - 60_000).toISOString() })
+
+test('turning auto review on records when, says once what it costs, and an older request waits for Run auto review', AUTO_ON, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const ui = await opened($, on, [], [], 'review', {
+    items: [item(5)],
+    files: { [AUTO]: JSON.stringify({ jobs: { 'o/r#5': { headSha: 'a', firstSeenAt: Date.now() - 3_600_000 } } }) },
+  })
+
+  expect(JSON.parse(files.get(AUTO)!).enabledAt).toBeGreaterThan(Date.now() - 60_000)
+  expect(toasts.filter(t => t.startsWith('Auto review is on'))).toEqual([
+    'Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: 5.',
+  ])
+  expect(await shown(ui, /Requested before auto review was turned on/)).toBe(true)
+  await ui.press({ key: 'auto-run-o/r#5' })
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].manual).toBe(true)
+  expect(await shown(ui, /Auto review: next in line/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a new request waits for its commits to settle, and a team request shows no auto-review line', AUTO_ON, async ($, on) => {
+  const now = Date.now()
+  const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now }, 'o/r#6': { headSha: 'h6', firstSeenAt: now } } }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5), { ...recent(6), team: 'core' }], files: { [AUTO]: JSON.stringify(auto) } })
+
+  expect(await shown(ui, /Auto review starts in about 30 min/)).toBe(true)
+  expect(await ui.findAll({ type: 'Text', text: /Auto review/ })).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('with auto review off no card shows an auto-review line, nothing is recorded and no agent type is registered', async ($, on) => {
+  const got = agents(on)
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)] })
+  await tick()
+  expect(got.specs).toHaveLength(0)
+
+  expect(await shown(ui, /Auto review|auto review/)).toBe(false)
+  expect(files.has(AUTO)).toBe(false)
+  await ui.unmount()
+})
+
+test('with auto review on and nothing to review, no model is asked and no agent is started', AUTO_ON, async ($, on) => {
+  let calls = 0
+  on('model.complete', async () => {
+    calls++
+    throw new Error('no model call expected')
+  })
+  on('agent.spawn', async () => {
+    calls++
+    throw new Error('no agent expected')
+  })
+  const ui = await opened($, on, [], [], 'review')
+  await clock.advance(2 * 3_600_000)
+
+  expect(calls).toBe(0)
+  await ui.unmount()
+})
+
+// A queued, settled job on #5, and GitHub answering as it would for a PR with one hunk and none of my reviews.
+const RUNS = '/home/me/.claude/plugins/data/review-inbox/runs'
+const queued = (more: Record<string, unknown> = {}) =>
+  JSON.stringify({ enabledAt: Date.now() - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: Date.now() - 3_600_000, ...more } } })
+// `locks`: GitHub's answer to each 👀 added, in turn; none fails the add, as on a repository that takes no reactions.
+type Github = { reviews?: string; created?: string[]; createFails?: boolean; calls?: string[]; deleted?: string[]; locks?: { status: number; at: number }[]; unlocked?: string[] }
+const PATCH = '@@ -1,2 +1,3 @@\n one\n+two\n three'
+const autoGithub = (g: Github) => (args: string, stdin?: string) => {
+  g.calls?.push(args)
+  if (args === 'gh api user --jq .login') return { exitCode: 0, stdout: 'me\n' }
+  // My pending review 9 on h4, as I left it on GitHub.
+  if (args === 'gh api repos/o/r/pulls/5/reviews/9 --jq .body') return { exitCode: 0, stdout: 'Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h4 key=k -->\n' }
+  if (args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews/9/comments'))
+    return { exitCode: 0, stdout: `${JSON.stringify({ path: 'a.ts', position: 2, body: '**major** mine' })}\n${JSON.stringify({ path: 'b.ts', position: null, body: 'whole file' })}\n` }
+  if (args.startsWith('gh api -X DELETE repos/o/r/pulls/5/reviews/')) {
+    g.deleted?.push(args)
+    return { exitCode: 0 }
+  }
+  if (args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews')) return { exitCode: 0, stdout: g.reviews ?? '' }
+  if (args.startsWith('gh api --paginate repos/o/r/pulls/5/files'))
+    return { exitCode: 0, stdout: `${JSON.stringify({ filename: 'a.ts', patch: PATCH })}\n` }
+  if (args === 'gh pr diff 5 --repo o/r') return { exitCode: 0, stdout: 'diff --git a/a.ts b/a.ts' }
+  if (args.startsWith('gh api -X POST repos/o/r/pulls/5/reviews')) {
+    g.created?.push(stdin ?? '')
+    return g.createFails ? { exitCode: 1, stderr: 'gh: Unprocessable Entity (HTTP 422)' } : { exitCode: 0, stdout: '77\n' }
+  }
+  if (args.startsWith('gh api -i -X POST repos/o/r/issues/5/reactions')) {
+    const lock = g.locks?.shift()
+    return lock && { exitCode: 0, stdout: `HTTP/2.0 ${lock.status} OK\nEtag: "e"\n\n${JSON.stringify({ created_at: new Date(lock.at).toISOString(), id: 3 })}\n` }
+  }
+  if (args.startsWith('gh api -X DELETE repos/o/r/issues/5/reactions/')) {
+    g.unlocked?.push(args)
+    return { exitCode: 0 }
+  }
+  if (args.startsWith('rm -rf')) return { exitCode: 0 }
+  return undefined
+}
+// The spawn as the Agent tool's call spells it.
+type Spawned = { subagent_type?: string; cwd?: string; model?: string; name?: string; run_in_background?: boolean }
+function agents(on: On, live: () => string[] = () => []) {
+  const got = { specs: [] as { tools?: readonly string[]; name: string }[], spawns: [] as Spawned[] }
+  on('agent.register', async ($, e) => {
+    got.specs.push(e)
+    return { value: { agent: `review-inbox:${e.name}` } }
+  })
+  on('agent.spawn', async ($, e) => {
+    got.spawns.push(e as unknown as Spawned)
+    return { model: 'sonnet' }
+  })
+  // Stands for the engine beneath, which ends the turn.
+  on('turn.complete', async ($, e) => ({ text: e.answer, reason: 'answer' as const }))
+  // The nth spawn is agent a<n>, listed by its name while `live` says it runs.
+  on('agent.list', async () => ({
+    value: got.spawns.flatMap((s, i) => (live().includes(`a${i + 1}`) ? [{ id: `a${i + 1}`, name: s.name, description: 'd', type: 'review-inbox:auto-reviewer', status: 'running' as const }] : [])),
+  }))
+  return got
+}
+const ANSWER = JSON.stringify({
+  verdict: 'request-changes',
+  summary: 'One bug.',
+  findings: [
+    { severity: 'major', path: 'a.ts', line: 2, body: 'two is off by one' },
+    { severity: 'nit', path: 'a.ts', line: 40, body: 'outside the diff' },
+  ],
+})
+const finish = ($: Parameters<TestBody>[0], agentId: string, answer: string, isAborted = false) =>
+  $.turn.complete({
+    answer,
+    agentId,
+    isAborted,
+    reason: isAborted ? 'aborted' : 'answer',
+    turnId: 't',
+    durationMs: 1,
+    usage: { model: 'sonnet', input_tokens: 40_000, output_tokens: 2_000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+  } as Parameters<typeof $.turn.complete>[0])
+const tick = async () => {
+  for (let i = 0; i < 4; i++) await clock.advance(30_000)
+}
+
+test('the next queued PR is reviewed by a read-only subagent and stored as my pending review, comments only on lines the diff has', AUTO_ON, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const g: Github = { created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(1)
+  const spawn = got.spawns[0]!
+  expect([spawn.subagent_type, spawn.cwd, spawn.model, spawn.run_in_background]).toEqual(['review-inbox:auto-reviewer', `${RUNS}/o-r-5-h5`, 'sonnet', true])
+  expect(got.specs[0]!.tools).toEqual(['Read', 'Grep', 'Glob'])
+  expect(files.get(`${RUNS}/o-r-5-h5/pr.diff`)).toBe('diff --git a/a.ts b/a.ts')
+  expect(await shown(ui, /Auto review running/)).toBe(true)
+  const running = JSON.parse(files.get(AUTO)!)
+  expect([running.jobs['o/r#5'].status, running.jobs['o/r#5'].agentId, running.started, running.jobs['o/r#5'].lock]).toEqual(['running', 'a1', 1, 'repos/o/r/issues/5/reactions/3'])
+  expect(g.unlocked).toEqual([])
+
+  await finish($, 'a1', ANSWER)
+  const sent = JSON.parse(g.created![0]!)
+  expect(sent.commit_id).toBe('h5')
+  expect(sent.event).toBeUndefined()
+  expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** two is off by one' }])
+  expect(sent.body.includes('`a.ts:40` **nit** outside the diff')).toBe(true)
+  expect(sent.body.includes('<!-- review-inbox auto-review sha=h5 key=')).toBe(true)
+  const done = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([done.status, done.reviewId, done.tokens, done.lock]).toEqual(['done', 77, 42_000, undefined])
+  expect(g.unlocked).toEqual(['gh api -X DELETE repos/o/r/issues/5/reactions/3'])
+  expect(toasts).toContain('Auto review done, suggests Request changes · o/r #5')
+  expect(await shown(ui, /Auto review suggests Request changes · 1 major, 1 nit · about 42k tokens/)).toBe(true)
+  expect(await shown(ui, /major · a.ts:2 · two is off by one/)).toBe(true)
+  await ui.unmount()
+
+  const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+  expect(await shown(band, /auto-reviewed 1/)).toBe(true)
+  await band.unmount()
+})
+
+test('my 👀 on the PR, added by another machine of mine within the hour, starts no subagent here and the card shows the review running', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const g: Github = { locks: [{ status: 200, at: Date.now() - 10 * 60_000 }], unlocked: [] }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect(g.unlocked).toEqual([])
+  const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([job.status, job.lock, job.elsewhere.until > Date.now()]).toEqual([undefined, undefined, true])
+  expect(await shown(ui, /Auto review running · 10 min so far/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a 👀 older than the hour, left by a machine that stopped mid-review, is taken over and the review runs here', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const g: Github = { locks: [{ status: 200, at: Date.now() - 2 * 60 * 60_000 }, { status: 201, at: Date.now() }], unlocked: [] }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+
+  expect(g.unlocked).toEqual(['gh api -X DELETE repos/o/r/issues/5/reactions/3'])
+  expect(got.spawns).toHaveLength(1)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].lock).toBe('repos/o/r/issues/5/reactions/3')
+  await ui.unmount()
+})
+
+test('my pending review on this head starts no subagent', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const reviews = `${JSON.stringify({ id: 9, state: 'PENDING', commit_id: 'h5', login: 'me' })}\n`
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ reviews }) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([job.status, job.reviewId]).toEqual(['done', 9])
+  expect(await shown(ui, /your pending review is on GitHub/)).toBe(true)
+  await ui.unmount()
+})
+
+const PENDING_ON_H4 = `${JSON.stringify({ id: 9, state: 'PENDING', commit_id: 'h4', login: 'me' })}\n`
+const RESULT = { verdict: 'comment', summary: 'Fine.', findings: [{ severity: 'major', path: 'a.ts', line: 2, body: 'mine' }] }
+
+test('a rebase with the same content carries my pending review to the new head, edits kept, with no model call', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const g: Github = { reviews: PENDING_ON_H4, created: [], deleted: [] }
+  const prev = { headSha: 'h4', reviewId: 9, contentKey: contentKey([{ filename: 'a.ts', patch: PATCH }]), result: RESULT }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ prev }) }, run: autoGithub(g) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect(g.deleted).toEqual(['gh api -X DELETE repos/o/r/pulls/5/reviews/9'])
+  const sent = JSON.parse(g.created![0]!)
+  expect(sent.commit_id).toBe('h5')
+  expect(sent.comments).toEqual([{ path: 'a.ts', position: 2, body: '**major** mine' }])
+  expect(sent.body).toBe('Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h5 key=k -->\n\n- `b.ts` whole file')
+  const job = JSON.parse(files.get(AUTO)!)
+  expect([job.jobs['o/r#5'].status, job.jobs['o/r#5'].reviewId, job.jobs['o/r#5'].carriedFrom, job.started]).toEqual(['done', 77, 'h4', undefined])
+  expect(await shown(ui, /Carried from h4, same content/)).toBe(true)
+  expect(await shown(ui, /Auto review suggests Comment/)).toBe(true)
+  await ui.unmount()
+})
+
+test('new content since my pending review leaves it alone and offers Review again, which deletes it and runs on the new head', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const g: Github = { reviews: PENDING_ON_H4, created: [], deleted: [] }
+  const prev = { headSha: 'h4', reviewId: 9, contentKey: 'other', result: RESULT }
+  const run = (args: string, stdin?: string) =>
+    /^gh api repos\/o\/r\/pulls\/5 --jq \.head\.sha$/.test(args) ? { exitCode: 0, stdout: 'h5\n' } : autoGithub(g)(args, stdin)
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ prev }) }, run })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect([g.deleted, g.created]).toEqual([[], []])
+  expect(await shown(ui, /New commits since your pending review on h4/)).toBe(true)
+  expect(await ui.find({ key: 'direct-post-comment-o/r#5' })).toBeUndefined()
+  expect(await ui.find({ key: 'direct-discard-o/r#5' })).toBeDefined()
+
+  await ui.press({ key: 'direct-review-again-o/r#5' })
+  expect(await shown(ui, /Delete me's pending review on o\/r#5 "r5", made for an older commit/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(g.deleted).toEqual(['gh api -X DELETE repos/o/r/pulls/5/reviews/9'])
+  g.reviews = ''
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('a run whose PR got a new head is stopped by the session holding it, and its answer is never stored', AUTO_ON, async ($, on) => {
+  const stopped: string[] = []
+  on('tool.call', { tool: 'TaskStop' }, async ($, e) => {
+    stopped.push((e as unknown as { task_id: string }).task_id)
+    return { result: { message: 'stopped', task_id: 'a1' } } as never
+  })
+  // Listed as running until it is stopped.
+  const got = agents(on, () => (stopped.length > 0 ? [] : ['a1']))
+  const g: Github = { created: [] }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+
+  // As the fetching session's trackHeads writes it once the PR has a new head.
+  files.set(AUTO, JSON.stringify({ ...JSON.parse(files.get(AUTO)!), jobs: { 'o/r#5': { headSha: 'h6', firstSeenAt: Date.now() } } }))
+  await tick()
+  expect(stopped).toEqual(['a1'])
+  await finish($, 'a1', ANSWER)
+  expect(g.created).toEqual([])
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBeUndefined()
+  await ui.unmount()
+})
+
+test('a head I already reviewed on GitHub says so instead of starting a run', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const reviews = `${JSON.stringify({ id: 4, state: 'COMMENTED', commit_id: 'h5', login: 'me' })}\n`
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ reviews }) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect(await shown(ui, /you already reviewed this commit/)).toBe(true)
+  await ui.unmount()
+})
+
+test("a run another session holds is left alone while it renews it, and once it has gone quiet goes back to the front of the queue without counting as an attempt", AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const held = queued({ status: 'running', runner: 'other', agentId: 'x', startedAt: Date.now(), heartbeatAt: Date.now() })
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: held }, run: autoGithub({}) })
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+
+  files.set(AUTO, queued({ status: 'running', runner: 'other', agentId: 'x', attempts: 1, startedAt: Date.now() - 600_000, heartbeatAt: Date.now() - 180_000 }))
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].attempts).toBe(1)
+  await ui.unmount()
+})
+
+test('a run that looks quiet once, as every run does after the machine sleeps, is not started again when its session renews it next', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const quiet = { status: 'running' as const, runner: 'other', agentId: 'x', startedAt: Date.now() - 600_000 }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ ...quiet, heartbeatAt: Date.now() - 180_000 }) }, run: autoGithub({}) })
+  await clock.advance(30_000)
+  files.set(AUTO, queued({ ...quiet, heartbeatAt: Date.now() }))
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].runner).toBe('other')
+  await ui.unmount()
+})
+
+test('an answer that does not parse is tried once more, then the card says so and offers Try again', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => [`a${got.spawns.length}`])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({}) })
+  await tick()
+  await finish($, 'a1', 'I could not finish.')
+  await tick()
+  expect(got.spawns).toHaveLength(2)
+  await finish($, 'a2', 'Still no JSON.')
+  await tick()
+
+  expect(got.spawns).toHaveLength(2)
+  expect(await shown(ui, /Auto review failed: the reviewer's answer could not be read/)).toBe(true)
+  await ui.press({ key: 'auto-run-o/r#5' })
+  await tick()
+  expect(got.spawns).toHaveLength(3)
+  await ui.unmount()
+})
+
+test('a create GitHub refuses because my pending review appeared meanwhile adopts that review', AUTO_ON, async ($, on) => {
+  const g: Github = { created: [], createFails: true }
+  const run = autoGithub(g)
+  let pendingNow = false
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', {
+    items: [recent(5)],
+    files: { [AUTO]: queued() },
+    run: (args, stdin) => {
+      if (args.startsWith('gh api -X POST')) pendingNow = true
+      if (pendingNow && args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews')) return { exitCode: 0, stdout: `${JSON.stringify({ id: 31, state: 'PENDING', commit_id: 'h5', login: 'me' })}\n` }
+      return run(args, stdin)
+    },
+  })
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  await finish($, 'a1', ANSWER)
+
+  const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([job.status, job.reviewId]).toEqual(['done', 31])
+  await ui.unmount()
+})
+
+test('a stopped run stores nothing and waits for Try again rather than starting over', AUTO_ON, async ($, on) => {
+  const g: Github = { created: [] }
+  agents(on, () => [])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ status: 'running', runner: 'self', agentId: 'a9', heartbeatAt: Date.now() }) }, run: autoGithub(g) })
+  await finish($, 'a9', ANSWER, true)
+
+  expect(g.created).toHaveLength(0)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('failed')
+  expect(await shown(ui, /Auto review failed: the review was stopped/)).toBe(true)
+  await ui.unmount()
+})
+
+test('with the repository folder known, the run reads a detached worktree at the head, removed when the review is stored', { options: { autoReview: 'on', repoPaths: 'o/r=/src/r' } }, async ($, on) => {
+  const g: Github = { created: [], calls: [] }
+  const run = autoGithub(g)
+  agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', {
+    items: [recent(5)],
+    files: { [AUTO]: queued(), '/src/r': '' },
+    run: (args, stdin) => (args.startsWith('git -C /src/r ') ? (g.calls!.push(args), { exitCode: 0 }) : run(args, stdin)),
+  })
+  await tick()
+  const folder = `${RUNS}/o-r-5-h5`
+  const checkout = () => g.calls!.filter(c => c.startsWith('git -C /src/r') || c.startsWith('rm '))
+  expect(checkout()).toEqual(['git -C /src/r fetch --quiet origin pull/5/head', `git -C /src/r worktree add --detach ${folder}/repo h5`])
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].checkout).toBe('/src/r')
+
+  await finish($, 'a1', ANSWER)
+  expect(checkout().slice(2)).toEqual([`git -C /src/r worktree remove --force ${folder}/repo`, `rm -rf ${folder}`])
+  await ui.unmount()
+})
+
+// A stored auto review on #5's head, pending on GitHub as review 77.
+const reviewed = queued({ status: 'done', reviewId: 77, result: { verdict: 'request-changes', summary: 'One bug.', findings: [] }, tokens: 42_000 })
+const autoItem = { ...recent(5), headSha: 'h5' }
+
+test('a stored auto review offers its post buttons without Direct GitHub actions, the suggested one first in color, and a link to it on GitHub', AUTO_ON, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+
+  expect((await ui.find({ key: 'direct-post-changes-o/r#5' }))?.props.variant).toBe('primary')
+  expect((await ui.find({ key: 'direct-post-comment-o/r#5' }))?.props.variant).toBeUndefined()
+  expect(await ui.find({ key: 'direct-discard-o/r#5' })).toBeDefined()
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
+  expect((await ui.find({ type: 'Link', text: /Open on GitHub/ }))?.props.href).toBe('https://github.com/o/r/pull/5/files')
+  await ui.unmount()
+})
+
+test('a post asks on the card, then submits my pending review with the verdict picked, and the card leaves auto review', AUTO_ON, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github(sent, 'h5') })
+
+  await ui.press({ key: 'direct-post-comment-o/r#5' })
+  expect(await shown(ui, /Post the auto review on o\/r#5 "r5" as me, as a comment/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT'])
+  expect(await shown(ui, /✓ Posted/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
+  expect(await shown(ui, /Auto review suggests/)).toBe(false)
+  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('new commits since the review stop a post and keep the pending review, while a discard deletes it whatever the head', AUTO_ON, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github(sent, 'h6') })
+
+  await ui.press({ key: 'direct-post-changes-o/r#5' })
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual([])
+  expect(await shown(ui, /New commits since you looked/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].reviewId).toBe(77)
+
+  await ui.press({ key: 'direct-discard-o/r#5' })
+  expect(await shown(ui, /Delete me's pending review on o\/r#5 "r5"/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X DELETE repos/o/r/pulls/5/reviews/77'])
+  expect(await shown(ui, /✓ Pending review deleted/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
+  await ui.unmount()
+})
+
+test('with Direct GitHub actions on, a card with my pending review offers Post and approve in place of Approve, which GitHub would refuse', { options: { autoReview: 'on', directActions: 'on' } }, async ($, on) => {
+  const sent: string[] = []
+  const pending = queued({ status: 'done', reviewId: 9 })
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: pending }, run: github(sent, 'h5') })
+
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
+  await ui.press({ key: 'direct-post-approve-o/r#5' })
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X POST repos/o/r/pulls/5/reviews/9/events -f event=APPROVE'])
+  await ui.unmount()
+})
+
+// The test kit has no drawer close, so what the close fills is pinned in the inbox tests.
+test('Refine in session takes the place of Review on a card with my pending review, and adds the card like Review', AUTO_ON, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem, item(6)], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  expect(await label('review-o/r#6')).toBe('Review with Claude')
+  expect(await label('review-o/r#5')).toBe('Refine in session')
+  await ui.press({ key: 'review-o/r#5' })
+  expect(await label('review-o/r#5')).toBe('Added')
+  await ui.unmount()
+})
+
+test("the reviewer's agent type is kept out of the model's listing", AUTO_ON, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review')
+  const offer = await $.agent.offer({ agent: 'review-inbox:auto-reviewer', description: 'd', source: 'plugin', provider: { plugin: 'review-inbox', tier: 'user' } } as never)
+  expect(offer.isOffered).toBe(false)
   await ui.unmount()
 })

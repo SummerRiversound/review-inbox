@@ -8,7 +8,7 @@ export type SearchHit = {
   number: number
   title: string
   url: string
-  author: { login: string } | null
+  author: { login: string; __typename?: string } | null
   createdAt: string
   updatedAt?: string
   isDraft: boolean
@@ -51,7 +51,7 @@ export const INBOX_QUERY = `query($q: String!, ${PAGE_ARGS}) {
     nodes {
       ... on PullRequest {
         number title url isDraft createdAt updatedAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
-        author { login }
+        author { __typename login }
         repository { nameWithOwner defaultBranchRef { name } }
         files(first: 80) { nodes { path } }
         reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name slug } } } }
@@ -289,8 +289,12 @@ export function sincePrompt(commits: string[], files: string[]): string {
 }
 
 // The style line is said once per prompt, so adding several PRs repeats only the requests.
-export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string): string {
-  const lines = [m.prompt.review(item.url)]
+// My pending review on the PR, and where to work on it.
+export type PendingReview = { id: number; where: string }
+
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string, pending?: PendingReview): string {
+  // GitHub takes no new review while mine is pending, so Claude refines that one.
+  const lines = pending ? [m.prompt.refine(item.url, item.headSha), m.prompt.pending(pending.id, item.repo, item.number), pending.where] : [m.prompt.review(item.url)]
   const styleLine = style ? `${m.prompt.style}${style}` : undefined
   if (styleLine && !draft.includes(styleLine)) lines.push(styleLine)
   const warnings = item.impact.filter(i => i.warn).map(i => i.text)
@@ -301,9 +305,10 @@ export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?
 }
 
 // What the drawer adds to the draft when it closes: one request per PR not already in it, in the order pressed.
-export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string): string {
+// `pending`: my pending review by card key.
+export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string, pending: Record<string, PendingReview> = {}): string {
   let text = draft
-  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style)
+  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style, pending[itemKey(item)])
   return text.slice(draft.length)
 }
 

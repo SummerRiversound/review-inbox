@@ -212,15 +212,15 @@ export function taskOf(card: MyPr | IssueItem): TaskKind | undefined {
 }
 
 // Like the review requests: one per card the draft does not link yet, each saying where to work.
+// Where a request says to work: the PR's own worktree in the folder known for its repository, or a question when none is.
+export const workWhere = (place: Place, repo: string, isPr: boolean, m: Messages) =>
+  place.kind === 'unknown' ? m.prompt.noClone(repo) : m.prompt.workIn(place.kind === 'here' ? m.prompt.here : place.path, isPr)
+
 export function taskPrompts(draft: string, tasks: { task: Task; place: Place }[], m: Messages): string {
   let text = draft
   for (const { task, place } of tasks) {
     if (hasRequest(text, task.url)) continue
-    const where =
-      place.kind === 'unknown'
-        ? m.prompt.noClone(task.repo)
-        : m.prompt.workIn(place.kind === 'here' ? m.prompt.here : place.path, task.kind !== 'work')
-    const lines = `${m.prompt.task[task.kind](task.url, task.base)}\n${where}\n`
+    const lines = `${m.prompt.task[task.kind](task.url, task.base)}\n${workWhere(place, task.repo, task.kind !== 'work', m)}\n`
     text += text === '' || text.endsWith('\n') ? lines : `\n${lines}`
   }
   return text.slice(draft.length)

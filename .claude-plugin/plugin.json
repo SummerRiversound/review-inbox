@@ -63,6 +63,33 @@
         "on"
       ],
       "default": "off"
+    },
+    "autoReview": {
+      "type": "string",
+      "title": "Auto review",
+      "description": "on reviews each PR that asks for you directly in the background, one at a time, once its commits have been still for 30 minutes, and keeps the result as your pending review until you post it from the card. Each review runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens",
+      "options": ["off", "on"],
+      "default": "off"
+    },
+    "autoReviewModel": {
+      "type": "string",
+      "title": "Auto review model",
+      "description": "The model the reviewer subagent runs on; opus reviews deeper and costs more",
+      "options": ["sonnet", "opus"],
+      "default": "sonnet"
+    },
+    "autoReviewDaily": {
+      "type": "string",
+      "title": "Auto reviews a day",
+      "description": "Most reviews auto review starts in a day; Run auto review on a card is not counted",
+      "options": ["3", "5", "10", "20", "unlimited"],
+      "default": "5"
+    },
+    "autoReviewSkills": {
+      "type": "string",
+      "title": "Auto review skills",
+      "description": "Skills loaded into the reviewer, comma-separated, such as a review playbook; empty loads none",
+      "default": ""
     }
   }
 }

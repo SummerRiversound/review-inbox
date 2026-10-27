@@ -44,7 +44,71 @@ export type InboxItem = CardDetails & {
   sinceLastReview?: string
   // The start of the PR's description, for search.
   body?: string
+  // Opened by a GitHub App such as Dependabot; auto review leaves it alone.
+  isBot?: true
 }
+
+export type Severity = 'blocker' | 'major' | 'minor' | 'nit'
+export type Verdict = 'comment' | 'approve' | 'request-changes'
+export type Finding = { severity: Severity; path: string; line: number; body: string }
+// The reviewer's answer: the verdict it suggests, which I confirm on the card.
+export type AutoResult = { verdict: Verdict; summary: string; findings: Finding[] }
+
+// One PR's place in auto review at its head: when this machine first saw the head, and whether I asked for a run by hand.
+export type AutoJob = {
+  headSha: string
+  firstSeenAt: number
+  manual?: true
+  // Absent while it waits; a job that failed under the attempt limit goes back to waiting.
+  // closed: posted or discarded from the card; this head is not reviewed again.
+  // stale: my pending review is on an older commit with other content, `reviewId` on `staleFrom`.
+  status?: 'running' | 'done' | 'failed' | 'closed' | 'stale'
+  attempts?: number
+  // The running review: its subagent, the session holding it and when that session last said so.
+  agentId?: string
+  runner?: string
+  heartbeatAt?: number
+  startedAt?: number
+  // The run folder, and the checkout whose worktree is in it.
+  folder?: string
+  checkout?: string
+  contentKey?: string
+  // My pending review on GitHub; without `result` it was there before this run.
+  reviewId?: number
+  result?: AutoResult
+  tokens?: number
+  error?: string
+  staleFrom?: string
+  // The commit a review with the same content was moved from, with no model call.
+  carriedFrom?: string
+  // My 👀 on the PR while this machine reviews it, as its API path.
+  lock?: string
+  // Another machine of mine holds the 👀 since `since`; looked at again from `until`.
+  elsewhere?: { since: number; until: number }
+  // My pending review on the head before this one, kept so a rebase can carry it.
+  prev?: { headSha: string; reviewId: number; contentKey?: string; result?: AutoResult }
+}
+
+// Shared by every session on the machine, beside the inbox file.
+export type AutoReviewFile = {
+  // When a session first read the setting as on; requests older than this start only by hand.
+  enabledAt?: number
+  // Reviews started on `day` (a local date), for the daily limit.
+  day?: string
+  started?: number
+  jobs: Record<string, AutoJob>
+}
+
+// What a card's auto-review line says.
+export type AutoState =
+  | { kind: 'manual'; why: 'before' | 'too-big' }
+  | { kind: 'settling'; startsAt: number }
+  | { kind: 'capped' }
+  | { kind: 'queued'; ahead: number }
+  | { kind: 'running'; since: number }
+  | { kind: 'done'; result?: AutoResult; tokens?: number; reviewId?: number; carriedFrom?: string }
+  | { kind: 'stale'; reviewId: number; from: string }
+  | { kind: 'failed'; error: string }
 
 // My open PR, judged by what I have to do next.
 export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'queued' | 'draft'
@@ -130,9 +194,10 @@ export type Activity = {
 export type Settling = { kind: 'done' | 'unsubscribe'; at: number }
 
 // A write to GitHub straight from a card, when Direct GitHub actions is on.
-export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign'
-// What the write names, as the card showed it: `sha` is the head I looked at.
-export type DirectTarget = { repo: string; number: number; title: string; sha?: string }
+// The post and discard actions act on my pending auto review, and show whenever auto review is on.
+export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign' | 'post-comment' | 'post-approve' | 'post-changes' | 'discard' | 'review-again'
+// What the write names, as the card showed it: `sha` is the head I looked at, `reviewId` my pending review on it.
+export type DirectTarget = { repo: string; number: number; title: string; sha?: string; reviewId?: number }
 // A write others see, asked on the card before it is sent; `at` is the press that asked.
 export type Confirming = { key: string; action: DirectAction; target: DirectTarget; at: number; login?: string }
 // The last write from a card: `undo` while an Assign me can still be taken back.
@@ -226,6 +291,7 @@ declare module 'claude-code' {
       directs: Record<string, DirectResult>
       added: string[]
       requested: string[]
+      autoReview: AutoReviewFile
     }
   }
 }

@@ -4,6 +4,8 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type {
   Actions,
   Activity,
+  AutoJob,
+  AutoReviewFile,
   ButtonScope,
   Capped,
   Confirming,
@@ -25,9 +27,50 @@ import type {
   Tab,
   Thread,
 } from '../types'
+import {
+  AGENT_TYPE,
+  DAILY_DEFAULT,
+  ELSEWHERE_MS,
+  LOCK_MS,
+  MAX_ATTEMPTS,
+  RUN_STALE_MS,
+  autoStates,
+  bySeverity,
+  createArgs,
+  createInput,
+  contentKey,
+  diffArgs,
+  filesArgs,
+  jsonLines,
+  carried,
+  deleteReviewArgs,
+  isLockPath,
+  lockArgs,
+  lockPath,
+  myReview,
+  readLock,
+  reviewBodyArgs,
+  reviewCommentsArgs,
+  nextJob,
+  parseDaily,
+  parseReview,
+  parseSkills,
+  placeFindings,
+  reviewBody,
+  reviewerPrompt,
+  reviewerSpec,
+  reviewsArgs,
+  runName,
+  severityCounts,
+  sinceArgs,
+  startedToday,
+  tokensOf,
+  trackHeads,
+} from './autoreview'
+import type { AutoSettings, GhComment, GhReview, PrFile } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
-import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
+import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
 import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
@@ -64,7 +107,7 @@ import {
   toDetail,
   waitingDays,
 } from './inbox'
-import type { GqlPr, PrDetail, SearchHit, Summary } from './inbox'
+import type { GqlPr, PendingReview, PrDetail, SearchHit, Summary } from './inbox'
 import { isLanguage, MESSAGES, pickLanguage } from './i18n'
 import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
 import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from './sessions'
@@ -107,6 +150,7 @@ import {
   toIssues,
   toMyPrs,
   toReferences,
+  workWhere,
 } from './tabs'
 import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
 
@@ -149,13 +193,26 @@ const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
+const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
 
-type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string; directActions?: string }
+type Options = {
+  scope?: string
+  githubUser?: string
+  language?: string
+  refreshMinutes?: string
+  repoPaths?: string
+  motion?: string
+  directActions?: string
+  autoReview?: string
+  autoReviewModel?: string
+  autoReviewDaily?: string
+  autoReviewSkills?: string
+}
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[] }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -245,6 +302,8 @@ const seenFile = () => `seen-${cacheKey(config.githubUser, config.scope)}.json`
 // Card keys carry no language, so the news a session announced holds whatever the language.
 const shownFile = () => `shown-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+// Not by language: a job is the same whatever language the cards are drawn in.
+const autoFile = () => `autoreview-${cacheKey(config.githubUser, config.scope)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
 const RELOAD_FILE = 'reload.json'
@@ -269,8 +328,8 @@ async function resolveLanguage($: EngineInterface): Promise<Language> {
   return pickLanguage(languageOption, claudeLanguage, locale)
 }
 
-async function gh($: EngineInterface, args: string[], env: Record<string, string>) {
-  const run = await $.process.run(['gh', ...args], { env, timeoutMs: 120_000 })
+async function gh($: EngineInterface, args: string[], env: Record<string, string>, stdin?: string) {
+  const run = await $.process.run(['gh', ...args], { env, timeoutMs: 120_000, ...(stdin === undefined ? {} : { stdin }) })
   if (run.exitCode !== 0) throw new Error(run.stderr.trim().split('\n')[0] || `gh ${args[0]} failed`)
   if (run.isStdoutTruncated) throw new Error(`gh ${args[0]} output too large`)
   return run.stdout
@@ -425,6 +484,7 @@ async function fetchInbox(
           ...(sinceLastReview ? { sinceLastReview } : {}),
           ...(pr.body ? { body: pr.body.slice(0, BODY_CHARS) } : {}),
           author: pr.author?.login ?? 'ghost',
+          ...(pr.author?.__typename === 'Bot' ? { isBot: true as const } : {}),
           createdAt: pr.createdAt,
           ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
           requestedAt: requestedAt(pr, me),
@@ -566,7 +626,7 @@ async function sendDirect($: EngineInterface, key: string, action: DirectAction,
   try {
     const env = await ghEnv($)
     // GitHub takes an approval of an older commit, so a head that moved since I looked stops it here.
-    if ((action === 'approve' || action === 'update-branch') && (await gh($, headArgs(target), env)).trim() !== target.sha) {
+    if (checksHead(action) && (await gh($, headArgs(target), env)).trim() !== target.sha) {
       throw new Refused(m.direct.newCommits)
     }
     if (action === 'rerun') {
@@ -576,6 +636,9 @@ async function sendDirect($: EngineInterface, key: string, action: DirectAction,
     } else {
       await gh($, writeArgs(action, target, action === 'assign' ? await loginName($) : ''), env)
     }
+    // My pending review is gone, posted or deleted: this head is not reviewed again, unless I asked for that.
+    if (action === 'review-again') await runAuto($, key)
+    else if (target.reviewId) await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined })
     const at = Date.now()
     await setDirect($, key, { action, phase: 'done', at, ...(action === 'assign' ? { undo: true } : {}) })
     $.ui.toast(`${m.direct.done[action]} · ${target.repo} #${target.number}`)
@@ -636,6 +699,269 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
   }
 }
 
+// The fetching session records each head it sees, so every session counts the same wait from the same moment.
+async function trackAuto($: EngineInterface, list: InboxItem[]) {
+  if (!config.auto.isOn) return
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  if (file === undefined) return
+  const next = trackHeads(file, list, Date.now())
+  if (JSON.stringify(next) !== JSON.stringify(file)) await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+  // A run whose job went is never stored; its session stops the subagent on its next tick, and its folder goes now.
+  for (const [key, job] of Object.entries(file.jobs)) if (job.status === 'running' && next.jobs[key] !== job) await removeRun($, job)
+}
+
+// Turning the setting on is what older requests are measured against; turning it off forgets it, so on again starts afresh.
+async function syncEnabled($: EngineInterface) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  if (file === undefined) return
+  if (config.auto.isOn === (file.enabledAt !== undefined)) return update($, autoReview, () => file)
+  const { enabledAt: _, ...off } = file
+  const next = config.auto.isOn ? { ...file, enabledAt: Date.now() } : off
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+  if (config.auto.isOn) toast($, m.auto.turnedOn(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`))
+}
+
+// A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
+async function runAuto($: EngineInterface, key: string) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const job = file?.jobs[key]
+  if (!file || !job) return
+  // Try again after a failure starts afresh.
+  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined, reviewId: undefined, staleFrom: undefined, prev: undefined, elsewhere: undefined } } }
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+}
+
+// Read, changed and written whole; `change` answering undefined writes nothing.
+async function editAuto($: EngineInterface, change: (file: AutoReviewFile) => AutoReviewFile | undefined) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const next = file && change(file)
+  if (!next) return undefined
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+  return next
+}
+
+// With `head`, only while the job is still that head's: a new head replaces the job, and a run of the old one must not write into it.
+const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?: string) =>
+  editAuto($, file => {
+    const job = file.jobs[key]
+    return job && (head === undefined || job.headSha === head) ? { ...file, jobs: { ...file.jobs, [key]: { ...job, ...fields } } } : undefined
+  })
+
+// A job no run holds: undefined fields are left out when the file is written.
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined }
+
+const prOf = (key: string) => {
+  const at = key.lastIndexOf('#')
+  return { repo: key.slice(0, at), number: Number(key.slice(at + 1)) }
+}
+
+// The 👀 comes off first, so my other machines may review the PR; then the worktree, so the checkout forgets it; then the folder.
+async function removeRun($: EngineInterface, job: AutoJob) {
+  if (job.lock && isLockPath(job.lock)) await gh($, ['api', '-X', 'DELETE', job.lock], await ghEnv($)).catch(() => undefined)
+  // The path comes from a shared file: nothing outside the mod's own runs folder is ever removed.
+  if (!job.folder?.startsWith(`${await cacheDir($)}/runs/`) || job.folder.includes('..')) return
+  const run = (argv: string[]) => $.process.run(argv, { timeoutMs: 60_000 }).catch(() => undefined)
+  if (job.checkout) await run(['git', '-C', job.checkout, 'worktree', 'remove', '--force', `${job.folder}/repo`])
+  // shortcut: rm is POSIX only, as mv is above; on Windows without WSL a run folder stays behind
+  await run(['rm', '-rf', job.folder])
+}
+
+// A run that failed: once more while attempts remain, else the card says why and offers Try again.
+async function failRun($: EngineInterface, key: string, error: string) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const job = file?.jobs[key]
+  if (!job) return
+  await removeRun($, job)
+  const attempts = (job.attempts ?? 0) + 1
+  await setJob($, key, attempts < MAX_ATTEMPTS ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error }, job.headSha)
+}
+
+// My pending review moved from an older commit with the same content: read as it is now (my edits on GitHub kept), deleted, made again on the head.
+async function carryReview($: EngineInterface, key: string, item: InboxItem, prev: NonNullable<AutoJob['prev']>, files: PrFile[], env: Record<string, string>) {
+  const body = (await gh($, reviewBodyArgs(item, prev.reviewId), env)).replace(/\n$/, '')
+  const comments = jsonLines<GhComment>(await gh($, reviewCommentsArgs(item, prev.reviewId), env))
+  const moved = carried(body, comments, prev.headSha, item.headSha)
+  const create = (head: string, review: ReturnType<typeof carried>) => gh($, createArgs(item), env, createInput(head, review.body, review.comments))
+  // GitHub takes no second pending review, so the old one goes first; a refused create puts it back where it was.
+  await gh($, deleteReviewArgs(item, prev.reviewId), env)
+  const id = await create(item.headSha, moved).catch(async (error: unknown) => {
+    await create(prev.headSha, carried(body, comments, prev.headSha, prev.headSha)).catch(() => undefined)
+    throw error
+  })
+  await setJob(
+    $,
+    key,
+    { ...IDLE, status: 'done', reviewId: Number(id.trim()), contentKey: contentKey(files), carriedFrom: prev.headSha, prev: undefined, ...(prev.result ? { result: prev.result } : {}) },
+    item.headSha,
+  )
+}
+
+// The repository's folder, fetched and checked out at the head beside the diff; undefined leaves the diff alone to read.
+async function addCheckout($: EngineInterface, item: InboxItem, folder: string): Promise<string | undefined> {
+  const place = await placeFor($, item.repo)
+  const path = place.kind === 'here' ? await $.session.cwd() : place.kind === 'folder' ? place.path : undefined
+  if (path === undefined) return undefined
+  const git = (args: string[]) => $.process.run(['git', '-C', path, ...args], { timeoutMs: 120_000 }).catch(() => undefined)
+  if ((await git(['fetch', '--quiet', 'origin', `pull/${item.number}/head`]))?.exitCode !== 0) return undefined
+  // Detached and inside the mod's folder: nothing in my checkout changes but its list of worktrees.
+  return (await git(['worktree', 'add', '--detach', `${folder}/repo`, item.headSha]))?.exitCode === 0 ? path : undefined
+}
+
+// My 👀 on the PR, added now or taken over from a machine that stopped an hour ago; no path when the repository takes no reactions, and the run goes ahead.
+async function takeLock($: EngineInterface, pr: InboxItem, env: Record<string, string>): Promise<{ path?: string } | { elsewhere: number }> {
+  const add = async () => readLock(await gh($, lockArgs(pr), env).catch(() => ''))
+  let lock = await add()
+  if (lock && !lock.isNew && Date.now() - lock.createdAt > LOCK_MS) {
+    // shortcut: two machines taking over the same stale 👀 at once both review; it needs a machine to stop mid-review first
+    await gh($, ['api', '-X', 'DELETE', lockPath(pr, lock.id)], env).catch(() => undefined)
+    lock = await add()
+  }
+  if (lock && !lock.isNew) return { elsewhere: lock.createdAt }
+  return lock ? { path: lockPath(pr, lock.id) } : {}
+}
+
+// Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
+async function startRun($: EngineInterface, key: string) {
+  const item = (await read($, items)).find(i => itemKey(i) === key)
+  if (!item) return void (await setJob($, key, IDLE))
+  try {
+    const env = await ghEnv($)
+    const mineNow = myReview(jsonLines<GhReview>(await gh($, reviewsArgs(item), env)), await loginName($), item.headSha)
+    const files = jsonLines<PrFile>(await gh($, filesArgs(item), env))
+    // My pending review on an older commit: carried when the content is unchanged, else the card offers Review again. No model call either way.
+    if (mineNow?.kind === 'pending' && mineNow.commit !== item.headSha) {
+      const prev = (await read($, autoReview)).jobs[key]?.prev
+      if (prev?.reviewId === mineNow.id && prev.contentKey === contentKey(files)) return await carryReview($, key, item, prev, files, env)
+      return void (await setJob($, key, { ...IDLE, status: 'stale', reviewId: mineNow.id, staleFrom: mineNow.commit }, item.headSha))
+    }
+    if (mineNow) return void (await setJob($, key, { ...IDLE, status: 'done', ...(mineNow.kind === 'pending' ? { reviewId: mineNow.id } : {}) }, item.headSha))
+    const lock = await takeLock($, item, env)
+    if ('elsewhere' in lock) return void (await setJob($, key, { ...IDLE, elsewhere: { since: lock.elsewhere, until: Date.now() + ELSEWHERE_MS } }, item.headSha))
+    // Stored before anything can fail, so every way out of the run takes it off again.
+    if (lock.path) await setJob($, key, { lock: lock.path }, item.headSha)
+    const folder = `${await cacheDir($)}/runs/${runName(key, item.headSha)}`
+    await $.fs.write(`${folder}/pr.diff`, await gh($, diffArgs(item), env))
+    if (item.reviewedSha && item.reviewedSha !== item.headSha) await $.fs.write(`${folder}/since.diff`, await gh($, sinceArgs(item, item.reviewedSha, item.headSha), env))
+    await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() }, item.headSha)
+    const checkout = await addCheckout($, item, folder)
+    if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
+    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
+    const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
+    const name = `auto-review-${runName(key, item.headSha)}`
+    const spawned = await $.agent.spawn({
+      name,
+      subagentType: AGENT_TYPE,
+      description: `Auto review ${item.repo} #${item.number}`,
+      prompt: reviewerPrompt(item, { hasCheckout: checkout !== undefined, ...(style ? { style } : {}), language: m.model.language }),
+      model: config.autoModel,
+      cwd: folder,
+    })
+    if (spawned.deny !== undefined) throw new Error(spawned.deny)
+    // A spawn a hook answered carries no id (the engine sets it); the agent list still names the run.
+    const agentId = spawned.agentId ?? (await $.agent.list()).find(a => a.name === name)?.id
+    if (!agentId) throw new Error('no agent started')
+    const today = new Date().toDateString()
+    await editAuto($, file => {
+      const job = file.jobs[key]
+      if (job?.headSha !== item.headSha) return undefined
+      return { ...file, day: today, started: startedToday(file, Date.now()) + 1, jobs: { ...file.jobs, [key]: { ...job, agentId, heartbeatAt: Date.now() } } }
+    })
+  } catch (error) {
+    await failRun($, key, error instanceof Error ? error.message : String(error))
+  }
+}
+
+// Stores the subagent's answer as my pending review on the head it read, unless one of mine got there first.
+async function finishRun($: EngineInterface, agentId: string, answer: string, tokens: number | undefined, isAborted: boolean) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const found = Object.entries(file?.jobs ?? {}).find(([, j]) => j.agentId === agentId && j.status === 'running')
+  if (!found) return
+  const [key, job] = found
+  // Stopped from the task list, say: started again it would only spend the tokens again, so it waits for Try again.
+  if (isAborted) {
+    await removeRun($, job)
+    return void (await setJob($, key, { ...IDLE, status: 'failed', error: m.auto.stopped }, job.headSha))
+  }
+  const result = parseReview(answer)
+  if (!result) return failRun($, key, m.auto.unreadable)
+  const pr = prOf(key)
+  try {
+    const env = await ghEnv($)
+    const pendingId = async () => {
+      const mineNow = myReview(jsonLines<GhReview>(await gh($, reviewsArgs(pr), env)), await loginName($), job.headSha)
+      return mineNow ? (mineNow.kind === 'pending' ? mineNow.id : -1) : undefined
+    }
+    let reviewId = await pendingId()
+    if (reviewId === undefined) {
+      const { comments, rest } = placeFindings(jsonLines<PrFile>(await gh($, filesArgs(pr), env)), result.findings)
+      const body = reviewBody(result.summary, rest, job.headSha, job.contentKey ?? '')
+      // GitHub allows one pending review a PR: a create refused because another machine made one adopts that one.
+      reviewId = await gh($, createArgs(pr), env, createInput(job.headSha, body, comments)).then(
+        id => Number(id.trim()),
+        async (error: unknown) => {
+          const adopted = await pendingId()
+          if (adopted === undefined) throw error
+          return adopted
+        },
+      )
+    }
+    await removeRun($, job)
+    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) }, job.headSha)
+    toast($, `${m.auto.finished(m.auto.verdicts[result.verdict])} · ${pr.repo} #${pr.number}`)
+  } catch (error) {
+    await failRun($, key, error instanceof Error ? error.message : String(error))
+  }
+}
+
+let isTicking = false
+// The running job this session last found quiet, as `key@startedAt`.
+let quietRun: string | undefined
+const LIVE = ['pending', 'running', 'waiting']
+
+// Every session looks at the shared file on the sync timer; only a local read until a job is due. One review runs at a time across sessions.
+async function tickAuto($: EngineInterface) {
+  if (!config.auto.isOn || isTicking) return
+  isTicking = true
+  try {
+    const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+    if (!file) return
+    // A reviewer of mine no running job holds lost its job to a new head, a closed PR or a withdrawn request: stopped, its result never stored.
+    const held = new Set(Object.values(file.jobs).flatMap(j => (j.status === 'running' && j.agentId ? [j.agentId] : [])))
+    for (const agent of await $.agent.list())
+      if (agent.type === AGENT_TYPE && LIVE.includes(agent.status) && !held.has(agent.id)) await $.tool.call({ tool: 'TaskStop', task_id: agent.id }).catch(() => undefined)
+    const running = Object.entries(file.jobs).find(([, j]) => j.status === 'running')
+    if (running) {
+      const [key, job] = running
+      // The session whose agent list has the run renews it, a reload of the mod included; one gone quiet is requeued.
+      const isMine = job.agentId !== undefined && (await $.agent.list()).some(a => a.id === job.agentId && LIVE.includes(a.status))
+      const run = `${key}@${job.startedAt}`
+      const isQuiet = !isMine && Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS
+      if (isMine) await setJob($, key, { runner: sessionToken, heartbeatAt: Date.now() })
+      // Its session closed: back to the front of the queue, not counted as an attempt. Quiet on two ticks in a row, as after a sleep every run is quiet until its session renews it.
+      else if (isQuiet && quietRun === run) {
+        await removeRun($, job)
+        await setJob($, key, { ...IDLE, manual: true }, job.headSha)
+      }
+      quietRun = isQuiet ? run : undefined
+      return
+    }
+    const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))
+    if (!key) return
+    // As sync claims the fetch: write, wait, read back; the last claim written wins.
+    await setJob($, key, { status: 'running', runner: sessionToken, startedAt: Date.now(), heartbeatAt: Date.now() })
+    await $.clock.sleep(500)
+    const settled = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+    if (settled?.jobs[key]?.runner !== sessionToken) return
+    await startRun($, key)
+  } finally {
+    isTicking = false
+  }
+}
+
 // Every session runs this; only the one that finds the shared file stale and wins the claim goes to GitHub.
 async function sync($: EngineInterface, force = false) {
   const file = await readJson($, inboxFile(), { items: [] } as InboxFile)
@@ -690,6 +1016,7 @@ async function sync($: EngineInterface, force = false) {
     isDone = true
     await saving
     await writeJson($, inboxFile(), result)
+    if (result.error === undefined) await trackAuto($, result.items).catch(() => undefined)
     await show($, result)
     if (env !== undefined && result.error === undefined) await refreshStyle($, env)
   } finally {
@@ -722,6 +1049,8 @@ async function show($: EngineInterface, file: InboxFile) {
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
   const notesNow = await readJson($, notesFile(), {} as Record<string, Note>)
   if (notesNow !== undefined) await update($, notes, () => notesNow)
+  const autoNow = config.auto.isOn ? await readJson($, autoFile(), { jobs: {} } as AutoReviewFile) : undefined
+  if (autoNow !== undefined) await update($, autoReview, () => autoNow)
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
@@ -916,7 +1245,14 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   if (keys.length > 0) {
     const { text } = await $.prompt.read()
     const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
-    const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
+    const jobs = (await read($, autoReview)).jobs
+    const reviewsOn = chosen.flatMap(c => c.review ?? [])
+    const pending: Record<string, PendingReview> = {}
+    for (const i of reviewsOn) {
+      const job = jobs[itemKey(i)]
+      if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = { id: job.reviewId, where: workWhere(await placeFor($, i.repo), i.repo, true, m) }
+    }
+    const reviews = reviewPrompts(text, reviewsOn, m, style, pending)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
     const own = await buttonPrompts($, keys)
@@ -1055,6 +1391,9 @@ export const register: Register = (on, options) => {
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
+    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily) },
+    autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
+    autoSkills: parseSkills(opts.autoReviewSkills),
   }
   m = MESSAGES.en
 
@@ -1069,6 +1408,7 @@ export const register: Register = (on, options) => {
     await loadSeen($).catch(() => undefined)
     isStill =
       config.motion === 'off' || (await $.settings.read({ key: 'prefersReducedMotion' }).then(v => v === true, () => false))
+    await syncEnabled($).catch(() => undefined)
     // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
@@ -1077,6 +1417,7 @@ export const register: Register = (on, options) => {
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
+    if (config.auto.isOn) $.clock.every(SYNC_MS, () => void tickAuto($).catch(() => undefined))
     selfId = await $.session.id()
     loadedAt = Date.now()
     version = await $.fs
@@ -1092,6 +1433,18 @@ export const register: Register = (on, options) => {
       wanted = undefined
       void sync($, force)
     })
+    return next(e)
+  })
+
+  // The reviewer is the mod's alone: a type the model could see would add a line to every request of the session.
+  on('agent.offer', { agent: AGENT_TYPE }, async () => ({ isOffered: false }))
+
+  // A review's answer arrives as its subagent's last turn; the main loop's turns carry no agentId.
+  on('turn.complete', async ($, e, next) => {
+    if (config.auto.isOn && e.agentId) {
+      const tokens = e.usage ? tokensOf(e.usage) : undefined
+      await finishRun($, e.agentId, e.answer, tokens, e.isAborted).catch(() => undefined)
+    }
     return next(e)
   })
 
@@ -1151,6 +1504,8 @@ export const register: Register = (on, options) => {
     // bandLabels keeps this order and leaves out the same zeros.
     const keys = BAND_KEYS.filter(k => band[k] > 0)
     const flashing = await read($, dropped)
+    // Finished reviews waiting for my verdict, among the cards the band counts.
+    const finished = config.auto.isOn ? Object.values(autoStates(await read($, autoReview), reviews, config.auto, Date.now())).filter(s => s.kind === 'done').length : 0
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const now = Date.now()
@@ -1169,6 +1524,7 @@ export const register: Register = (on, options) => {
                 </Text>
               ))}
             </Text>
+            {finished > 0 && <Text color="suggestion">{m.band.autoDone(finished)}</Text>}
             {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
           </Box>
           <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
@@ -1269,7 +1625,7 @@ export const register: Register = (on, options) => {
     const asking = await read($, confirming)
     const directResults = await read($, directs)
     // A card's writes to GitHub, its confirm row in their place while one is asked; `extra` is the Merge button, which the setting does not hide.
-    const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren) => {
+    const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren, suggested?: DirectAction) => {
       if (asking?.key === key && needsConfirm(asking.action)) {
         const action = asking.action
         return (
@@ -1283,7 +1639,8 @@ export const register: Register = (on, options) => {
         )
       }
       const result = directResults[key]
-      const shownActions = config.directActions ? offered.filter(a => !(result?.action === a && result.phase !== 'failed')) : []
+      // Auto review is its own switch: its post and discard buttons show without Direct GitHub actions.
+      const shownActions = offered.filter(a => (config.directActions || isAutoAction(a)) && !(result?.action === a && result.phase !== 'failed'))
       if (!result && shownActions.length === 0 && !extra) return undefined
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
@@ -1296,7 +1653,12 @@ export const register: Register = (on, options) => {
             {extra}
             {result?.undo && <Button key={`direct-undo-${key}`} label={m.activity.undo} onPress={() => void undoAssign($, key, target)} />}
             {shownActions.map(a => (
-              <Button key={`direct-${a}-${key}`} label={m.direct.label[a]} onPress={() => void pressDirect($, key, a, target)} />
+              <Button
+                key={`direct-${a}-${key}`}
+                label={m.direct.label[a]}
+                {...(a === suggested ? { variant: 'primary' as const } : {})}
+                onPress={() => void pressDirect($, key, a, target)}
+              />
             ))}
           </Box>
         </Box>
@@ -1426,9 +1788,78 @@ export const register: Register = (on, options) => {
         </Box>
       )
 
+    const autoMap = autoStates(await read($, autoReview), everything, config.auto, now)
+    // Where the card stands in auto review; nothing when it is off or the card is not one it reviews.
+    const autoLine = (item: InboxItem) => {
+      const key = itemKey(item)
+      const s = autoMap[key]
+      if (!s) return undefined
+      if (s.kind === 'done' && s.result) {
+        const { result } = s
+        const counts = severityCounts(result.findings).map(c => `${c.count} ${m.auto.severities[c.severity]}`)
+        const head = [m.auto.suggests(m.auto.verdicts[result.verdict]), counts.length > 0 ? counts.join(', ') : m.auto.noFindings, s.tokens ? m.auto.tokens(Math.round(s.tokens / 1000)) : '']
+        return (
+          <Box flexDirection="column" marginTop={1}>
+            <Text color="suggestion">{head.filter(Boolean).join(' · ')}</Text>
+            {s.carriedFrom && <Text dimColor>{m.auto.carried(s.carriedFrom.slice(0, 7))}</Text>}
+            {bySeverity(result.findings)
+              .slice(0, 3)
+              .map((f, i) => (
+                <Text key={`auto-finding-${key}-${i}`} dimColor wrap="truncate-end">
+                  {m.auto.severities[f.severity]} · {f.path}:{f.line} · {f.body}
+                </Text>
+              ))}
+          </Box>
+        )
+      }
+      const text =
+        s.kind === 'manual'
+          ? s.why === 'before'
+            ? m.auto.before
+            : m.auto.tooBig
+          : s.kind === 'settling'
+            ? m.auto.settling(Math.max(1, Math.ceil((s.startsAt - now) / 60_000)))
+            : s.kind === 'capped'
+              ? m.auto.capped
+              : s.kind === 'running'
+                ? m.auto.running(Math.max(0, Math.floor((now - s.since) / 60_000)))
+                : s.kind === 'done'
+                  ? s.reviewId
+                    ? m.auto.pending
+                    : m.auto.reviewed
+                  : s.kind === 'failed'
+                    ? m.auto.failed(s.error)
+                    : s.kind === 'stale'
+                      ? m.auto.stale(s.from.slice(0, 7))
+                      : m.auto.queued(s.ahead)
+      return (
+        <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
+          <Box flexShrink={1}>
+            <Text color={s.kind === 'failed' || s.kind === 'stale' ? 'warning' : 'suggestion'}>{text}</Text>
+          </Box>
+          {(s.kind === 'manual' || s.kind === 'failed') && (
+            <Button key={`auto-run-${key}`} label={s.kind === 'failed' ? m.auto.retry : m.auto.run} onPress={() => void runAuto($, key)} />
+          )}
+        </Box>
+      )
+    }
+    // A finished auto review replaces Approve: GitHub takes no other review while mine is pending.
+    const reviewRow = (item: InboxItem) => {
+      const key = itemKey(item)
+      const s = autoMap[key]
+      const target = { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }
+      const open = <Link key={`auto-open-${key}`} href={`${item.url}/files`}>{m.auto.open} ↗</Link>
+      if (s?.kind === 'stale') return directRow(key, { ...target, reviewId: s.reviewId }, STALE_ACTIONS, open)
+      if (s?.kind !== 'done' || !s.reviewId) return directRow(key, target, reviewActions(item))
+      const suggested = s.result ? (`post-${s.result.verdict === 'request-changes' ? 'changes' : s.result.verdict}` as const) : undefined
+      return directRow(key, { ...target, reviewId: s.reviewId }, AUTO_ACTIONS, open, suggested)
+    }
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
       const isAdded = addedKeys.includes(itemKey(item))
+      // With my pending review on the PR, the request works on that review rather than starting one.
+      const auto = autoMap[itemKey(item)]
+      const isPending = auto?.kind === 'done' && !!auto.reviewId
       return (
         <Box key={`card-${item.repo}-${item.number}`} flexDirection="row" marginBottom={1}>
           <Box width={1} flexShrink={0} backgroundColor={item.isDraft ? 'inactive' : ageColor(days)} />
@@ -1454,6 +1885,7 @@ export const register: Register = (on, options) => {
               <Link href={item.url}>{item.title} ↗</Link>
             </Text>
             {detailsLine(item)}
+            {autoLine(item)}
 
             {item.sinceLastReview && (
               <Box flexDirection="column" marginTop={1}>
@@ -1492,13 +1924,13 @@ export const register: Register = (on, options) => {
                 {moreButton(itemKey(item))}
                 <Button
                   key={`review-${itemKey(item)}`}
-                  label={isAdded ? m.card.added : m.card.review}
+                  label={isAdded ? m.card.added : isPending ? m.auto.refine : m.card.review}
                   {...(isAdded ? { dimColor: true } : { variant: 'primary' as const })}
                   onPress={() => void addCard($, itemKey(item))}
                 />
               </Box>
             </Box>
-            {directRow(itemKey(item), { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }, reviewActions(item))}
+            {reviewRow(item)}
             {moreRow(
               itemKey(item),
               'review',
