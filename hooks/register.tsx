@@ -72,7 +72,7 @@ import type { Place, ReloadRequest } from './sessions'
 import type { Language, Messages } from './i18n'
 import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
 import type { Page, Pages } from './pages'
-import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
+import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
 import type { GqlReviewed, StyleFile } from './style'
 import {
   REFERENCES_QUERY,
@@ -624,13 +624,13 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
     const samples = styleSamples(reviewed.nodes, reviewed.login ?? '')
     const prompt = stylePrompt(samples)
     if (prompt === undefined) {
-      await writeJson($, styleFile(), { checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
+      await writeJson($, styleFile(), { rules: STYLE_RULES, checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
       return
     }
     const reply = await ask($, styleRules(config.language), prompt, 400)
     const profile = reply.text === undefined ? undefined : parseStyle(reply.text)
     if (profile === undefined) throw new Error(reply.reason ?? 'empty reply')
-    await writeJson($, styleFile(), { profile, checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
+    await writeJson($, styleFile(), { profile, rules: STYLE_RULES, checkedAt: Date.now(), samples: samples.length } satisfies StyleFile)
   } catch {
     await writeJson($, styleFile(), { ...file, retryAt: Date.now() + STYLE_RETRY_MS } satisfies StyleFile).catch(() => undefined)
   }
@@ -915,7 +915,7 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   const chosen = keys.flatMap(key => byKey.get(key) ?? [])
   if (keys.length > 0) {
     const { text } = await $.prompt.read()
-    const style = (await readJson($, styleFile(), {} as StyleFile))?.profile
+    const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
     const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
