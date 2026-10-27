@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.15.3 — 2026-10-27
+
+### Changed
+
+- The warning before the `Auto review` switch turns auto review on is two lines: that each PR it reviews runs a subagent that uses more tokens, and that the details are set in `/config`.
+
 ## 0.15.2 — 2026-10-27
 
 ### Changed
