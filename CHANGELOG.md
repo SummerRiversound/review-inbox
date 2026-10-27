@@ -2,6 +2,19 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.15.0 — 2026-10-27
+
+### Added
+
+- Auto review, off by default (`autoReview`). A PR that asks for your review directly is reviewed in the background by a read-only subagent, one at a time, once its head commit has been still for 30 minutes, and the result is kept on GitHub as your pending review. The card shows the suggested verdict, the findings by severity and what the review cost. **It uses noticeably more tokens**: each review reads the diff and the code with your CLAUDE.md, hooks and the skills you list. While a review runs, your 👀 on the PR keeps your other machines from reviewing it too; one an hour old, left by a machine that stopped, is taken over.
+- `Post as comment`, `Post and approve` and `Post and request changes` submit that pending review after a confirm on the card, `Discard` deletes it, `Open on GitHub` opens it for editing, and `Refine in session` asks Claude to work on it with you. The review reaches the author only when you press one.
+- `autoReviewModel` (`sonnet` or `opus`), `autoReviewDaily` (reviews started a day, default 5, or `unlimited`) and `autoReviewSkills` (skills loaded into the reviewer). Requests made before you turned it on, and PRs over 50 files or 2,000 lines, wait for `Run auto review`.
+- A review stops when the PR gets a new commit, is closed or merged, or stops asking for you. A rebase that changes no content moves your pending review to the new commit with no model call; other new commits leave it in place and the card offers `Review again`.
+
+### Changed
+
+- The shared inbox file moves to format 3, as cards now record whether a bot opened the PR. Sessions on 0.14 and earlier keep their own file until they update.
+
 ## 0.14.2 — 2026-10-27
 
 ### Fixed
