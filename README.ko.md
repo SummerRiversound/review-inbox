@@ -66,6 +66,10 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 비어 있음 | 다음 할 일 버튼이 저장소마다 Claude가 작업할 폴더입니다. 아래를 보세요. |
 | `motion` | `auto` | `off`면 입력창 위 한 줄의 숫자가 깜빡이지 않습니다. `auto`일 때도 Claude Code의 움직임 줄이기 설정(`prefersReducedMotion`)이 켜져 있으면 깜빡이지 않습니다. |
 | `directActions` | `off` | `on`이면 카드에서 GitHub에 직접 쓰는 버튼을 붙입니다. 자세한 내용은 아래 "GitHub 직접 실행"에 있습니다. |
+| `autoReview` | `off` | `on`이면 나에게 리뷰를 요청한 PR을 백그라운드에서 리뷰하고, 게시하기 전까지 각 리뷰를 내 임시 리뷰로 보관합니다. **토큰을 눈에 띄게 더 씁니다.** 아래 "자동 리뷰"를 보세요. |
+| `autoReviewModel` | `sonnet` | 리뷰어가 쓰는 모델입니다. `sonnet` 또는 `opus`이며, `opus`는 더 깊이 리뷰하지만 비용이 더 듭니다. |
+| `autoReviewDaily` | `5` | 하루에 시작하는 자동 리뷰의 최대 개수입니다. 3, 5, 10, 20 또는 `unlimited`입니다. 카드의 `자동 리뷰 실행`은 세지 않습니다. |
+| `autoReviewSkills` | 비어 있음 | 리뷰어에게 불러올 스킬을 쉼표로 이어 적습니다. 예: 내 리뷰 플레이북. 비워 두면 아무것도 불러오지 않습니다. |
 
 `scope`에는 GitHub [이슈·PR 검색](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)이 받는 조건을 그대로 씁니다.
 
@@ -202,6 +206,19 @@ GitHub는 gh 로그인과 classic 토큰에만 알림을 줍니다. 권한이 �
 
 머지는 직접 하지 않습니다. 승인되고 실행 중인 검사가 없는 내 PR에는 `directActions`가 꺼져 있어도 `머지` 버튼이 붙습니다. 누르면 저장소의 머지 방식을 확인하고 `gh pr merge`를 실행하라는 요청이 입력창에 들어가고, Enter로 보내면 Claude Code가 실행 권한을 묻습니다.
 
+### 자동 리뷰
+
+`autoReview`를 `on`으로 두면 나에게 직접 리뷰를 요청한 PR을 Claude가 백그라운드에서 읽어 두므로, 카드를 열었을 때 리뷰가 이미 기다리고 있습니다. 버튼을 누르기 전에는 작성자에게 아무것도 전달되지 않습니다.
+
+> **토큰을 눈에 띄게 더 씁니다.** 리뷰마다 서브에이전트가 diff와 코드를 읽으며, 내 CLAUDE.md, 내 훅, `autoReviewSkills`의 스킬도 함께 씁니다. PR 하나에 수만 토큰이 들고 `opus`에서는 더 듭니다. 카드에 리뷰마다 든 비용이 표시되고, `autoReviewDaily`가 하루에 시작하는 개수를 제한합니다.
+
+- **시작 조건.** 팀이 아니라 나에게 직접 온 요청이면서, 초안이 아니고 봇이 열지 않은 PR이 대상이며, head 커밋이 30분 동안 바뀌지 않으면 시작합니다. 내 모든 세션을 통틀어 한 번에 리뷰 하나만 실행합니다. 자동 리뷰를 켜기 전에 온 요청과 파일이 50개를 넘거나 변경이 2,000줄을 넘는 PR은 카드의 `자동 리뷰 실행`을 기다립니다. 시작할 것이 없으면 아무것도 실행하지 않아, 모델을 부르지도 에이전트를 시작하지도 않습니다.
+- **읽는 범위.** 리뷰어는 읽기 전용 도구(`Read`, `Grep`, `Glob`)만 받고 셸은 쓰지 못합니다. mod가 PR의 diff를, 재요청이면 지난 내 리뷰 이후의 diff를 실행 폴더에 쓰고, 저장소 폴더(다음 할 일 버튼이 쓰는 그 폴더)를 알면 거기에 head 커밋을 detached worktree로 체크아웃합니다. 이 worktree는 리뷰를 저장할 때 지웁니다.
+- **쓰는 범위.** 결과는 나만 볼 수 있는 **임시 리뷰**로 GitHub에 올라갑니다. 코멘트는 해당하는 줄에 달리고, diff 밖의 내용은 리뷰 본문에 들어갑니다. 카드에는 제안한 판정, 심각도별 발견 사항, 상위 세 건, 비용이 표시됩니다.
+- **게시.** `코멘트로 게시`, `게시하고 승인`, `게시하고 변경 요청`(제안한 것은 색으로 강조)은 GitHub 직접 실행처럼 카드에서 먼저 확인을 묻고, 그다음 임시 리뷰를 제출합니다. `GitHub에서 열기`는 PR의 파일 화면을 열어, 먼저 고칠 수 있습니다. `세션에서 다듬기`는 `Claude에게 리뷰` 자리에 나타나, Claude에게 그 리뷰를 함께 다듬자고 요청하며, 어떤 판정으로 낼지 내가 말한 뒤에야 제출합니다. `버리기`는 삭제합니다. 이 버튼들은 `directActions` 없이도 보입니다.
+- **새 커밋.** 실행 중인 리뷰는 PR에 새 커밋이 올라오거나, PR이 닫히거나 머지되거나, 더는 나에게 리뷰를 요청하지 않으면 멈춥니다. 내용이 바뀌지 않는 rebase는 Claude에게 묻지 않고 내 임시 리뷰를 수정 사항과 함께 새 커밋으로 옮깁니다. 그 밖의 새 커밋은 임시 리뷰를 그 자리에 두고, 카드가 지금 게시하면 사라진 코드를 리뷰하게 된다고 알리며 `다시 리뷰`를 제안합니다. 카드를 그린 뒤 PR이 움직였으면 게시를 거부합니다.
+- **실패.** 읽을 수 없는 답은 한 번 더 시도하고, 그래도 안 되면 카드가 이유와 `다시 시도`를 보여 줍니다. 작업 목록에서 내가 멈춘 리뷰는 `다시 시도`를 기다립니다. 세션이 닫혀 중단된 리뷰는 대기열 맨 앞에서 다시 시작합니다.
+
 ## 언어 설정
 
 입력창 위 한 줄, 목록 창, 알림, 입력창에 채우는 리뷰 요청 문장, 모델이 쓰는 요약과 리뷰 방식 설명이 모두 같은 언어를 씁니다.
@@ -227,14 +244,15 @@ GitHub는 gh 로그인과 classic 토큰에만 알림을 줍니다. 권한이 �
 
 ## 읽고 실행하는 범위
 
-이 mod는 내 `gh`로만 GitHub에 접근하고, 요약을 위해 PR 내용을, 리뷰 방식 정리를 위해 일주일에 한 번 내가 남긴 리뷰 코멘트를 Claude에 보내며, 자기 캐시 폴더에만 파일을 씁니다. 아래 항목은 `claude plugin validate .`가 이 mod에 대해 보여 주는 목록과 같습니다.
+이 mod는 내 `gh`로만 GitHub에 접근하고, 요약을 위해 PR 내용을, 리뷰 방식 정리를 위해 일주일에 한 번 내가 남긴 리뷰 코멘트를 Claude에 보내며, 자기 캐시 폴더에만 파일을 씁니다. 아래 항목은 `claude plugin validate .`가 이 mod에 대해 보여 주는 목록과 같습니다. `autoReview`가 `on`이면 Claude에게 PR 리뷰를 요청하고, 리뷰마다 GitHub에 내 임시 리뷰로 저장하며, 리뷰가 실행되는 동안 저장소 폴더에 worktree를 추가하기도 합니다.
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. GitHub 알림 탭에는 `gh api notifications`를, `완료`나 `구독 해제`를 누르면 `gh api -X DELETE notifications/threads/<id>`(구독 해제는 그 전에 `/subscription`도)를 실행합니다. `directActions`가 `on`일 때 버튼을 누르면 계정 이름을 위해 `gh api user`, 최신 커밋 확인을 위해 `gh api repos/<owner>/<repo>/pulls/<n>`를 실행하고, 이어서 `gh api -X POST …/pulls/<n>/reviews`(`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure`와 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, 또는 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 중 하나를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
-- **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해 내 PR 브랜치에 있는 세션을 찾고, `git rev-parse --path-format=absolute --git-common-dir`로 그 저장소의 원래 폴더를 기억합니다.
+- **`gh` 실행**: 목록 조회와 일주일에 한 번 최근 리뷰 코멘트 조회에 `gh api graphql`, 재요청 PR의 변경분 조회에 `gh api repos/<owner>/<repo>/compare/<from>...<to>`, `githubUser`를 설정한 경우 `gh auth token -u <githubUser>`를 실행합니다. GitHub 알림 탭에는 `gh api notifications`를, `완료`나 `구독 해제`를 누르면 `gh api -X DELETE notifications/threads/<id>`(구독 해제는 그 전에 `/subscription`도)를 실행합니다. `directActions`가 `on`일 때 버튼을 누르면 계정 이름을 위해 `gh api user`, 최신 커밋 확인을 위해 `gh api repos/<owner>/<repo>/pulls/<n>`를 실행하고, 이어서 `gh api -X POST …/pulls/<n>/reviews`(`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure`와 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, 또는 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 중 하나를 실행합니다. `autoReview`가 `on`이면 리뷰 전후로 `gh api …/pulls/<n>/reviews`와 `…/pulls/<n>/files`, `gh pr diff`를 실행하고, 리뷰를 내 임시 리뷰로 저장하려고 표준 입력으로 리뷰를 넘기며 `gh api -X POST …/pulls/<n>/reviews`를 실행합니다. 새 커밋으로 옮길 때는 `…/reviews/<id>`와 `…/reviews/<id>/comments`를 읽고, 다시 만들기 전에 `gh api -X DELETE …/reviews/<id>`를 실행합니다. 카드 버튼은 head 커밋을 읽은 뒤 `gh api -X POST …/reviews/<id>/events`(`event=COMMENT`, `APPROVE` 또는 `REQUEST_CHANGES`) 또는 `gh api -X DELETE …/reviews/<id>`를 실행합니다. 그 밖의 네트워크 호출은 하지 않습니다.
+- **`git` 실행**: 30초마다 세션 폴더에서 `git branch --show-current`와 `git remote -v`를 실행해 내 PR 브랜치에 있는 세션을 찾고, `git rev-parse --path-format=absolute --git-common-dir`로 그 저장소의 원래 폴더를 기억합니다. `autoReview`가 `on`이고 저장소 폴더를 알면 리뷰마다 그 폴더에서 `git fetch origin pull/<n>/head`와 `git worktree add --detach`를 실행하고, 리뷰가 끝나면 `git worktree remove --force`를 실행합니다.
 - **Claude 호출**(`sonnet` 모델): PR의 저장소 이름, 제목, 설명(앞 12,000자), 변경 파일 경로(최대 80개), 변경 규모를 보내 요약을 받습니다. 재요청 PR은 지난 리뷰 이후 커밋 메시지의 첫 줄과 파일 경로(최대 60개)도 보냅니다. Claude Code 사용량에 포함됩니다. 요약은 PR의 head 커밋과 언어마다 한 번 작성하고, 실패하면 커밋마다 최대 세 번까지 시도합니다. 또한 일주일에 한 번, 최근 내가 리뷰한 PR 최대 30개에서 내가 남긴 리뷰 코멘트를 보내 리뷰 방식을 정리합니다. 코멘트마다 500자까지 자르고 최대 60개, 합계 12,000자까지 보내며, 다섯 개보다 적으면 보내지 않습니다.
-- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>-f<n>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, mod 버전, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `repos.json`에 세션이 열렸던 GitHub 저장소마다 원래 폴더를(다음 할 일 버튼이 보여 줄 폴더), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다. 내가 만든 `actions.json`이 있으면 그 폴더에서 읽기만 하고 쓰지는 않습니다.
+- **서브에이전트 시작**: `autoReview`가 `on`일 때만 합니다. `auto-reviewer` 하나를 한 번에 하나씩, `autoReviewModel`로, 읽기 전용 도구와 내 CLAUDE.md, 훅, `autoReviewSkills`와 함께 실행합니다. Claude Code 사용량에 포함됩니다. 이 에이전트 종류는 내 Claude가 고르는 목록에서 빠져 있습니다. 멈출 때는 `TaskStop`을 씁니다.
+- **파일 쓰기**: 캐시 폴더 `~/.claude/plugins/data/review-inbox`에만 씁니다(`CLAUDE_CONFIG_DIR`를 설정하면 `~/.claude` 대신 그 경로를 씁니다). `inbox-<hash>-f<n>.json`에 목록과 요약을, `hidden-<hash>.json`에 숨긴 PR을, `notes-<hash>.json`에 메모와 미루기를(언어와 상관없이 계정·범위마다 한 파일), `sessions.json`에 살아 있는 세션마다 폴더 이름, mod 버전, 브랜치, GitHub 원격 저장소, 프롬프트에 들어간 PR 링크를(계정과 상관없이 하나), `repos.json`에 세션이 열렸던 GitHub 저장소마다 원래 폴더를(다음 할 일 버튼이 보여 줄 폴더), `style-<hash>.json`에 리뷰 방식 설명을 저장합니다. 각 파일은 옆에 임시 파일로 쓴 뒤 `mv`로 옮겨 놓으므로 다른 세션이 반쯤 쓰인 파일을 읽지 않습니다. Windows처럼 `mv`가 없으면 그 자리에 바로 씁니다. 내가 만든 `actions.json`이 있으면 그 폴더에서 읽기만 하고 쓰지는 않습니다. `autoreview-<hash>.json`에는 PR마다 자동 리뷰에서의 진행 단계와 마지막 결과를, `runs/`에는 실행 폴더를 저장하며, 실행 폴더는 리뷰가 끝나면 `rm -rf`로 지웁니다.
 - **환경 변수 읽기**: 그 폴더를 찾기 위해 `CLAUDE_CONFIG_DIR`, `HOME`, `USERPROFILE`을 읽고, `gh`처럼 이 세션의 저장소를 알기 위해 `GH_REPO`를 읽습니다. 또한 `language`가 `auto`일 때만 `LC_ALL`, `LC_MESSAGES`, `LANG`을 읽습니다. 환경 변수를 설정하지는 않습니다.
 - **Claude Code 설정 읽기**: `language`가 `auto`일 때만 `language` 키를, `motion`이 `auto`일 때만 `prefersReducedMotion` 키를 읽습니다.
 - **입력창 읽기·채우기**: 목록 창을 열고 닫을 때만 합니다. 열 때는 이미 요청한 PR을 표시하기 위해 작성 중인 내용을 읽고, 닫을 때는 추가한 PR의 요청 문장을 작성 중인 내용 다음 줄에 붙입니다.
@@ -259,6 +277,8 @@ GraphQL 검색 한 번으로 내 리뷰를 기다리는 PR과 카드에 필요�
 - 내가 리뷰한 커밋이 force-push로 다시 쓰인 경우, 재요청 PR에 '지난 내 리뷰 이후' 줄을 표시하지 않습니다.
 - 리뷰 방식은 `scope` 안에서 GitHub 검색 `reviewed-by:@me -author:@me`가 돌려주는 PR에서만 정리하므로, 내가 만든 PR에 남긴 코멘트는 포함하지 않습니다. 리뷰 밖에서 PR 대화에 남긴 코멘트는 포함하지 않습니다.
 - `실패한 CI 다시 실행`은 GitHub Actions만 다시 실행합니다. 다른 CI 서비스의 검사는 그 서비스에서 다시 실행하세요. 여러 PR을 한 번에 승인하기와 코멘트를 달아 승인하기는 없습니다.
+- 자동 리뷰는 GitHub에 있는 그대로의 PR을 리뷰하며 테스트나 빌드는 실행하지 않습니다. 옮겨 온 리뷰는 모든 파일의 patch가 같을 때만 옮기므로, 같은 파일을 바꾼 베이스로 rebase하면 다시 리뷰합니다.
+- `autoReviewDaily`에 막힌 리뷰는 새 커밋으로 옮기는 작업도 함께 막습니다. `rm -rf`는 POSIX 전용이라, WSL 없는 Windows에서는 실행 폴더가 캐시 폴더에 남습니다.
 
 ## 문제 해결
 

@@ -66,6 +66,10 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 空 | 下一步按钮为每个仓库让 Claude 工作的文件夹。见下文。 |
 | `motion` | `auto` | 设为 `off` 时，提示栏上方那一行的数字不再闪烁。设为 `auto` 时，如果 Claude Code 的减少动态效果设置（`prefersReducedMotion`）已开启，也不闪烁。 |
 | `directActions` | `off` | 设为 `on` 时，卡片上会有直接写入 GitHub 的按钮。详见下面的“直接写入 GitHub”。 |
+| `autoReview` | `off` | 设为 `on` 时，在后台审查请求你审查的 PR，并把每份审查保存为你的待提交审查，直到你发布。**会明显多用 token。** 见下面的“自动审查”。 |
+| `autoReviewModel` | `sonnet` | 审查者使用的模型：`sonnet` 或 `opus`，后者审查得更深入，费用也更高。 |
+| `autoReviewDaily` | `5` | 每天最多开始多少次自动审查：3、5、10、20 或 `unlimited`。卡片上的 `运行自动审查` 不计入。 |
+| `autoReviewSkills` | 空 | 加载到审查者中的技能，用逗号分隔，例如你的审查手册。为空表示不加载任何技能。 |
 
 `scope` 可以填写 GitHub [议题和 PR 搜索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)支持的任何内容：
 
@@ -202,6 +206,19 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 不会直接合并。已批准且没有正在运行的检查的你的 PR，即使 `directActions` 关闭，也会有 `合并` 按钮：按下后，提示栏里会加入一条请求，让 Claude 先确认仓库允许的合并方式再运行 `gh pr merge`；你按 Enter 发送后，Claude Code 会请求运行权限。
 
+### 自动审查
+
+把 `autoReview` 设为 `on` 后，直接请求你审查的 PR 会由 Claude 在后台阅读，等你看到卡片时审查已经在那里等着了。在你按下按钮之前，作者收不到任何内容。
+
+> **会明显多用 token。** 每次审查都会运行一个子代理，它带着你的 CLAUDE.md、你的 hooks 和 `autoReviewSkills` 中的技能，阅读 diff 和代码：每个 PR 要用几万个 token，用 `opus` 更多。卡片上会显示每次审查的花费，`autoReviewDaily` 限制每天最多开始多少次。
+
+- **什么会触发。** 直接向你发出（不是向团队）的请求，PR 不是草稿、也不是机器人创建的，并且它的 head 提交已经 30 分钟没有变化。你的所有会话中同一时间只运行一次审查。在你开启之前提出的请求，以及超过 50 个文件或 2,000 行改动的 PR，需要在卡片上点击 `运行自动审查`。没有到期的审查时什么都不运行：不请求模型，也不启动代理。
+- **读取什么。** 审查者只有只读工具（`Read`、`Grep`、`Glob`），没有 shell。mod 把 PR 的 diff 写入一个运行文件夹；如果是重新请求，还会写入自你上次审查以来的 diff。当它知道仓库的文件夹（下一步按钮使用的那个）时，还会在那里把 head 提交检出为分离的 worktree，审查保存后删除。
+- **写入什么。** 结果会作为你的**待提交审查**写入 GitHub，只有你自己能看到：评论放在它们所针对的行上，diff 之外的内容放在审查正文里。卡片上显示建议的结论、按严重程度分类的发现、最重要的三条和花费。
+- **发布。** `作为评论发布`、`发布并批准` 和 `发布并请求更改`（建议的那个带颜色）会像直接写入 GitHub 那样先在卡片上确认，然后提交待提交审查。`在 GitHub 上打开` 会打开该 PR 的文件页，你可以先在那里修改。`在会话中完善` 取代 `让 Claude 审查`，请 Claude 和你一起完善这份审查，只有你说出结论后才会提交。`丢弃` 会删除它。即使没有开启 `directActions`，这些按钮也会显示。
+- **新提交。** PR 有了新提交、被关闭或合并，或不再请求你审查时，正在运行的审查会停止。不改变内容的 rebase 会把你的待提交审查连同你的修改移到新提交上，不会请求 Claude。其他新提交则让它留在原处：卡片会说明现在发布会审查已不存在的代码，并提供 `重新审查`。如果卡片绘制之后 PR 又有了变化，发布会被拒绝。
+- **失败。** 无法读取的回答会再试一次，之后卡片会显示原因并提供 `重试`。你从任务列表中停止的审查会等待 `重试`。会话关闭时正在进行的审查会从队列最前面重新开始。
+
 ## 语言
 
 横条、抽屉、通知、放入输入框的审查请求，以及模型生成的摘要和审查风格描述，都使用同一种语言。
@@ -227,14 +244,15 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 ## 读取和运行的内容
 
-mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以生成摘要，并每周一次把你本人的审查评论发给 Claude 以描述你的风格；它只写入自己的缓存文件夹。下面逐项列出它涉及的内容及原因，与 `claude plugin validate .` 为该 mod 列出的内容一致。
+mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以生成摘要，并每周一次把你本人的审查评论发给 Claude 以描述你的风格；它只写入自己的缓存文件夹。下面逐项列出它涉及的内容及原因，与 `claude plugin validate .` 为该 mod 列出的内容一致。开启 `autoReview` 后，它还会请 Claude 审查 PR，把每份审查作为你的待提交审查保存在 GitHub 上，并在审查运行期间向仓库的文件夹添加一个 worktree。
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。GitHub 通知标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。`directActions` 为 `on` 时，按下按钮会先运行 `gh api user` 取得账号名、`gh api repos/<owner>/<repo>/pulls/<n>` 读取最新提交，再运行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。除此之外，mod 自身不发起任何网络调用。
-- **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。
+- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。GitHub 通知标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。`directActions` 为 `on` 时，按下按钮会先运行 `gh api user` 取得账号名、`gh api repos/<owner>/<repo>/pulls/<n>` 读取最新提交，再运行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。开启 `autoReview` 后，它会在每次审查前后运行 `gh api …/pulls/<n>/reviews` 和 `…/pulls/<n>/files`，运行 `gh pr diff`，并运行 `gh api -X POST …/pulls/<n>/reviews`（审查内容通过 stdin 传入）把审查保存为你的待提交审查；把它移到新提交时，会读取 `…/reviews/<id>` 和 `…/reviews/<id>/comments`，并在重新创建之前运行 `gh api -X DELETE …/reviews/<id>`。卡片上的按钮会在读取 head 提交之后，运行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）或 `gh api -X DELETE …/reviews/<id>`。除此之外，mod 自身不发起任何网络调用。
+- **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。开启 `autoReview` 且知道仓库的文件夹时，每次审查都会在那里运行 `git fetch origin pull/<n>/head` 和 `git worktree add --detach`，审查结束时运行 `git worktree remove --force`。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
-- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>-f<n>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、mod 版本、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。
+- **启动子代理**，仅在开启 `autoReview` 时：同一时间一个 `auto-reviewer`，使用 `autoReviewModel`，带只读工具、你的 CLAUDE.md、hooks 和 `autoReviewSkills`。这会计入你的 Claude Code 用量。它的代理类型不会出现在你自己的 Claude 可选的列表中。停止它使用 `TaskStop`。
+- **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>-f<n>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、mod 版本、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。`autoreview-<hash>.json` 保存每个 PR 在自动审查中的状态和最近一次结果，`runs/` 保存运行文件夹，审查结束时用 `rm -rf` 删除。
 - **读取环境变量**：读取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 来找到该文件夹；像 `gh` 一样读取 `GH_REPO` 来确定当前会话的仓库；只有 `language` 为 `auto` 时才读取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不设置任何环境变量。
 - **读取 Claude Code 设置**：只有 `language` 为 `auto` 时才读取 `language` 键，只有 `motion` 为 `auto` 时才读取 `prefersReducedMotion` 键。
 - **读取并填写输入框**：仅在抽屉打开和关闭时进行。打开抽屉时读取输入框中已有的内容，以标记其中已经请求审查的 PR；关闭抽屉时，把你添加的 PR 的审查请求另起新行，追加到已有内容之后。
@@ -259,6 +277,8 @@ mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以
 - 如果强制推送改写了你审查过的提交，已重新请求的 PR 不会显示“我上次审查后的变更”这一行。
 - 你的审查风格是从 GitHub 搜索 `reviewed-by:@me -author:@me` 返回的 PR 中学习的，范围限于 `scope`，因此你在自己创建的 PR 上留下的评论不计入。PR 对话中不属于任何审查的评论不在学习范围内。
 - `重新运行失败的 CI` 只重新运行 GitHub Actions；其他 CI 服务的检查请在该服务上重新运行。不提供一次批准多个 PR，也不提供带评论的批准。
+- 自动审查审查的是 GitHub 上现有的 PR；它不运行测试或构建。只有每个文件的 patch 都相同时，才会移动已有的审查，因此 rebase 到一个改动了相同文件的基础分支上，会重新审查。
+- 被 `autoReviewDaily` 拦下的审查，也会拦下把审查移到新提交的操作。`rm -rf` 仅适用于 POSIX，所以在没有 WSL 的 Windows 上，运行文件夹会留在缓存文件夹中。
 
 ## 故障排查
 
