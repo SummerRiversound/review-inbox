@@ -5,9 +5,11 @@ export const CONFIRM_MS = 10_000
 // A confirm this soon after the press that asked is that press's key repeat or a double tap, not a decision.
 export const CONFIRM_GUARD_MS = 300
 
-export type AutoAction = 'post-comment' | 'post-approve' | 'post-changes' | 'discard'
+export type AutoAction = 'post-comment' | 'post-approve' | 'post-changes' | 'discard' | 'review-again'
 export const AUTO_ACTIONS: AutoAction[] = ['post-comment', 'post-approve', 'post-changes', 'discard']
-export const isAutoAction = (action: DirectAction): action is AutoAction => (AUTO_ACTIONS as DirectAction[]).includes(action)
+// On a card whose pending review is on an older commit: posting it would review code that is gone.
+export const STALE_ACTIONS: AutoAction[] = ['review-again', 'discard']
+export const isAutoAction = (action: DirectAction): action is AutoAction => [...AUTO_ACTIONS, ...STALE_ACTIONS].includes(action as AutoAction)
 
 export type AskedAction = 'approve' | 'ready' | 'update-branch' | AutoAction
 // Others see these, and none can be taken back, so each is asked on the card first; a discard loses the review's text.
@@ -15,7 +17,7 @@ export const needsConfirm = (action: DirectAction): action is AskedAction =>
   action === 'approve' || action === 'ready' || action === 'update-branch' || isAutoAction(action)
 
 // GitHub moves a pending review on with an event; a head that moved since stops it first, as it stops an approve.
-export const checksHead = (action: DirectAction) => action === 'approve' || action === 'update-branch' || (isAutoAction(action) && action !== 'discard')
+export const checksHead = (action: DirectAction) => action === 'approve' || action === 'update-branch' || (isAutoAction(action) && action !== 'discard' && action !== 'review-again')
 
 const EVENTS = { 'post-comment': 'COMMENT', 'post-approve': 'APPROVE', 'post-changes': 'REQUEST_CHANGES' } as const
 
@@ -47,7 +49,9 @@ export function writeArgs(action: Exclude<DirectAction, 'rerun'>, target: Direct
     case 'post-approve':
     case 'post-changes':
       return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews/${target.reviewId}/events`, '-f', `event=${EVENTS[action]}`]
+    // Review again deletes it, and the card then asks for a run on the new head.
     case 'discard':
+    case 'review-again':
       return ['api', '-X', 'DELETE', `${path}/pulls/${target.number}/reviews/${target.reviewId}`]
     case 'ready':
       return ['pr', 'ready', `${target.number}`, '--repo', target.repo]

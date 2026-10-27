@@ -4,6 +4,7 @@ import type { AutoReviewFile, InboxItem } from '../types'
 import {
   SETTLE_MS,
   autoStates,
+  carried,
   contentKey,
   createArgs,
   createInput,
@@ -185,7 +186,7 @@ test('my review of this head, or my pending review on any commit, stops a new on
   const r = (id: number, state: string, commit: string, login = 'Me') => ({ id, state, commit_id: commit, login })
   expect(myReview([r(1, 'COMMENTED', 'old'), r(2, 'APPROVED', 'h', 'other')], 'me', 'h')).toBeUndefined()
   expect(myReview([r(1, 'COMMENTED', 'h')], 'me', 'h')).toEqual({ kind: 'reviewed' })
-  expect(myReview([r(1, 'COMMENTED', 'h'), r(3, 'PENDING', 'old')], 'me', 'h')).toEqual({ kind: 'pending', id: 3 })
+  expect(myReview([r(1, 'COMMENTED', 'h'), r(3, 'PENDING', 'old')], 'me', 'h')).toEqual({ kind: 'pending', id: 3, commit: 'old' })
 })
 
 test('the reviewer reads and searches only, keeps CLAUDE.md, and preloads the listed skills', () => {
@@ -194,6 +195,28 @@ test('the reviewer reads and searches only, keeps CLAUDE.md, and preloads the li
   expect('omitClaudeMd' in spec).toBe(false)
   expect(spec.skills).toEqual(['review-playbook'])
   expect('skills' in reviewerSpec('opus', [])).toBe(false)
+})
+
+test('a new head keeps my pending review of the old one for carrying, and a PR gone from the list drops its job, a running one too', () => {
+  const result = { verdict: 'comment' as const, summary: 's', findings: [] }
+  const file = {
+    jobs: {
+      'o/r#1': { headSha: 'h1', firstSeenAt: 0, status: 'done' as const, reviewId: 9, contentKey: 'k', result },
+      'o/r#2': { headSha: 'h2', firstSeenAt: 0, status: 'running' as const, agentId: 'a1' },
+    },
+  }
+  const next = trackHeads(file, [item(1, { headSha: 'h1b' })], 5)
+  expect(next.jobs).toEqual({ 'o/r#1': { headSha: 'h1b', firstSeenAt: 5, prev: { headSha: 'h1', reviewId: 9, contentKey: 'k', result } } })
+  // Still pending on h1 when the head moves again.
+  expect(trackHeads(next, [item(1, { headSha: 'h1c' })], 6).jobs['o/r#1']!.prev!.headSha).toBe('h1')
+})
+
+test('a carried review names the new commit in its marker and moves a whole-file comment into the body', () => {
+  const moved = carried('Body\n\n<!-- review-inbox auto-review sha=old key=k -->', [
+    { path: 'a.ts', line: 3, side: 'LEFT', body: 'x' },
+    { path: 'b.ts', line: null, side: null, body: 'y' },
+  ], 'old', 'new')
+  expect(moved).toEqual({ body: 'Body\n\n<!-- review-inbox auto-review sha=new key=k -->\n\n- `b.ts` y', comments: [{ path: 'a.ts', line: 3, side: 'LEFT', body: 'x' }] })
 })
 
 test("a re-request asks for what changed since my last review, and the style line goes in when there is one", () => {

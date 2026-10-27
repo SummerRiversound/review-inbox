@@ -18,12 +18,22 @@ export function parseDaily(option: string | undefined): number | undefined {
 }
 
 // One job per PR on the list, keyed by its head: a new head starts its wait over and forgets a run asked for by hand.
+// A PR that leaves the list (closed, merged, no longer asking me) drops its job, a running one included: that run is stopped.
 export function trackHeads(file: AutoReviewFile, items: InboxItem[], now: number): AutoReviewFile {
   const jobs: AutoReviewFile['jobs'] = {}
   for (const item of items) {
     const key = itemKey(item)
     const job = file.jobs[key]
-    jobs[key] = job?.headSha === item.headSha ? job : { headSha: item.headSha, firstSeenAt: now }
+    if (job?.headSha === item.headSha) {
+      jobs[key] = job
+      continue
+    }
+    // My pending review stays on the old commit; the new head's run carries it when the content is the same.
+    const prev =
+      job?.status === 'done' && job.reviewId
+        ? { headSha: job.headSha, reviewId: job.reviewId, ...(job.contentKey ? { contentKey: job.contentKey } : {}), ...(job.result ? { result: job.result } : {}) }
+        : job?.prev
+    jobs[key] = { headSha: item.headSha, firstSeenAt: now, ...(prev ? { prev } : {}) }
   }
   return { ...file, jobs }
 }
@@ -47,7 +57,15 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
     if (job.status === 'running') {
       states[key] = { kind: 'running', since: job.startedAt ?? job.heartbeatAt ?? now }
     } else if (job.status === 'done') {
-      states[key] = { kind: 'done', ...(job.result ? { result: job.result } : {}), ...(job.tokens ? { tokens: job.tokens } : {}), ...(job.reviewId ? { reviewId: job.reviewId } : {}) }
+      states[key] = {
+        kind: 'done',
+        ...(job.result ? { result: job.result } : {}),
+        ...(job.tokens ? { tokens: job.tokens } : {}),
+        ...(job.reviewId ? { reviewId: job.reviewId } : {}),
+        ...(job.carriedFrom ? { carriedFrom: job.carriedFrom } : {}),
+      }
+    } else if (job.status === 'stale' && job.reviewId) {
+      states[key] = { kind: 'stale', reviewId: job.reviewId, from: job.staleFrom ?? '' }
     } else if (job.status === 'failed') {
       states[key] = { kind: 'failed', error: job.error ?? '' }
     } else if (job.manual) {
@@ -178,7 +196,7 @@ export function rightLines(patch: string): Set<number> {
   return lines
 }
 
-export type ReviewComment = { path: string; line: number; side: 'RIGHT'; body: string }
+export type ReviewComment = { path: string; line: number; side: 'LEFT' | 'RIGHT'; body: string }
 
 const label = (f: Finding) => `**${f.severity}** ${f.body}`
 
@@ -222,6 +240,19 @@ export const sinceArgs = (pr: Pr, from: string, to: string) => ['api', '-H', 'Ac
 // No `event`: the review stays pending, mine to post from the card or to edit on GitHub. Its JSON goes on stdin.
 export const createArgs = (pr: Pr) => ['api', '-X', 'POST', `${pulls(pr)}/reviews`, '--input', '-', '--jq', '.id']
 export const createInput = (head: string, body: string, comments: ReviewComment[]) => JSON.stringify({ commit_id: head, body, comments })
+// A pending review as I may have edited it on GitHub, for carrying it to a new commit.
+export const reviewBodyArgs = (pr: Pr, id: number) => ['api', `${pulls(pr)}/reviews/${id}`, '--jq', '.body']
+export const reviewCommentsArgs = (pr: Pr, id: number) => ['api', '--paginate', `${pulls(pr)}/reviews/${id}/comments`, '--jq', '.[] | {path, line, side, body} | tojson']
+export const deleteReviewArgs = (pr: Pr, id: number) => ['api', '-X', 'DELETE', `${pulls(pr)}/reviews/${id}`]
+
+export type GhComment = { path: string; line: number | null; side: 'LEFT' | 'RIGHT' | null; body: string }
+
+// The same review on the new head: its marker names the new commit, and a comment on no line (on a whole file) moves into the body.
+export function carried(body: string, comments: GhComment[], from: string, to: string): { body: string; comments: ReviewComment[] } {
+  const onLines = comments.flatMap(c => (c.line ? [{ path: c.path, line: c.line, side: c.side ?? 'RIGHT', body: c.body }] : []))
+  const onFiles = comments.filter(c => !c.line).map(c => `- \`${c.path}\` ${c.body}`)
+  return { body: [body.replace(`sha=${from} `, `sha=${to} `), ...onFiles].join('\n\n'), comments: onLines }
+}
 
 // gh prints one JSON object a line.
 export const jsonLines = <T>(text: string): T[] =>
@@ -233,10 +264,10 @@ export const jsonLines = <T>(text: string): T[] =>
 export type GhReview = { id: number; state: string; commit_id: string; login: string }
 
 // What I already have on the PR: a review of this head, or a pending review on any commit, which GitHub allows only one of.
-export function myReview(reviews: GhReview[], login: string, head: string): { kind: 'reviewed' } | { kind: 'pending'; id: number } | undefined {
+export function myReview(reviews: GhReview[], login: string, head: string): { kind: 'reviewed' } | { kind: 'pending'; id: number; commit: string } | undefined {
   const mine = reviews.filter(r => r.login.toLowerCase() === login.toLowerCase())
   const pending = mine.find(r => r.state === 'PENDING')
-  if (pending) return { kind: 'pending', id: pending.id }
+  if (pending) return { kind: 'pending', id: pending.id, commit: pending.commit_id }
   return mine.some(r => r.commit_id === head) ? { kind: 'reviewed' } : undefined
 }
 

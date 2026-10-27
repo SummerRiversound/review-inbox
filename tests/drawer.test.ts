@@ -3,6 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
+import { contentKey } from '../hooks/autoreview'
 import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
 import { prSeenKeys } from '../hooks/tabs'
 
@@ -717,13 +718,22 @@ test('with auto review on and nothing to review, no model is asked and no agent 
 const RUNS = '/home/me/.claude/plugins/data/review-inbox/runs'
 const queued = (more: Record<string, unknown> = {}) =>
   JSON.stringify({ enabledAt: Date.now() - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: Date.now() - 3_600_000, ...more } } })
-type Github = { reviews?: string; created?: string[]; createFails?: boolean; calls?: string[] }
+type Github = { reviews?: string; created?: string[]; createFails?: boolean; calls?: string[]; deleted?: string[] }
+const PATCH = '@@ -1,2 +1,3 @@\n one\n+two\n three'
 const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   g.calls?.push(args)
   if (args === 'gh api user --jq .login') return { exitCode: 0, stdout: 'me\n' }
+  // My pending review 9 on h4, as I left it on GitHub.
+  if (args === 'gh api repos/o/r/pulls/5/reviews/9 --jq .body') return { exitCode: 0, stdout: 'Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h4 key=k -->\n' }
+  if (args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews/9/comments'))
+    return { exitCode: 0, stdout: `${JSON.stringify({ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** mine' })}\n${JSON.stringify({ path: 'b.ts', line: null, side: null, body: 'whole file' })}\n` }
+  if (args.startsWith('gh api -X DELETE repos/o/r/pulls/5/reviews/')) {
+    g.deleted?.push(args)
+    return { exitCode: 0 }
+  }
   if (args.startsWith('gh api --paginate repos/o/r/pulls/5/reviews')) return { exitCode: 0, stdout: g.reviews ?? '' }
   if (args.startsWith('gh api --paginate repos/o/r/pulls/5/files'))
-    return { exitCode: 0, stdout: `${JSON.stringify({ filename: 'a.ts', patch: '@@ -1,2 +1,3 @@\n one\n+two\n three' })}\n` }
+    return { exitCode: 0, stdout: `${JSON.stringify({ filename: 'a.ts', patch: PATCH })}\n` }
   if (args === 'gh pr diff 5 --repo o/r') return { exitCode: 0, stdout: 'diff --git a/a.ts b/a.ts' }
   if (args.startsWith('gh api -X POST repos/o/r/pulls/5/reviews')) {
     g.created?.push(stdin ?? '')
@@ -813,9 +823,9 @@ test('the next queued PR is reviewed by a read-only subagent and stored as my pe
   await band.unmount()
 })
 
-test('my pending review on the PR, on any commit, starts no subagent', AUTO_ON, async ($, on) => {
+test('my pending review on this head starts no subagent', AUTO_ON, async ($, on) => {
   const got = agents(on)
-  const reviews = `${JSON.stringify({ id: 9, state: 'PENDING', commit_id: 'h4', login: 'me' })}\n`
+  const reviews = `${JSON.stringify({ id: 9, state: 'PENDING', commit_id: 'h5', login: 'me' })}\n`
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ reviews }) })
   await tick()
 
@@ -823,6 +833,78 @@ test('my pending review on the PR, on any commit, starts no subagent', AUTO_ON, 
   const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
   expect([job.status, job.reviewId]).toEqual(['done', 9])
   expect(await shown(ui, /your pending review is on GitHub/)).toBe(true)
+  await ui.unmount()
+})
+
+const PENDING_ON_H4 = `${JSON.stringify({ id: 9, state: 'PENDING', commit_id: 'h4', login: 'me' })}\n`
+const RESULT = { verdict: 'comment', summary: 'Fine.', findings: [{ severity: 'major', path: 'a.ts', line: 2, body: 'mine' }] }
+
+test('a rebase with the same content carries my pending review to the new head, edits kept, with no model call', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const g: Github = { reviews: PENDING_ON_H4, created: [], deleted: [] }
+  const prev = { headSha: 'h4', reviewId: 9, contentKey: contentKey([{ filename: 'a.ts', patch: PATCH }]), result: RESULT }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ prev }) }, run: autoGithub(g) })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect(g.deleted).toEqual(['gh api -X DELETE repos/o/r/pulls/5/reviews/9'])
+  const sent = JSON.parse(g.created![0]!)
+  expect(sent.commit_id).toBe('h5')
+  expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** mine' }])
+  expect(sent.body).toBe('Edited on GitHub.\n\n<!-- review-inbox auto-review sha=h5 key=k -->\n\n- `b.ts` whole file')
+  const job = JSON.parse(files.get(AUTO)!)
+  expect([job.jobs['o/r#5'].status, job.jobs['o/r#5'].reviewId, job.jobs['o/r#5'].carriedFrom, job.started]).toEqual(['done', 77, 'h4', undefined])
+  expect(await shown(ui, /Carried from h4, same content/)).toBe(true)
+  expect(await shown(ui, /Auto review suggests Comment/)).toBe(true)
+  await ui.unmount()
+})
+
+test('new content since my pending review leaves it alone and offers Review again, which deletes it and runs on the new head', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const g: Github = { reviews: PENDING_ON_H4, created: [], deleted: [] }
+  const prev = { headSha: 'h4', reviewId: 9, contentKey: 'other', result: RESULT }
+  const run = (args: string, stdin?: string) =>
+    /^gh api repos\/o\/r\/pulls\/5 --jq \.head\.sha$/.test(args) ? { exitCode: 0, stdout: 'h5\n' } : autoGithub(g)(args, stdin)
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued({ prev }) }, run })
+  await tick()
+
+  expect(got.spawns).toHaveLength(0)
+  expect([g.deleted, g.created]).toEqual([[], []])
+  expect(await shown(ui, /New commits since your pending review on h4/)).toBe(true)
+  expect(await ui.find({ key: 'direct-post-comment-o/r#5' })).toBeUndefined()
+  expect(await ui.find({ key: 'direct-discard-o/r#5' })).toBeDefined()
+
+  await ui.press({ key: 'direct-review-again-o/r#5' })
+  expect(await shown(ui, /Delete me's pending review on o\/r#5 "r5", made for an older commit/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(g.deleted).toEqual(['gh api -X DELETE repos/o/r/pulls/5/reviews/9'])
+  g.reviews = ''
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('a run whose PR got a new head is stopped by the session holding it, and its answer is never stored', AUTO_ON, async ($, on) => {
+  const stopped: string[] = []
+  on('tool.call', { tool: 'TaskStop' }, async ($, e) => {
+    stopped.push((e as unknown as { task_id: string }).task_id)
+    return { result: { message: 'stopped', task_id: 'a1' } } as never
+  })
+  // Listed as running until it is stopped.
+  const got = agents(on, () => (stopped.length > 0 ? [] : ['a1']))
+  const g: Github = { created: [] }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+
+  // As the fetching session's trackHeads writes it once the PR has a new head.
+  files.set(AUTO, JSON.stringify({ ...JSON.parse(files.get(AUTO)!), jobs: { 'o/r#5': { headSha: 'h6', firstSeenAt: Date.now() } } }))
+  await tick()
+  expect(stopped).toEqual(['a1'])
+  await finish($, 'a1', ANSWER)
+  expect(g.created).toEqual([])
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBeUndefined()
   await ui.unmount()
 })
 
@@ -837,16 +919,17 @@ test('a head I already reviewed on GitHub says so instead of starting a run', AU
   await ui.unmount()
 })
 
-test("a run another session holds is left alone while it renews it, and requeued once it has gone quiet", AUTO_ON, async ($, on) => {
+test("a run another session holds is left alone while it renews it, and once it has gone quiet goes back to the front of the queue without counting as an attempt", AUTO_ON, async ($, on) => {
   const got = agents(on, () => ['a1'])
   const held = queued({ status: 'running', runner: 'other', agentId: 'x', startedAt: Date.now(), heartbeatAt: Date.now() })
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: held }, run: autoGithub({}) })
   await tick()
   expect(got.spawns).toHaveLength(0)
 
-  files.set(AUTO, queued({ status: 'running', runner: 'other', agentId: 'x', startedAt: Date.now() - 600_000, heartbeatAt: Date.now() - 180_000 }))
+  files.set(AUTO, queued({ status: 'running', runner: 'other', agentId: 'x', attempts: 1, startedAt: Date.now() - 600_000, heartbeatAt: Date.now() - 180_000 }))
   await tick()
   expect(got.spawns).toHaveLength(1)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].attempts).toBe(1)
   await ui.unmount()
 })
 

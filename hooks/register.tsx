@@ -40,7 +40,11 @@ import {
   diffArgs,
   filesArgs,
   jsonLines,
+  carried,
+  deleteReviewArgs,
   myReview,
+  reviewBodyArgs,
+  reviewCommentsArgs,
   nextJob,
   parseDaily,
   parseReview,
@@ -57,10 +61,10 @@ import {
   tokensOf,
   trackHeads,
 } from './autoreview'
-import type { AutoSettings, GhReview, PrFile } from './autoreview'
+import type { AutoSettings, GhComment, GhReview, PrFile, ReviewComment } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
-import { AUTO_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
+import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
 import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
@@ -626,8 +630,9 @@ async function sendDirect($: EngineInterface, key: string, action: DirectAction,
     } else {
       await gh($, writeArgs(action, target, action === 'assign' ? await loginName($) : ''), env)
     }
-    // My pending review is gone, posted or deleted: this head is not reviewed again.
-    if (target.reviewId) await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined })
+    // My pending review is gone, posted or deleted: this head is not reviewed again, unless I asked for that.
+    if (action === 'review-again') await runAuto($, key)
+    else if (target.reviewId) await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined })
     const at = Date.now()
     await setDirect($, key, { action, phase: 'done', at, ...(action === 'assign' ? { undo: true } : {}) })
     $.ui.toast(`${m.direct.done[action]} · ${target.repo} #${target.number}`)
@@ -696,6 +701,8 @@ async function trackAuto($: EngineInterface, list: InboxItem[]) {
   const next = trackHeads(file, list, Date.now())
   if (JSON.stringify(next) !== JSON.stringify(file)) await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
+  // A run whose job went is never stored; its session stops the subagent on its next tick, and its folder goes now.
+  for (const [key, job] of Object.entries(file.jobs)) if (job.status === 'running' && next.jobs[key] !== job) await removeRun($, job)
 }
 
 // Turning the setting on is what older requests are measured against; turning it off forgets it, so on again starts afresh.
@@ -716,7 +723,7 @@ async function runAuto($: EngineInterface, key: string) {
   const job = file?.jobs[key]
   if (!file || !job) return
   // Try again after a failure starts afresh.
-  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined } } }
+  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined, reviewId: undefined, staleFrom: undefined, prev: undefined } } }
   await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
 }
@@ -731,8 +738,12 @@ async function editAuto($: EngineInterface, change: (file: AutoReviewFile) => Au
   return next
 }
 
-const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>) =>
-  editAuto($, file => (file.jobs[key] ? { ...file, jobs: { ...file.jobs, [key]: { ...file.jobs[key]!, ...fields } } } : undefined))
+// With `head`, only while the job is still that head's: a new head replaces the job, and a run of the old one must not write into it.
+const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?: string) =>
+  editAuto($, file => {
+    const job = file.jobs[key]
+    return job && (head === undefined || job.headSha === head) ? { ...file, jobs: { ...file.jobs, [key]: { ...job, ...fields } } } : undefined
+  })
 
 // A job no run holds: undefined fields are left out when the file is written.
 const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined }
@@ -759,7 +770,27 @@ async function failRun($: EngineInterface, key: string, error: string) {
   if (!job) return
   await removeRun($, job)
   const attempts = (job.attempts ?? 0) + 1
-  await setJob($, key, attempts < MAX_ATTEMPTS ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error })
+  await setJob($, key, attempts < MAX_ATTEMPTS ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error }, job.headSha)
+}
+
+// My pending review moved from an older commit with the same content: read as it is now (my edits on GitHub kept), deleted, made again on the head.
+async function carryReview($: EngineInterface, key: string, item: InboxItem, prev: NonNullable<AutoJob['prev']>, files: PrFile[], env: Record<string, string>) {
+  const body = (await gh($, reviewBodyArgs(item, prev.reviewId), env)).replace(/\n$/, '')
+  const comments = jsonLines<GhComment>(await gh($, reviewCommentsArgs(item, prev.reviewId), env))
+  const moved = carried(body, comments, prev.headSha, item.headSha)
+  const create = (head: string, review: { body: string; comments: ReviewComment[] }) => gh($, createArgs(item), env, createInput(head, review.body, review.comments))
+  // GitHub takes no second pending review, so the old one goes first; a refused create puts it back where it was.
+  await gh($, deleteReviewArgs(item, prev.reviewId), env)
+  const id = await create(item.headSha, moved).catch(async (error: unknown) => {
+    await create(prev.headSha, carried(body, comments, prev.headSha, prev.headSha)).catch(() => undefined)
+    throw error
+  })
+  await setJob(
+    $,
+    key,
+    { ...IDLE, status: 'done', reviewId: Number(id.trim()), contentKey: contentKey(files), carriedFrom: prev.headSha, prev: undefined, ...(prev.result ? { result: prev.result } : {}) },
+    item.headSha,
+  )
 }
 
 // The repository's folder, fetched and checked out at the head beside the diff; undefined leaves the diff alone to read.
@@ -780,14 +811,20 @@ async function startRun($: EngineInterface, key: string) {
   try {
     const env = await ghEnv($)
     const mineNow = myReview(jsonLines<GhReview>(await gh($, reviewsArgs(item), env)), await loginName($), item.headSha)
-    if (mineNow) return void (await setJob($, key, { status: 'done', ...(mineNow.kind === 'pending' ? { reviewId: mineNow.id } : {}) }))
     const files = jsonLines<PrFile>(await gh($, filesArgs(item), env))
+    // My pending review on an older commit: carried when the content is unchanged, else the card offers Review again. No model call either way.
+    if (mineNow?.kind === 'pending' && mineNow.commit !== item.headSha) {
+      const prev = (await read($, autoReview)).jobs[key]?.prev
+      if (prev?.reviewId === mineNow.id && prev.contentKey === contentKey(files)) return await carryReview($, key, item, prev, files, env)
+      return void (await setJob($, key, { ...IDLE, status: 'stale', reviewId: mineNow.id, staleFrom: mineNow.commit }, item.headSha))
+    }
+    if (mineNow) return void (await setJob($, key, { ...IDLE, status: 'done', ...(mineNow.kind === 'pending' ? { reviewId: mineNow.id } : {}) }, item.headSha))
     const folder = `${await cacheDir($)}/runs/${runName(key, item.headSha)}`
     await $.fs.write(`${folder}/pr.diff`, await gh($, diffArgs(item), env))
     if (item.reviewedSha && item.reviewedSha !== item.headSha) await $.fs.write(`${folder}/since.diff`, await gh($, sinceArgs(item, item.reviewedSha, item.headSha), env))
-    await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() })
+    await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() }, item.headSha)
     const checkout = await addCheckout($, item, folder)
-    if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() })
+    if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
     await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
     const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
     const name = `auto-review-${runName(key, item.headSha)}`
@@ -806,7 +843,7 @@ async function startRun($: EngineInterface, key: string) {
     const today = new Date().toDateString()
     await editAuto($, file => {
       const job = file.jobs[key]
-      if (!job) return undefined
+      if (job?.headSha !== item.headSha) return undefined
       return { ...file, day: today, started: startedToday(file, Date.now()) + 1, jobs: { ...file.jobs, [key]: { ...job, agentId, heartbeatAt: Date.now() } } }
     })
   } catch (error) {
@@ -823,7 +860,7 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
   // Stopped from the task list, say: started again it would only spend the tokens again, so it waits for Try again.
   if (isAborted) {
     await removeRun($, job)
-    return void (await setJob($, key, { ...IDLE, status: 'failed', error: m.auto.stopped }))
+    return void (await setJob($, key, { ...IDLE, status: 'failed', error: m.auto.stopped }, job.headSha))
   }
   const result = parseReview(answer)
   if (!result) return failRun($, key, m.auto.unreadable)
@@ -849,7 +886,7 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
       )
     }
     await removeRun($, job)
-    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) })
+    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) }, job.headSha)
     toast($, `${m.auto.finished(m.auto.verdicts[result.verdict])} · ${pr.repo} #${pr.number}`)
   } catch (error) {
     await failRun($, key, error instanceof Error ? error.message : String(error))
@@ -866,14 +903,21 @@ async function tickAuto($: EngineInterface) {
   try {
     const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
     if (!file) return
+    // A reviewer of mine no running job holds lost its job to a new head, a closed PR or a withdrawn request: stopped, its result never stored.
+    const held = new Set(Object.values(file.jobs).flatMap(j => (j.status === 'running' && j.agentId ? [j.agentId] : [])))
+    for (const agent of await $.agent.list())
+      if (agent.type === AGENT_TYPE && LIVE.includes(agent.status) && !held.has(agent.id)) await $.tool.call({ tool: 'TaskStop', task_id: agent.id }).catch(() => undefined)
     const running = Object.entries(file.jobs).find(([, j]) => j.status === 'running')
     if (running) {
       const [key, job] = running
       // The session whose agent list has the run renews it, a reload of the mod included; one gone quiet is requeued.
       const isMine = job.agentId !== undefined && (await $.agent.list()).some(a => a.id === job.agentId && LIVE.includes(a.status))
       if (isMine) await setJob($, key, { runner: sessionToken, heartbeatAt: Date.now() })
-      // Counted as an attempt, so a review that keeps losing its session stops.
-      else if (Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS) await failRun($, key, m.auto.stopped)
+      // Its session closed: back to the front of the queue, not counted as an attempt.
+      else if (Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS) {
+        await removeRun($, job)
+        await setJob($, key, { ...IDLE, manual: true }, job.headSha)
+      }
       return
     }
     const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))
@@ -1728,6 +1772,7 @@ export const register: Register = (on, options) => {
         return (
           <Box flexDirection="column" marginTop={1}>
             <Text color="suggestion">{head.filter(Boolean).join(' · ')}</Text>
+            {s.carriedFrom && <Text dimColor>{m.auto.carried(s.carriedFrom.slice(0, 7))}</Text>}
             {bySeverity(result.findings)
               .slice(0, 3)
               .map((f, i) => (
@@ -1755,11 +1800,13 @@ export const register: Register = (on, options) => {
                     : m.auto.reviewed
                   : s.kind === 'failed'
                     ? m.auto.failed(s.error)
-                    : m.auto.queued(s.ahead)
+                    : s.kind === 'stale'
+                      ? m.auto.stale(s.from.slice(0, 7))
+                      : m.auto.queued(s.ahead)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
           <Box flexShrink={1}>
-            <Text color={s.kind === 'failed' ? 'warning' : 'suggestion'}>{text}</Text>
+            <Text color={s.kind === 'failed' || s.kind === 'stale' ? 'warning' : 'suggestion'}>{text}</Text>
           </Box>
           {(s.kind === 'manual' || s.kind === 'failed') && (
             <Button key={`auto-run-${key}`} label={s.kind === 'failed' ? m.auto.retry : m.auto.run} onPress={() => void runAuto($, key)} />
@@ -1772,9 +1819,10 @@ export const register: Register = (on, options) => {
       const key = itemKey(item)
       const s = autoMap[key]
       const target = { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }
+      const open = <Link key={`auto-open-${key}`} href={`${item.url}/files`}>{m.auto.open} ↗</Link>
+      if (s?.kind === 'stale') return directRow(key, { ...target, reviewId: s.reviewId }, STALE_ACTIONS, open)
       if (s?.kind !== 'done' || !s.reviewId) return directRow(key, target, reviewActions(item))
       const suggested = s.result ? (`post-${s.result.verdict === 'request-changes' ? 'changes' : s.result.verdict}` as const) : undefined
-      const open = <Link key={`auto-open-${key}`} href={`${item.url}/files`}>{m.auto.open} ↗</Link>
       return directRow(key, { ...target, reviewId: s.reviewId }, AUTO_ACTIONS, open, suggested)
     }
     const card = (item: InboxItem) => {

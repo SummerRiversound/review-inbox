@@ -61,7 +61,8 @@ export type AutoJob = {
   manual?: true
   // Absent while it waits; a job that failed under the attempt limit goes back to waiting.
   // closed: posted or discarded from the card; this head is not reviewed again.
-  status?: 'running' | 'done' | 'failed' | 'closed'
+  // stale: my pending review is on an older commit with other content, `reviewId` on `staleFrom`.
+  status?: 'running' | 'done' | 'failed' | 'closed' | 'stale'
   attempts?: number
   // The running review: its subagent, the session holding it and when that session last said so.
   agentId?: string
@@ -77,6 +78,11 @@ export type AutoJob = {
   result?: AutoResult
   tokens?: number
   error?: string
+  staleFrom?: string
+  // The commit a review with the same content was moved from, with no model call.
+  carriedFrom?: string
+  // My pending review on the head before this one, kept so a rebase can carry it.
+  prev?: { headSha: string; reviewId: number; contentKey?: string; result?: AutoResult }
 }
 
 // Shared by every session on the machine, beside the inbox file.
@@ -96,7 +102,8 @@ export type AutoState =
   | { kind: 'capped' }
   | { kind: 'queued'; ahead: number }
   | { kind: 'running'; since: number }
-  | { kind: 'done'; result?: AutoResult; tokens?: number; reviewId?: number }
+  | { kind: 'done'; result?: AutoResult; tokens?: number; reviewId?: number; carriedFrom?: string }
+  | { kind: 'stale'; reviewId: number; from: string }
   | { kind: 'failed'; error: string }
 
 // My open PR, judged by what I have to do next.
@@ -184,7 +191,7 @@ export type Settling = { kind: 'done' | 'unsubscribe'; at: number }
 
 // A write to GitHub straight from a card, when Direct GitHub actions is on.
 // The post and discard actions act on my pending auto review, and show whenever auto review is on.
-export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign' | 'post-comment' | 'post-approve' | 'post-changes' | 'discard'
+export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign' | 'post-comment' | 'post-approve' | 'post-changes' | 'discard' | 'review-again'
 // What the write names, as the card showed it: `sha` is the head I looked at, `reviewId` my pending review on it.
 export type DirectTarget = { repo: string; number: number; title: string; sha?: string; reviewId?: number }
 // A write others see, asked on the card before it is sent; `at` is the press that asked.
