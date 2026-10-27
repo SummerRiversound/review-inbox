@@ -1,7 +1,22 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { AutoReviewFile, InboxItem } from '../types'
-import { SETTLE_MS, autoStates, parseDaily, trackHeads } from '../hooks/autoreview'
+import {
+  SETTLE_MS,
+  autoStates,
+  contentKey,
+  createArgs,
+  createInput,
+  myReview,
+  nextJob,
+  parseDaily,
+  parseReview,
+  placeFindings,
+  reviewBody,
+  reviewerPrompt,
+  reviewerSpec,
+  trackHeads,
+} from '../hooks/autoreview'
 
 const HOUR = 60 * 60_000
 const T0 = Date.parse('2026-10-27T09:00:00Z')
@@ -108,4 +123,83 @@ test('a head the mod has not seen yet shows nothing until the next fetch records
 
 test('the daily limit setting reads unlimited as none and anything unreadable as the default', () => {
   expect([parseDaily('3'), parseDaily('20'), parseDaily('unlimited'), parseDaily(undefined), parseDaily('x')]).toEqual([3, 20, undefined, 5, 5])
+})
+
+test('a running, finished or failed job shows as such whatever the gates say, and nothing starts while one runs', () => {
+  const items = [item(1, { requestedAt: '2026-10-27T08:00:00Z' }), item(2), item(3)]
+  const file = tracked(items)
+  const result = { verdict: 'approve' as const, summary: 'ok', findings: [] }
+  file.jobs['o/r#1'] = { ...file.jobs['o/r#1']!, status: 'running', startedAt: 7 }
+  file.jobs['o/r#2'] = { ...file.jobs['o/r#2']!, status: 'done', result, tokens: 900 }
+  const states = autoStates(file, items, ON, T0 + 5 * HOUR)
+  expect(states).toEqual({ 'o/r#1': { kind: 'running', since: 7 }, 'o/r#2': { kind: 'done', result, tokens: 900 }, 'o/r#3': { kind: 'queued', ahead: 0 } })
+  expect(nextJob(states)).toBeUndefined()
+  file.jobs['o/r#1'] = { ...file.jobs['o/r#1']!, status: 'failed', error: 'x' }
+  expect(nextJob(autoStates(file, items, ON, T0 + 5 * HOUR))).toBe('o/r#3')
+})
+
+test("the reviewer's answer is read from one JSON object, fenced or not, and findings it cannot place are dropped", () => {
+  const answer = 'Here it is:\n```json\n{"verdict":"request-changes","summary":"S","findings":[{"severity":"major","path":"a.ts","line":3,"body":"B"},{"severity":"huge","path":"a.ts","line":1,"body":"x"},{"severity":"nit","path":"a.ts","line":0,"body":"x"}]}\n```'
+  expect(parseReview(answer)).toEqual({ verdict: 'request-changes', summary: 'S', findings: [{ severity: 'major', path: 'a.ts', line: 3, body: 'B' }] })
+  expect(parseReview('{"verdict":"lgtm","summary":"S","findings":[]}')).toBeUndefined()
+  expect(parseReview('no json here')).toBeUndefined()
+  expect(parseReview('{"verdict": "approve", "summary": ')).toBeUndefined()
+})
+
+test('a finding on a changed or context line of a hunk becomes a comment, any other goes into the body with the marker', () => {
+  // New-file lines 10 to 13: 10 context, 11 added, removed line skipped, 12 context; 20 is outside every hunk.
+  const files = [{ filename: 'a.ts', patch: '@@ -10,3 +10,3 @@ fn\n keep\n+added\n-gone\n keep2' }, { filename: 'bin.png' }]
+  const findings = [
+    { severity: 'major' as const, path: 'a.ts', line: 11, body: 'on the added line' },
+    { severity: 'minor' as const, path: 'a.ts', line: 12, body: 'on context' },
+    { severity: 'nit' as const, path: 'a.ts', line: 20, body: 'outside' },
+    { severity: 'minor' as const, path: 'bin.png', line: 1, body: 'no patch' },
+    { severity: 'minor' as const, path: 'other.ts', line: 1, body: 'not in the PR' },
+  ]
+  const { comments, rest } = placeFindings(files, findings)
+  expect(comments).toEqual([
+    { path: 'a.ts', line: 11, side: 'RIGHT', body: '**major** on the added line' },
+    { path: 'a.ts', line: 12, side: 'RIGHT', body: '**minor** on context' },
+  ])
+  expect(rest.map(f => f.body)).toEqual(['outside', 'no patch', 'not in the PR'])
+  expect(reviewBody('Looks fine.', rest.slice(0, 1), 'abc', 'k1')).toBe(
+    'Looks fine.\n\n- `a.ts:20` **nit** outside\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
+  )
+})
+
+test('the pending review is created on the head with no event, its comments and body on stdin', () => {
+  expect(createArgs({ repo: 'o/r', number: 5 })).toEqual(['api', '-X', 'POST', 'repos/o/r/pulls/5/reviews', '--input', '-', '--jq', '.id'])
+  const comments = [{ path: 'a.ts', line: 2, side: 'RIGHT' as const, body: 'b' }]
+  expect(JSON.parse(createInput('h5', 'body', comments))).toEqual({ commit_id: 'h5', body: 'body', comments })
+})
+
+test('the content key ignores file order and changes with any patch', () => {
+  const a = { filename: 'a.ts', patch: '@@ -1 +1 @@\n+x' }
+  const b = { filename: 'b.ts', patch: '@@ -1 +1 @@\n+y' }
+  expect(contentKey([a, b])).toBe(contentKey([b, a]))
+  expect(contentKey([a, b])).not.toBe(contentKey([a, { ...b, patch: '@@ -1 +1 @@\n+z' }]))
+  expect(contentKey([a])).toMatch(/^[0-9a-f]{16}$/)
+})
+
+test('my review of this head, or my pending review on any commit, stops a new one', () => {
+  const r = (id: number, state: string, commit: string, login = 'Me') => ({ id, state, commit_id: commit, login })
+  expect(myReview([r(1, 'COMMENTED', 'old'), r(2, 'APPROVED', 'h', 'other')], 'me', 'h')).toBeUndefined()
+  expect(myReview([r(1, 'COMMENTED', 'h')], 'me', 'h')).toEqual({ kind: 'reviewed' })
+  expect(myReview([r(1, 'COMMENTED', 'h'), r(3, 'PENDING', 'old')], 'me', 'h')).toEqual({ kind: 'pending', id: 3 })
+})
+
+test('the reviewer reads and searches only, keeps CLAUDE.md, and preloads the listed skills', () => {
+  const spec = reviewerSpec('sonnet', ['review-playbook'])
+  expect(spec.tools).toEqual(['Read', 'Grep', 'Glob'])
+  expect('omitClaudeMd' in spec).toBe(false)
+  expect(spec.skills).toEqual(['review-playbook'])
+  expect('skills' in reviewerSpec('opus', [])).toBe(false)
+})
+
+test("a re-request asks for what changed since my last review, and the style line goes in when there is one", () => {
+  const again = reviewerPrompt(item(1, { reviewedSha: 'old' }), { hasCheckout: false, style: 'asks why first', language: 'Write in English.' })
+  expect(again.includes('since.diff')).toBe(true)
+  expect(again.includes('How I review: asks why first')).toBe(true)
+  expect(again.includes('Only the diff is here')).toBe(true)
+  expect(reviewerPrompt(item(1), { hasCheckout: true, language: '' }).includes('How I review')).toBe(false)
 })

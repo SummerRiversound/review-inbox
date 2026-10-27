@@ -48,8 +48,35 @@ export type InboxItem = CardDetails & {
   isBot?: true
 }
 
+export type Severity = 'blocker' | 'major' | 'minor' | 'nit'
+export type Verdict = 'comment' | 'approve' | 'request-changes'
+export type Finding = { severity: Severity; path: string; line: number; body: string }
+// The reviewer's answer: the verdict it suggests, which I confirm on the card.
+export type AutoResult = { verdict: Verdict; summary: string; findings: Finding[] }
+
 // One PR's place in auto review at its head: when this machine first saw the head, and whether I asked for a run by hand.
-export type AutoJob = { headSha: string; firstSeenAt: number; manual?: true }
+export type AutoJob = {
+  headSha: string
+  firstSeenAt: number
+  manual?: true
+  // Absent while it waits; a job that failed under the attempt limit goes back to waiting.
+  status?: 'running' | 'done' | 'failed'
+  attempts?: number
+  // The running review: its subagent, the session holding it and when that session last said so.
+  agentId?: string
+  runner?: string
+  heartbeatAt?: number
+  startedAt?: number
+  // The run folder, and the checkout whose worktree is in it.
+  folder?: string
+  checkout?: string
+  contentKey?: string
+  // My pending review on GitHub; without `result` it was there before this run.
+  reviewId?: number
+  result?: AutoResult
+  tokens?: number
+  error?: string
+}
 
 // Shared by every session on the machine, beside the inbox file.
 export type AutoReviewFile = {
@@ -67,6 +94,9 @@ export type AutoState =
   | { kind: 'settling'; startsAt: number }
   | { kind: 'capped' }
   | { kind: 'queued'; ahead: number }
+  | { kind: 'running'; since: number }
+  | { kind: 'done'; result?: AutoResult; tokens?: number; reviewId?: number }
+  | { kind: 'failed'; error: string }
 
 // My open PR, judged by what I have to do next.
 export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'queued' | 'draft'

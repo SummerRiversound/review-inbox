@@ -4,6 +4,7 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type {
   Actions,
   Activity,
+  AutoJob,
   AutoReviewFile,
   ButtonScope,
   Capped,
@@ -26,8 +27,37 @@ import type {
   Tab,
   Thread,
 } from '../types'
-import { DAILY_DEFAULT, autoStates, parseDaily, trackHeads } from './autoreview'
-import type { AutoSettings } from './autoreview'
+import {
+  AGENT_TYPE,
+  DAILY_DEFAULT,
+  MAX_ATTEMPTS,
+  RUN_STALE_MS,
+  autoStates,
+  bySeverity,
+  createArgs,
+  createInput,
+  contentKey,
+  diffArgs,
+  filesArgs,
+  jsonLines,
+  myReview,
+  nextJob,
+  parseDaily,
+  parseReview,
+  parseSkills,
+  placeFindings,
+  reviewBody,
+  reviewerPrompt,
+  reviewerSpec,
+  reviewsArgs,
+  runName,
+  severityCounts,
+  sinceArgs,
+  startedToday,
+  tokensOf,
+  trackHeads,
+} from './autoreview'
+import type { AutoSettings, GhReview, PrFile } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -163,13 +193,15 @@ type Options = {
   motion?: string
   directActions?: string
   autoReview?: string
+  autoReviewModel?: string
   autoReviewDaily?: string
+  autoReviewSkills?: string
 }
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT } as AutoSettings }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[] }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -285,8 +317,8 @@ async function resolveLanguage($: EngineInterface): Promise<Language> {
   return pickLanguage(languageOption, claudeLanguage, locale)
 }
 
-async function gh($: EngineInterface, args: string[], env: Record<string, string>) {
-  const run = await $.process.run(['gh', ...args], { env, timeoutMs: 120_000 })
+async function gh($: EngineInterface, args: string[], env: Record<string, string>, stdin?: string) {
+  const run = await $.process.run(['gh', ...args], { env, timeoutMs: 120_000, ...(stdin === undefined ? {} : { stdin }) })
   if (run.exitCode !== 0) throw new Error(run.stderr.trim().split('\n')[0] || `gh ${args[0]} failed`)
   if (run.isStdoutTruncated) throw new Error(`gh ${args[0]} output too large`)
   return run.stdout
@@ -675,14 +707,183 @@ async function syncEnabled($: EngineInterface) {
   if (config.auto.isOn) toast($, m.auto.turnedOn(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`))
 }
 
-// A run asked for by hand skips the wait, the size limit and the daily limit, for this head only.
+// A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
 async function runAuto($: EngineInterface, key: string) {
   const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
   const job = file?.jobs[key]
   if (!file || !job) return
-  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const } } }
+  // Try again after a failure starts afresh.
+  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined } } }
   await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
+}
+
+// Read, changed and written whole; `change` answering undefined writes nothing.
+async function editAuto($: EngineInterface, change: (file: AutoReviewFile) => AutoReviewFile | undefined) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const next = file && change(file)
+  if (!next) return undefined
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+  return next
+}
+
+const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>) =>
+  editAuto($, file => (file.jobs[key] ? { ...file, jobs: { ...file.jobs, [key]: { ...file.jobs[key]!, ...fields } } } : undefined))
+
+// A job no run holds: undefined fields are left out when the file is written.
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined }
+
+const prOf = (key: string) => {
+  const at = key.lastIndexOf('#')
+  return { repo: key.slice(0, at), number: Number(key.slice(at + 1)) }
+}
+
+// The worktree goes first, so the checkout forgets it; then the folder.
+async function removeRun($: EngineInterface, job: AutoJob) {
+  // The path comes from a shared file: nothing outside the mod's own runs folder is ever removed.
+  if (!job.folder?.startsWith(`${await cacheDir($)}/runs/`) || job.folder.includes('..')) return
+  const run = (argv: string[]) => $.process.run(argv, { timeoutMs: 60_000 }).catch(() => undefined)
+  if (job.checkout) await run(['git', '-C', job.checkout, 'worktree', 'remove', '--force', `${job.folder}/repo`])
+  // shortcut: rm is POSIX only, as mv is above; on Windows without WSL a run folder stays behind
+  await run(['rm', '-rf', job.folder])
+}
+
+// A run that failed: once more while attempts remain, else the card says why and offers Try again.
+async function failRun($: EngineInterface, key: string, error: string) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const job = file?.jobs[key]
+  if (!job) return
+  await removeRun($, job)
+  const attempts = (job.attempts ?? 0) + 1
+  await setJob($, key, attempts < MAX_ATTEMPTS ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error })
+}
+
+// The repository's folder, fetched and checked out at the head beside the diff; undefined leaves the diff alone to read.
+async function addCheckout($: EngineInterface, item: InboxItem, folder: string): Promise<string | undefined> {
+  const place = await placeFor($, item.repo)
+  const path = place.kind === 'here' ? await $.session.cwd() : place.kind === 'folder' ? place.path : undefined
+  if (path === undefined) return undefined
+  const git = (args: string[]) => $.process.run(['git', '-C', path, ...args], { timeoutMs: 120_000 }).catch(() => undefined)
+  if ((await git(['fetch', '--quiet', 'origin', `pull/${item.number}/head`]))?.exitCode !== 0) return undefined
+  // Detached and inside the mod's folder: nothing in my checkout changes but its list of worktrees.
+  return (await git(['worktree', 'add', '--detach', `${folder}/repo`, item.headSha]))?.exitCode === 0 ? path : undefined
+}
+
+// Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
+async function startRun($: EngineInterface, key: string) {
+  const item = (await read($, items)).find(i => itemKey(i) === key)
+  if (!item) return void (await setJob($, key, IDLE))
+  try {
+    const env = await ghEnv($)
+    const mineNow = myReview(jsonLines<GhReview>(await gh($, reviewsArgs(item), env)), await loginName($), item.headSha)
+    if (mineNow) return void (await setJob($, key, { status: 'done', ...(mineNow.kind === 'pending' ? { reviewId: mineNow.id } : {}) }))
+    const files = jsonLines<PrFile>(await gh($, filesArgs(item), env))
+    const folder = `${await cacheDir($)}/runs/${runName(key, item.headSha)}`
+    await $.fs.write(`${folder}/pr.diff`, await gh($, diffArgs(item), env))
+    if (item.reviewedSha && item.reviewedSha !== item.headSha) await $.fs.write(`${folder}/since.diff`, await gh($, sinceArgs(item, item.reviewedSha, item.headSha), env))
+    await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() })
+    const checkout = await addCheckout($, item, folder)
+    if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() })
+    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
+    const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
+    const name = `auto-review-${runName(key, item.headSha)}`
+    const spawned = await $.agent.spawn({
+      name,
+      subagentType: AGENT_TYPE,
+      description: `Auto review ${item.repo} #${item.number}`,
+      prompt: reviewerPrompt(item, { hasCheckout: checkout !== undefined, ...(style ? { style } : {}), language: m.model.language }),
+      model: config.autoModel,
+      cwd: folder,
+    })
+    if (spawned.deny !== undefined) throw new Error(spawned.deny)
+    // A spawn a hook answered carries no id (the engine sets it); the agent list still names the run.
+    const agentId = spawned.agentId ?? (await $.agent.list()).find(a => a.name === name)?.id
+    if (!agentId) throw new Error('no agent started')
+    const today = new Date().toDateString()
+    await editAuto($, file => {
+      const job = file.jobs[key]
+      if (!job) return undefined
+      return { ...file, day: today, started: startedToday(file, Date.now()) + 1, jobs: { ...file.jobs, [key]: { ...job, agentId, heartbeatAt: Date.now() } } }
+    })
+  } catch (error) {
+    await failRun($, key, error instanceof Error ? error.message : String(error))
+  }
+}
+
+// Stores the subagent's answer as my pending review on the head it read, unless one of mine got there first.
+async function finishRun($: EngineInterface, agentId: string, answer: string, tokens: number | undefined, isAborted: boolean) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const found = Object.entries(file?.jobs ?? {}).find(([, j]) => j.agentId === agentId && j.status === 'running')
+  if (!found) return
+  const [key, job] = found
+  // Stopped from the task list, say: started again it would only spend the tokens again, so it waits for Try again.
+  if (isAborted) {
+    await removeRun($, job)
+    return void (await setJob($, key, { ...IDLE, status: 'failed', error: m.auto.stopped }))
+  }
+  const result = parseReview(answer)
+  if (!result) return failRun($, key, m.auto.unreadable)
+  const pr = prOf(key)
+  try {
+    const env = await ghEnv($)
+    const pendingId = async () => {
+      const mineNow = myReview(jsonLines<GhReview>(await gh($, reviewsArgs(pr), env)), await loginName($), job.headSha)
+      return mineNow ? (mineNow.kind === 'pending' ? mineNow.id : -1) : undefined
+    }
+    let reviewId = await pendingId()
+    if (reviewId === undefined) {
+      const { comments, rest } = placeFindings(jsonLines<PrFile>(await gh($, filesArgs(pr), env)), result.findings)
+      const body = reviewBody(result.summary, rest, job.headSha, job.contentKey ?? '')
+      // GitHub allows one pending review a PR: a create refused because another machine made one adopts that one.
+      reviewId = await gh($, createArgs(pr), env, createInput(job.headSha, body, comments)).then(
+        id => Number(id.trim()),
+        async (error: unknown) => {
+          const adopted = await pendingId()
+          if (adopted === undefined) throw error
+          return adopted
+        },
+      )
+    }
+    await removeRun($, job)
+    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) })
+    toast($, `${m.auto.finished(m.auto.verdicts[result.verdict])} · ${pr.repo} #${pr.number}`)
+  } catch (error) {
+    await failRun($, key, error instanceof Error ? error.message : String(error))
+  }
+}
+
+let isTicking = false
+const LIVE = ['pending', 'running', 'waiting']
+
+// Every session looks at the shared file on the sync timer; only a local read until a job is due. One review runs at a time across sessions.
+async function tickAuto($: EngineInterface) {
+  if (!config.auto.isOn || isTicking) return
+  isTicking = true
+  try {
+    const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+    if (!file) return
+    const running = Object.entries(file.jobs).find(([, j]) => j.status === 'running')
+    if (running) {
+      const [key, job] = running
+      // The session whose agent list has the run renews it, a reload of the mod included; one gone quiet is requeued.
+      const isMine = job.agentId !== undefined && (await $.agent.list()).some(a => a.id === job.agentId && LIVE.includes(a.status))
+      if (isMine) await setJob($, key, { runner: sessionToken, heartbeatAt: Date.now() })
+      // Counted as an attempt, so a review that keeps losing its session stops.
+      else if (Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS) await failRun($, key, m.auto.stopped)
+      return
+    }
+    const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))
+    if (!key) return
+    // As sync claims the fetch: write, wait, read back; the last claim written wins.
+    await setJob($, key, { status: 'running', runner: sessionToken, startedAt: Date.now(), heartbeatAt: Date.now() })
+    await $.clock.sleep(500)
+    const settled = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+    if (settled?.jobs[key]?.runner !== sessionToken) return
+    await startRun($, key)
+  } finally {
+    isTicking = false
+  }
 }
 
 // Every session runs this; only the one that finds the shared file stale and wins the claim goes to GitHub.
@@ -1108,6 +1309,8 @@ export const register: Register = (on, options) => {
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
     auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily) },
+    autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
+    autoSkills: parseSkills(opts.autoReviewSkills),
   }
   m = MESSAGES.en
 
@@ -1131,6 +1334,7 @@ export const register: Register = (on, options) => {
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
+    if (config.auto.isOn) $.clock.every(SYNC_MS, () => void tickAuto($).catch(() => undefined))
     selfId = await $.session.id()
     loadedAt = Date.now()
     version = await $.fs
@@ -1146,6 +1350,18 @@ export const register: Register = (on, options) => {
       wanted = undefined
       void sync($, force)
     })
+    return next(e)
+  })
+
+  // The reviewer is the mod's alone: a type the model could see would add a line to every request of the session.
+  on('agent.offer', { agent: AGENT_TYPE }, async () => ({ isOffered: false }))
+
+  // A review's answer arrives as its subagent's last turn; the main loop's turns carry no agentId.
+  on('turn.complete', async ($, e, next) => {
+    if (config.auto.isOn && e.agentId) {
+      const tokens = e.usage ? tokensOf(e.usage) : undefined
+      await finishRun($, e.agentId, e.answer, tokens, e.isAborted).catch(() => undefined)
+    }
     return next(e)
   })
 
@@ -1205,6 +1421,8 @@ export const register: Register = (on, options) => {
     // bandLabels keeps this order and leaves out the same zeros.
     const keys = BAND_KEYS.filter(k => band[k] > 0)
     const flashing = await read($, dropped)
+    // Finished reviews waiting for my verdict, among the cards the band counts.
+    const finished = config.auto.isOn ? Object.values(autoStates(await read($, autoReview), reviews, config.auto, Date.now())).filter(s => s.kind === 'done').length : 0
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const now = Date.now()
@@ -1223,6 +1441,7 @@ export const register: Register = (on, options) => {
                 </Text>
               ))}
             </Text>
+            {finished > 0 && <Text color="suggestion">{m.band.autoDone(finished)}</Text>}
             {oldest !== undefined && <Text dimColor>{m.band.oldest(oldest)}</Text>}
           </Box>
           <Button key="open" label={m.band.open} variant="primary" onPress={() => void openDrawer($)} />
@@ -1486,6 +1705,23 @@ export const register: Register = (on, options) => {
       const key = itemKey(item)
       const s = autoMap[key]
       if (!s) return undefined
+      if (s.kind === 'done' && s.result) {
+        const { result } = s
+        const counts = severityCounts(result.findings).map(c => `${c.count} ${m.auto.severities[c.severity]}`)
+        const head = [m.auto.suggests(m.auto.verdicts[result.verdict]), counts.length > 0 ? counts.join(', ') : m.auto.noFindings, s.tokens ? m.auto.tokens(Math.round(s.tokens / 1000)) : '']
+        return (
+          <Box flexDirection="column" marginTop={1}>
+            <Text color="suggestion">{head.filter(Boolean).join(' · ')}</Text>
+            {bySeverity(result.findings)
+              .slice(0, 3)
+              .map((f, i) => (
+                <Text key={`auto-finding-${key}-${i}`} dimColor wrap="truncate-end">
+                  {m.auto.severities[f.severity]} · {f.path}:{f.line} · {f.body}
+                </Text>
+              ))}
+          </Box>
+        )
+      }
       const text =
         s.kind === 'manual'
           ? s.why === 'before'
@@ -1495,13 +1731,23 @@ export const register: Register = (on, options) => {
             ? m.auto.settling(Math.max(1, Math.ceil((s.startsAt - now) / 60_000)))
             : s.kind === 'capped'
               ? m.auto.capped
-              : m.auto.queued(s.ahead)
+              : s.kind === 'running'
+                ? m.auto.running(Math.max(0, Math.floor((now - s.since) / 60_000)))
+                : s.kind === 'done'
+                  ? s.reviewId
+                    ? m.auto.pending
+                    : m.auto.reviewed
+                  : s.kind === 'failed'
+                    ? m.auto.failed(s.error)
+                    : m.auto.queued(s.ahead)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
           <Box flexShrink={1}>
-            <Text color="suggestion">{text}</Text>
+            <Text color={s.kind === 'failed' ? 'warning' : 'suggestion'}>{text}</Text>
           </Box>
-          {s.kind === 'manual' && <Button key={`auto-run-${key}`} label={m.auto.run} onPress={() => void runAuto($, key)} />}
+          {(s.kind === 'manual' || s.kind === 'failed') && (
+            <Button key={`auto-run-${key}`} label={s.kind === 'failed' ? m.auto.retry : m.auto.run} onPress={() => void runAuto($, key)} />
+          )}
         </Box>
       )
     }

@@ -25,6 +25,7 @@ const en = {
     issues: (n: string) => `Assigned & mentioned ${n}`,
     searches: (n: string) => `Saved searches ${n}`,
     oldest: (days: number) => ` · oldest waiting ${count(days, 'day')}`,
+    autoDone: (n: number) => ` · auto-reviewed ${n}`,
   },
   tabs: {
     review: (n: string) => `To review ${n}`,
@@ -208,6 +209,19 @@ const en = {
     turnedOn: (limit: string) =>
       `Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: ${limit}.`,
     unlimited: 'none',
+    running: (minutes: number) => `Auto review running · ${minutes} min so far`,
+    suggests: (verdict: string) => `Auto review suggests ${verdict}`,
+    verdicts: { comment: 'Comment', approve: 'Approve', 'request-changes': 'Request changes' },
+    severities: { blocker: 'blocker', major: 'major', minor: 'minor', nit: 'nit' },
+    noFindings: 'nothing to fix',
+    tokens: (k: number) => `about ${k}k tokens`,
+    pending: 'Auto review: your pending review is on GitHub',
+    failed: (reason: string) => `Auto review failed: ${reason}`,
+    unreadable: "the reviewer's answer could not be read",
+    retry: 'Try again',
+    stopped: 'the review was stopped',
+    reviewed: 'Auto review: you already reviewed this commit',
+    finished: (verdict: string) => `Auto review done, suggests ${verdict}`,
   },
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
