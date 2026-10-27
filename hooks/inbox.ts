@@ -8,7 +8,7 @@ export type SearchHit = {
   number: number
   title: string
   url: string
-  author: { login: string } | null
+  author: { login: string; __typename?: string } | null
   createdAt: string
   updatedAt?: string
   isDraft: boolean
@@ -51,7 +51,7 @@ export const INBOX_QUERY = `query($q: String!, ${PAGE_ARGS}) {
     nodes {
       ... on PullRequest {
         number title url isDraft createdAt updatedAt body additions deletions changedFiles headRefOid baseRefName ${DETAILS_FIELDS}
-        author { login }
+        author { __typename login }
         repository { nameWithOwner defaultBranchRef { name } }
         files(first: 80) { nodes { path } }
         reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name slug } } } }

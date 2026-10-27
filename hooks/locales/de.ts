@@ -191,6 +191,16 @@ export const de: Messages = {
     noRun: "Kein fehlgeschlagener GitHub-Actions-Lauf auf dem neuesten Commit; andere Prüfungen auf GitHub neu starten.",
     mergePrompt: "Merge {{.PrUrl}}. Prüfe zuerst, welche Merge-Methoden das Repository erlaubt und ob Auto-Merge an ist, und führe dann `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash` aus: mit `--auto`, wenn Auto-Merge an ist, und mit einer erlaubten Methode, wenn Squash es nicht ist.",
   },
+  auto: {
+    before: 'Angefragt, bevor das automatische Review eingeschaltet wurde',
+    tooBig: 'Zu groß für ein automatisches Review',
+    settling: minutes => `Automatisches Review startet in etwa ${minutes} Min., sobald die Commits ruhen`,
+    queued: ahead => (ahead === 0 ? 'Automatisches Review: als Nächstes' : `Automatisches Review: ${ahead} davor`),
+    capped: 'Automatisches Review: Tageslimit erreicht, startet morgen',
+    run: 'Automatisches Review starten',
+    turnedOn: limit => `Automatisches Review ist an: Jeder geprüfte PR startet einen Subagenten mit Ihrer CLAUDE.md, Ihren Hooks und den angegebenen Skills und verbraucht deutlich mehr Tokens. Tageslimit: ${limit}.`,
+    unlimited: 'keins',
+  },
   prompt: {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,
     addGroup: path => `Füge meinem Review-Posteingang eine gespeicherte Suche hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,

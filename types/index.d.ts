@@ -44,7 +44,29 @@ export type InboxItem = CardDetails & {
   sinceLastReview?: string
   // The start of the PR's description, for search.
   body?: string
+  // Opened by a GitHub App such as Dependabot; auto review leaves it alone.
+  isBot?: true
 }
+
+// One PR's place in auto review at its head: when this machine first saw the head, and whether I asked for a run by hand.
+export type AutoJob = { headSha: string; firstSeenAt: number; manual?: true }
+
+// Shared by every session on the machine, beside the inbox file.
+export type AutoReviewFile = {
+  // When a session first read the setting as on; requests older than this start only by hand.
+  enabledAt?: number
+  // Reviews started on `day` (a local date), for the daily limit.
+  day?: string
+  started?: number
+  jobs: Record<string, AutoJob>
+}
+
+// What a card's auto-review line says.
+export type AutoState =
+  | { kind: 'manual'; why: 'before' | 'too-big' }
+  | { kind: 'settling'; startsAt: number }
+  | { kind: 'capped' }
+  | { kind: 'queued'; ahead: number }
 
 // My open PR, judged by what I have to do next.
 export type MyPrState = 'changes' | 'ci-failing' | 'conflict' | 'waiting' | 'approved' | 'queued' | 'draft'
@@ -226,6 +248,7 @@ declare module 'claude-code' {
       directs: Record<string, DirectResult>
       added: string[]
       requested: string[]
+      autoReview: AutoReviewFile
     }
   }
 }

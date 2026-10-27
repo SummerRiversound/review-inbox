@@ -187,6 +187,16 @@ export const ko: Messages = {
     noRun: "최신 커밋에 실패한 GitHub Actions 실행이 없습니다. 다른 검사는 GitHub에서 다시 실행하세요.",
     mergePrompt: "{{.PrUrl}} 머지해 줘. 먼저 저장소가 허용하는 머지 방식과 auto-merge가 켜져 있는지 확인하고 `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`를 실행해. auto-merge가 켜져 있으면 `--auto`를 붙이고, squash가 안 되면 허용된 방식을 써.",
   },
+  auto: {
+    before: '자동 리뷰를 켜기 전에 온 요청',
+    tooBig: '자동으로 리뷰하기에는 너무 큼',
+    settling: minutes => `커밋이 잠잠해지면 약 ${minutes}분 뒤 자동 리뷰 시작`,
+    queued: ahead => (ahead === 0 ? '자동 리뷰: 다음 차례' : `자동 리뷰: 앞에 ${ahead}건 대기`),
+    capped: '자동 리뷰: 오늘 한도에 도달해 내일 시작',
+    run: '자동 리뷰 실행',
+    turnedOn: limit => `자동 리뷰가 켜졌습니다. 리뷰하는 PR마다 CLAUDE.md, 훅, 지정한 스킬을 쓰는 서브에이전트를 실행해 토큰을 눈에 띄게 더 씁니다. 하루 한도: ${limit}.`,
+    unlimited: '없음',
+  },
   prompt: {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,
     addGroup: path => `리뷰 인박스에 저장한 검색을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,

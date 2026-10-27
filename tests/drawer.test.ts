@@ -648,3 +648,64 @@ test('Assign me is sent at once and its Undo takes it back', DIRECT, async ($, o
   expect(await ui.find({ key: 'direct-assign-issue:mention:i1:' })).toBeDefined()
   await ui.unmount()
 })
+
+const AUTO = `/home/me/.claude/plugins/data/review-inbox/autoreview-${cacheKey('', '')}.json`
+const AUTO_ON = { options: { autoReview: 'on' } }
+const recent = (number: number): InboxItem => ({ ...item(number), headSha: `h${number}`, requestedAt: new Date(Date.now() - 60_000).toISOString() })
+
+test('turning auto review on records when, says once what it costs, and an older request waits for Run auto review', AUTO_ON, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const ui = await opened($, on, [], [], 'review', {
+    items: [item(5)],
+    files: { [AUTO]: JSON.stringify({ jobs: { 'o/r#5': { headSha: 'a', firstSeenAt: Date.now() - 3_600_000 } } }) },
+  })
+
+  expect(JSON.parse(files.get(AUTO)!).enabledAt).toBeGreaterThan(Date.now() - 60_000)
+  expect(toasts.filter(t => t.startsWith('Auto review is on'))).toEqual([
+    'Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: 5.',
+  ])
+  expect(await shown(ui, /Requested before auto review was turned on/)).toBe(true)
+  await ui.press({ key: 'auto-run-o/r#5' })
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].manual).toBe(true)
+  expect(await shown(ui, /Auto review: next in line/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a new request waits for its commits to settle, and a team request shows no auto-review line', AUTO_ON, async ($, on) => {
+  const now = Date.now()
+  const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now }, 'o/r#6': { headSha: 'h6', firstSeenAt: now } } }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5), { ...recent(6), team: 'core' }], files: { [AUTO]: JSON.stringify(auto) } })
+
+  expect(await shown(ui, /Auto review starts in about 30 min/)).toBe(true)
+  expect(await ui.findAll({ type: 'Text', text: /Auto review/ })).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('with auto review off no card shows an auto-review line and nothing is recorded', async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)] })
+
+  expect(await shown(ui, /Auto review|auto review/)).toBe(false)
+  expect(files.has(AUTO)).toBe(false)
+  await ui.unmount()
+})
+
+test('with auto review on and nothing to review, no model is asked and no agent is started', AUTO_ON, async ($, on) => {
+  let calls = 0
+  on('model.complete', async () => {
+    calls++
+    throw new Error('no model call expected')
+  })
+  on('agent.spawn', async () => {
+    calls++
+    throw new Error('no agent expected')
+  })
+  const ui = await opened($, on, [], [], 'review')
+  await clock.advance(2 * 3_600_000)
+
+  expect(calls).toBe(0)
+  await ui.unmount()
+})

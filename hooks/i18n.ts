@@ -198,6 +198,17 @@ const en = {
     noRun: "No failed GitHub Actions run on the latest commit; rerun other checks on GitHub.",
     mergePrompt: "Merge {{.PrUrl}}. First check which merge methods the repository allows and whether auto-merge is on, then run `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`: add `--auto` when auto-merge is on, and use an allowed method if squash is not.",
   },
+  auto: {
+    before: 'Requested before auto review was turned on',
+    tooBig: 'Too big to review automatically',
+    settling: (minutes: number) => `Auto review starts in about ${minutes} min, once the commits settle`,
+    queued: (ahead: number) => (ahead === 0 ? 'Auto review: next in line' : `Auto review: ${ahead} ahead in line`),
+    capped: "Auto review: today's limit reached, it starts tomorrow",
+    run: 'Run auto review',
+    turnedOn: (limit: string) =>
+      `Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: ${limit}.`,
+    unlimited: 'none',
+  },
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
     addGroup: (path: string) => `Add a saved search to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,

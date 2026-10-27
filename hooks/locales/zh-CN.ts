@@ -187,6 +187,16 @@ export const zhCN: Messages = {
     noRun: "最新提交上没有失败的 GitHub Actions 运行；其他检查请在 GitHub 上重新运行。",
     mergePrompt: "合并 {{.PrUrl}}。先确认仓库允许的合并方式以及是否开启了 auto-merge，然后运行 `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`：开启了 auto-merge 就加上 `--auto`，不允许 squash 就用允许的方式。",
   },
+  auto: {
+    before: '在开启自动审查之前提出的请求',
+    tooBig: '改动太大，不自动审查',
+    settling: minutes => `提交稳定后约 ${minutes} 分钟开始自动审查`,
+    queued: ahead => (ahead === 0 ? '自动审查：下一个' : `自动审查：前面还有 ${ahead} 个`),
+    capped: '自动审查：已达今日上限，明天开始',
+    run: '运行自动审查',
+    turnedOn: limit => `自动审查已开启：每审查一个 PR 都会运行一个带有你的 CLAUDE.md、hooks 和所列技能的子代理，会明显多用 token。每日上限：${limit}。`,
+    unlimited: '无',
+  },
   prompt: {
     addButton: (path, names) => `给我的审查收件箱添加一个按钮：编辑 ${path}，如果不存在就创建为 {"buttons": []}。每一项是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 里可以用 {{.Name}} 的形式使用 ${names}。先问我这个按钮要做什么。`,
     addGroup: path => `给我的审查收件箱添加一个已保存的搜索：编辑 ${path}，如果不存在就创建为 {"groups": []}，已有的 "buttons" 保持不变。每一项是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示栏里显示数量就加上 "countInBand": true；query 使用 GitHub 搜索语法。先问我想找什么。`,

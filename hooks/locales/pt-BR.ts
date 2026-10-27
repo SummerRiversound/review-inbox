@@ -191,6 +191,16 @@ export const ptBR: Messages = {
     noRun: "Nenhuma execução do GitHub Actions com falha no último commit; rode as outras verificações de novo no GitHub.",
     mergePrompt: "Faça o merge de {{.PrUrl}}. Primeiro veja quais métodos de merge o repositório permite e se o auto-merge está ligado, depois rode `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`: adicione `--auto` se o auto-merge estiver ligado e use um método permitido se squash não for.",
   },
+  auto: {
+    before: 'Pedida antes de ativar a revisão automática',
+    tooBig: 'Grande demais para revisar automaticamente',
+    settling: minutes => `A revisão automática começa em cerca de ${minutes} min, quando os commits pararem`,
+    queued: ahead => (ahead === 0 ? 'Revisão automática: a próxima' : `Revisão automática: ${ahead} na frente`),
+    capped: 'Revisão automática: limite de hoje atingido, começa amanhã',
+    run: 'Rodar revisão automática',
+    turnedOn: limit => `A revisão automática está ativada: cada PR revisado roda um subagente com seu CLAUDE.md, seus hooks e as skills listadas, e gasta bem mais tokens. Limite diário: ${limit}.`,
+    unlimited: 'nenhum',
+  },
   prompt: {
     addButton: (path: string, names: string) => `Adicione um botão à minha caixa de revisões editando ${path}; crie como {"buttons": []} se não existir. Cada entrada é {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, e o prompt pode usar ${names} como {{.Name}}. Primeiro me pergunte o que o botão deve fazer.`,
     addGroup: (path: string) => `Adicione uma busca salva à minha caixa de revisões editando ${path}; crie como {"groups": []} se não existir e mantenha os "buttons" que houver. Cada entrada é {"id", "name", "query", "scope": "prs" | "issues"}, com "countInBand": true para contar na faixa; a query usa a sintaxe de busca do GitHub. Primeiro me pergunte o que ela deve encontrar.`,

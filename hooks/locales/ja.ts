@@ -187,6 +187,16 @@ export const ja: Messages = {
     noRun: "最新のコミットに失敗した GitHub Actions の実行がありません。ほかのチェックは GitHub で再実行してください。",
     mergePrompt: "{{.PrUrl}} をマージして。まずリポジトリが許可するマージ方法と auto-merge が有効かを確認してから `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash` を実行して。auto-merge が有効なら `--auto` を付けて、squash が使えなければ許可された方法を使って。",
   },
+  auto: {
+    before: '自動レビューをオンにする前の依頼',
+    tooBig: '大きすぎるため自動レビューしません',
+    settling: minutes => `コミットが落ち着いたら約${minutes}分後に自動レビュー開始`,
+    queued: ahead => (ahead === 0 ? '自動レビュー: 次の順番' : `自動レビュー: 前に${ahead}件待ち`),
+    capped: '自動レビュー: 今日の上限に達したため明日開始',
+    run: '自動レビューを実行',
+    turnedOn: limit => `自動レビューがオンです。レビューする PR ごとに CLAUDE.md、フック、指定したスキルを使うサブエージェントを動かすため、トークンを目に見えて多く使います。1日の上限: ${limit}。`,
+    unlimited: 'なし',
+  },
   prompt: {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,
     addGroup: (path: string) => `レビュー受信トレイに保存した検索を1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,

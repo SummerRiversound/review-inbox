@@ -187,6 +187,16 @@ export const zhTW: Messages = {
     noRun: "最新提交上沒有失敗的 GitHub Actions 執行；其他檢查請到 GitHub 重新執行。",
     mergePrompt: "合併 {{.PrUrl}}。先確認儲存庫允許的合併方式以及是否開啟 auto-merge，再執行 `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`：開啟了 auto-merge 就加上 `--auto`，不允許 squash 就用允許的方式。",
   },
+  auto: {
+    before: '在開啟自動審查之前提出的請求',
+    tooBig: '改動太大，不自動審查',
+    settling: minutes => `提交穩定後約 ${minutes} 分鐘開始自動審查`,
+    queued: ahead => (ahead === 0 ? '自動審查：下一個' : `自動審查：前面還有 ${ahead} 個`),
+    capped: '自動審查：已達今日上限，明天開始',
+    run: '執行自動審查',
+    turnedOn: limit => `自動審查已開啟：每審查一個 PR 都會執行一個帶有你的 CLAUDE.md、hooks 和所列技能的子代理，會明顯多用 token。每日上限：${limit}。`,
+    unlimited: '無',
+  },
   prompt: {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,
     addGroup: path => `幫我的審查收件匣新增一個已儲存的搜尋：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,

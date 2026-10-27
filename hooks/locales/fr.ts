@@ -190,6 +190,16 @@ export const fr: Messages = {
     noRun: "Aucune exécution GitHub Actions en échec sur le dernier commit ; relancez les autres vérifications sur GitHub.",
     mergePrompt: "Merge {{.PrUrl}}. Vérifie d'abord quelles méthodes de fusion le dépôt autorise et si l'auto-merge est activé, puis lance `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash` : ajoute `--auto` si l'auto-merge est activé et utilise une méthode autorisée si squash ne l'est pas.",
   },
+  auto: {
+    before: "Demandée avant l'activation de la revue automatique",
+    tooBig: 'Trop grande pour une revue automatique',
+    settling: minutes => `La revue automatique démarre dans environ ${minutes} min, quand les commits se seront calmés`,
+    queued: ahead => (ahead === 0 ? 'Revue automatique : la prochaine' : `Revue automatique : ${ahead} avant elle`),
+    capped: 'Revue automatique : limite du jour atteinte, elle démarre demain',
+    run: 'Lancer la revue automatique',
+    turnedOn: limit => `La revue automatique est activée : chaque PR revue lance un sous-agent avec votre CLAUDE.md, vos hooks et les skills indiqués, et consomme nettement plus de tokens. Limite quotidienne : ${limit}.`,
+    unlimited: 'aucune',
+  },
   prompt: {
     addButton: (path, names) => `Ajoute un bouton à ma boîte de réception de revues en modifiant ${path} ; crée-le sous la forme {"buttons": []} s'il n'existe pas. Chaque entrée est {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, et le prompt peut utiliser ${names} sous la forme {{.Name}}. Demande-moi d'abord ce que le bouton doit faire.`,
     addGroup: path => `Ajoute une recherche enregistrée à ma boîte de revues en modifiant ${path} ; crée-le sous la forme {"groups": []} s’il manque et garde les "buttons" qui s’y trouvent. Chaque entrée est {"id", "name", "query", "scope": "prs" | "issues"}, avec "countInBand": true pour la compter dans la bande ; la query suit la syntaxe de recherche GitHub. Demande-moi d’abord ce qu’elle doit trouver.`,

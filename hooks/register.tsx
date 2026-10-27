@@ -4,6 +4,7 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 import type {
   Actions,
   Activity,
+  AutoReviewFile,
   ButtonScope,
   Capped,
   Confirming,
@@ -25,6 +26,8 @@ import type {
   Tab,
   Thread,
 } from '../types'
+import { DAILY_DEFAULT, autoStates, parseDaily, trackHeads } from './autoreview'
+import type { AutoSettings } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -149,13 +152,24 @@ const more = atom({ plugin: 'review-inbox', key: 'more' } as const, '')
 const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
+const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
 
-type Options = { scope?: string; githubUser?: string; language?: string; refreshMinutes?: string; repoPaths?: string; motion?: string; directActions?: string }
+type Options = {
+  scope?: string
+  githubUser?: string
+  language?: string
+  refreshMinutes?: string
+  repoPaths?: string
+  motion?: string
+  directActions?: string
+  autoReview?: string
+  autoReviewDaily?: string
+}
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT } as AutoSettings }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -245,6 +259,8 @@ const seenFile = () => `seen-${cacheKey(config.githubUser, config.scope)}.json`
 // Card keys carry no language, so the news a session announced holds whatever the language.
 const shownFile = () => `shown-${cacheKey(config.githubUser, config.scope)}.json`
 const styleFile = () => `style-${cacheKey(config.githubUser, config.scope, config.language)}.json`
+// Not by language: a job is the same whatever language the cards are drawn in.
+const autoFile = () => `autoreview-${cacheKey(config.githubUser, config.scope)}.json`
 // One for every account: a session's branch and links say nothing about who is signed in.
 const SESSIONS_FILE = 'sessions.json'
 const RELOAD_FILE = 'reload.json'
@@ -425,6 +441,7 @@ async function fetchInbox(
           ...(sinceLastReview ? { sinceLastReview } : {}),
           ...(pr.body ? { body: pr.body.slice(0, BODY_CHARS) } : {}),
           author: pr.author?.login ?? 'ghost',
+          ...(pr.author?.__typename === 'Bot' ? { isBot: true as const } : {}),
           createdAt: pr.createdAt,
           ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
           requestedAt: requestedAt(pr, me),
@@ -636,6 +653,38 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
   }
 }
 
+// The fetching session records each head it sees, so every session counts the same wait from the same moment.
+async function trackAuto($: EngineInterface, list: InboxItem[]) {
+  if (!config.auto.isOn) return
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  if (file === undefined) return
+  const next = trackHeads(file, list, Date.now())
+  if (JSON.stringify(next) !== JSON.stringify(file)) await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+}
+
+// Turning the setting on is what older requests are measured against; turning it off forgets it, so on again starts afresh.
+async function syncEnabled($: EngineInterface) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  if (file === undefined) return
+  if (config.auto.isOn === (file.enabledAt !== undefined)) return update($, autoReview, () => file)
+  const { enabledAt: _, ...off } = file
+  const next = config.auto.isOn ? { ...file, enabledAt: Date.now() } : off
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+  if (config.auto.isOn) toast($, m.auto.turnedOn(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`))
+}
+
+// A run asked for by hand skips the wait, the size limit and the daily limit, for this head only.
+async function runAuto($: EngineInterface, key: string) {
+  const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
+  const job = file?.jobs[key]
+  if (!file || !job) return
+  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const } } }
+  await writeJson($, autoFile(), next)
+  await update($, autoReview, () => next)
+}
+
 // Every session runs this; only the one that finds the shared file stale and wins the claim goes to GitHub.
 async function sync($: EngineInterface, force = false) {
   const file = await readJson($, inboxFile(), { items: [] } as InboxFile)
@@ -690,6 +739,7 @@ async function sync($: EngineInterface, force = false) {
     isDone = true
     await saving
     await writeJson($, inboxFile(), result)
+    if (result.error === undefined) await trackAuto($, result.items).catch(() => undefined)
     await show($, result)
     if (env !== undefined && result.error === undefined) await refreshStyle($, env)
   } finally {
@@ -722,6 +772,8 @@ async function show($: EngineInterface, file: InboxFile) {
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
   const notesNow = await readJson($, notesFile(), {} as Record<string, Note>)
   if (notesNow !== undefined) await update($, notes, () => notesNow)
+  const autoNow = config.auto.isOn ? await readJson($, autoFile(), { jobs: {} } as AutoReviewFile) : undefined
+  if (autoNow !== undefined) await update($, autoReview, () => autoNow)
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
@@ -1055,6 +1107,7 @@ export const register: Register = (on, options) => {
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
+    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily) },
   }
   m = MESSAGES.en
 
@@ -1069,6 +1122,7 @@ export const register: Register = (on, options) => {
     await loadSeen($).catch(() => undefined)
     isStill =
       config.motion === 'off' || (await $.settings.read({ key: 'prefersReducedMotion' }).then(v => v === true, () => false))
+    await syncEnabled($).catch(() => undefined)
     // A reload keeps an open pane, its title and the last drawing; bring them to the language just resolved.
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
@@ -1426,6 +1480,31 @@ export const register: Register = (on, options) => {
         </Box>
       )
 
+    const autoMap = autoStates(await read($, autoReview), everything, config.auto, now)
+    // Where the card stands in auto review; nothing when it is off or the card is not one it reviews.
+    const autoLine = (item: InboxItem) => {
+      const key = itemKey(item)
+      const s = autoMap[key]
+      if (!s) return undefined
+      const text =
+        s.kind === 'manual'
+          ? s.why === 'before'
+            ? m.auto.before
+            : m.auto.tooBig
+          : s.kind === 'settling'
+            ? m.auto.settling(Math.max(1, Math.ceil((s.startsAt - now) / 60_000)))
+            : s.kind === 'capped'
+              ? m.auto.capped
+              : m.auto.queued(s.ahead)
+      return (
+        <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
+          <Box flexShrink={1}>
+            <Text color="suggestion">{text}</Text>
+          </Box>
+          {s.kind === 'manual' && <Button key={`auto-run-${key}`} label={m.auto.run} onPress={() => void runAuto($, key)} />}
+        </Box>
+      )
+    }
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
       const isAdded = addedKeys.includes(itemKey(item))
@@ -1454,6 +1533,7 @@ export const register: Register = (on, options) => {
               <Link href={item.url}>{item.title} ↗</Link>
             </Text>
             {detailsLine(item)}
+            {autoLine(item)}
 
             {item.sinceLastReview && (
               <Box flexDirection="column" marginTop={1}>

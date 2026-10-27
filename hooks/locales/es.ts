@@ -190,6 +190,16 @@ export const es: Messages = {
     noRun: "No hay ninguna ejecución fallida de GitHub Actions en el último commit; reintenta las demás comprobaciones en GitHub.",
     mergePrompt: "Fusiona {{.PrUrl}}. Primero comprueba qué métodos de fusión permite el repositorio y si auto-merge está activado, y luego ejecuta `gh pr merge {{.PrNumber}} --repo {{.RepoName}} --squash`: añade `--auto` si auto-merge está activado y usa un método permitido si squash no lo está.",
   },
+  auto: {
+    before: 'Pedida antes de activar la revisión automática',
+    tooBig: 'Demasiado grande para revisarla automáticamente',
+    settling: minutes => `La revisión automática empieza en unos ${minutes} min, cuando los commits se calmen`,
+    queued: ahead => (ahead === 0 ? 'Revisión automática: la siguiente' : `Revisión automática: ${ahead} por delante`),
+    capped: 'Revisión automática: límite de hoy alcanzado, empieza mañana',
+    run: 'Ejecutar revisión automática',
+    turnedOn: limit => `La revisión automática está activada: cada PR que revisa ejecuta un subagente con tu CLAUDE.md, tus hooks y las skills indicadas, y gasta bastantes más tokens. Límite diario: ${limit}.`,
+    unlimited: 'ninguno',
+  },
   prompt: {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,
     addGroup: (path: string) => `Añade una búsqueda guardada a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarla en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
