@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { STYLE_MS, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleSamples } from '../hooks/style'
+import { STYLE_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from '../hooks/style'
 
 const review = (login: string | null, body: string, comments: string[] = []) => ({
   author: login === null ? null : { login },
@@ -33,10 +33,23 @@ test('fewer than five samples ask the model nothing', async () => {
 test('the style is learned once a week, and a day after a failure', async () => {
   const now = Date.parse('2026-10-07T00:00:00Z')
   expect(shouldBuildStyle({}, now)).toBe(true)
-  expect(shouldBuildStyle({ checkedAt: now - STYLE_MS + 1 }, now)).toBe(false)
-  expect(shouldBuildStyle({ checkedAt: now - STYLE_MS }, now)).toBe(true)
+  expect(shouldBuildStyle({ rules: STYLE_RULES, checkedAt: now - STYLE_MS + 1 }, now)).toBe(false)
+  expect(shouldBuildStyle({ rules: STYLE_RULES, checkedAt: now - STYLE_MS }, now)).toBe(true)
   expect(shouldBuildStyle({ profile: 'p', checkedAt: now - 30 * STYLE_MS, retryAt: now + 1 }, now)).toBe(false)
   expect(shouldBuildStyle({ profile: 'p', checkedAt: now - 30 * STYLE_MS, retryAt: now }, now)).toBe(true)
+})
+
+test('a style learned under older rules is learned again and not used meanwhile', async () => {
+  const now = Date.parse('2026-10-07T00:00:00Z')
+  expect(shouldBuildStyle({ profile: 'p', checkedAt: now - 1 }, now)).toBe(true)
+  expect(learnedStyle({ profile: 'p', checkedAt: now - 1 })).toBeUndefined()
+  expect(learnedStyle({ profile: 'p', rules: STYLE_RULES, checkedAt: now - 1 })).toBe('p')
+  expect(learnedStyle(undefined)).toBeUndefined()
+})
+
+test('the style description leaves out greetings, praise and how a review is laid out', async () => {
+  const rules = styleRules('en')
+  for (const word of ['greetings', 'praise', 'order']) expect(rules.includes(word)).toBe(true)
 })
 
 test('a style reply becomes one line, and an empty one is no style', async () => {
