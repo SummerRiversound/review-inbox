@@ -289,8 +289,10 @@ export function sincePrompt(commits: string[], files: string[]): string {
 }
 
 // The style line is said once per prompt, so adding several PRs repeats only the requests.
-export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string): string {
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string, pendingId?: number): string {
   const lines = [m.prompt.review(item.url)]
+  // GitHub takes no new review while mine is pending, so Claude works on that one.
+  if (pendingId) lines.push(m.prompt.pending(pendingId, item.repo, item.number))
   const styleLine = style ? `${m.prompt.style}${style}` : undefined
   if (styleLine && !draft.includes(styleLine)) lines.push(styleLine)
   const warnings = item.impact.filter(i => i.warn).map(i => i.text)
@@ -301,9 +303,10 @@ export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?
 }
 
 // What the drawer adds to the draft when it closes: one request per PR not already in it, in the order pressed.
-export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string): string {
+// `pending`: my pending review's id by card key.
+export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string, pending: Record<string, number> = {}): string {
   let text = draft
-  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style)
+  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style, pending[itemKey(item)])
   return text.slice(draft.length)
 }
 

@@ -56,6 +56,14 @@ test('my review style goes into the prompt once, however many PRs are added', as
   expect(reviewPrompt('', item({ url: 'U1' }), en, undefined)).toBe('Review U1.\n')
 })
 
+test('a PR with my pending review asks Claude to work on that review, not to start another', async () => {
+  const a = item({ repo: 'o/r', number: 5, url: 'https://github.com/o/r/pull/5' })
+  const text = reviewPrompts('', [a], en, undefined, { 'o/r#5': 77 })
+  expect(text.includes('My pending review 77 is on this PR')).toBe(true)
+  expect(text.includes('`gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT`')).toBe(true)
+  expect(reviewPrompts('', [a], en, undefined)).toBe('Review https://github.com/o/r/pull/5.\n')
+})
+
 test('the PRs added in the drawer go into the prompt together, the style once, none twice', async () => {
   const a = item({ url: 'https://github.com/o/r/pull/1' })
   const b = item({ url: 'https://github.com/o/r/pull/2' })

@@ -60,7 +60,7 @@ import {
 import type { AutoSettings, GhReview, PrFile } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
-import { CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, failedRunsArgs, headArgs, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
+import { AUTO_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
 import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
@@ -615,7 +615,7 @@ async function sendDirect($: EngineInterface, key: string, action: DirectAction,
   try {
     const env = await ghEnv($)
     // GitHub takes an approval of an older commit, so a head that moved since I looked stops it here.
-    if ((action === 'approve' || action === 'update-branch') && (await gh($, headArgs(target), env)).trim() !== target.sha) {
+    if (checksHead(action) && (await gh($, headArgs(target), env)).trim() !== target.sha) {
       throw new Refused(m.direct.newCommits)
     }
     if (action === 'rerun') {
@@ -625,6 +625,8 @@ async function sendDirect($: EngineInterface, key: string, action: DirectAction,
     } else {
       await gh($, writeArgs(action, target, action === 'assign' ? await loginName($) : ''), env)
     }
+    // My pending review is gone, posted or deleted: this head is not reviewed again.
+    if (target.reviewId) await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined })
     const at = Date.now()
     await setDirect($, key, { action, phase: 'done', at, ...(action === 'assign' ? { undo: true } : {}) })
     $.ui.toast(`${m.direct.done[action]} · ${target.repo} #${target.number}`)
@@ -1169,7 +1171,14 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   if (keys.length > 0) {
     const { text } = await $.prompt.read()
     const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
-    const reviews = reviewPrompts(text, chosen.flatMap(c => c.review ?? []), m, style)
+    const jobs = (await read($, autoReview)).jobs
+    const reviewsOn = chosen.flatMap(c => c.review ?? [])
+    const pending: Record<string, number> = {}
+    for (const i of reviewsOn) {
+      const job = jobs[itemKey(i)]
+      if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = job.reviewId
+    }
+    const reviews = reviewPrompts(text, reviewsOn, m, style, pending)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
     const own = await buttonPrompts($, keys)
@@ -1542,7 +1551,7 @@ export const register: Register = (on, options) => {
     const asking = await read($, confirming)
     const directResults = await read($, directs)
     // A card's writes to GitHub, its confirm row in their place while one is asked; `extra` is the Merge button, which the setting does not hide.
-    const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren) => {
+    const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren, suggested?: DirectAction) => {
       if (asking?.key === key && needsConfirm(asking.action)) {
         const action = asking.action
         return (
@@ -1556,7 +1565,8 @@ export const register: Register = (on, options) => {
         )
       }
       const result = directResults[key]
-      const shownActions = config.directActions ? offered.filter(a => !(result?.action === a && result.phase !== 'failed')) : []
+      // Auto review is its own switch: its post and discard buttons show without Direct GitHub actions.
+      const shownActions = offered.filter(a => (config.directActions || isAutoAction(a)) && !(result?.action === a && result.phase !== 'failed'))
       if (!result && shownActions.length === 0 && !extra) return undefined
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
@@ -1569,7 +1579,12 @@ export const register: Register = (on, options) => {
             {extra}
             {result?.undo && <Button key={`direct-undo-${key}`} label={m.activity.undo} onPress={() => void undoAssign($, key, target)} />}
             {shownActions.map(a => (
-              <Button key={`direct-${a}-${key}`} label={m.direct.label[a]} onPress={() => void pressDirect($, key, a, target)} />
+              <Button
+                key={`direct-${a}-${key}`}
+                label={m.direct.label[a]}
+                {...(a === suggested ? { variant: 'primary' as const } : {})}
+                onPress={() => void pressDirect($, key, a, target)}
+              />
             ))}
           </Box>
         </Box>
@@ -1751,6 +1766,16 @@ export const register: Register = (on, options) => {
         </Box>
       )
     }
+    // A finished auto review replaces Approve: GitHub takes no other review while mine is pending.
+    const reviewRow = (item: InboxItem) => {
+      const key = itemKey(item)
+      const s = autoMap[key]
+      const target = { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }
+      if (s?.kind !== 'done' || !s.reviewId) return directRow(key, target, reviewActions(item))
+      const suggested = s.result ? (`post-${s.result.verdict === 'request-changes' ? 'changes' : s.result.verdict}` as const) : undefined
+      const open = <Link key={`auto-open-${key}`} href={`${item.url}/files`}>{m.auto.open} ↗</Link>
+      return directRow(key, { ...target, reviewId: s.reviewId }, AUTO_ACTIONS, open, suggested)
+    }
     const card = (item: InboxItem) => {
       const days = waitingDays(item.requestedAt, now)
       const isAdded = addedKeys.includes(itemKey(item))
@@ -1824,7 +1849,7 @@ export const register: Register = (on, options) => {
                 />
               </Box>
             </Box>
-            {directRow(itemKey(item), { repo: item.repo, number: item.number, title: item.title, sha: item.headSha }, reviewActions(item))}
+            {reviewRow(item)}
             {moreRow(
               itemKey(item),
               'review',

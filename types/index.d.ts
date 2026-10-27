@@ -60,7 +60,8 @@ export type AutoJob = {
   firstSeenAt: number
   manual?: true
   // Absent while it waits; a job that failed under the attempt limit goes back to waiting.
-  status?: 'running' | 'done' | 'failed'
+  // closed: posted or discarded from the card; this head is not reviewed again.
+  status?: 'running' | 'done' | 'failed' | 'closed'
   attempts?: number
   // The running review: its subagent, the session holding it and when that session last said so.
   agentId?: string
@@ -182,9 +183,10 @@ export type Activity = {
 export type Settling = { kind: 'done' | 'unsubscribe'; at: number }
 
 // A write to GitHub straight from a card, when Direct GitHub actions is on.
-export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign'
-// What the write names, as the card showed it: `sha` is the head I looked at.
-export type DirectTarget = { repo: string; number: number; title: string; sha?: string }
+// The post and discard actions act on my pending auto review, and show whenever auto review is on.
+export type DirectAction = 'approve' | 'ready' | 'update-branch' | 'rerun' | 'assign' | 'post-comment' | 'post-approve' | 'post-changes' | 'discard'
+// What the write names, as the card showed it: `sha` is the head I looked at, `reviewId` my pending review on it.
+export type DirectTarget = { repo: string; number: number; title: string; sha?: string; reviewId?: number }
 // A write others see, asked on the card before it is sent; `at` is the press that asked.
 export type Confirming = { key: string; action: DirectAction; target: DirectTarget; at: number; login?: string }
 // The last write from a card: `undo` while an Assign me can still be taken back.

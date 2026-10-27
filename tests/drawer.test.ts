@@ -923,6 +923,71 @@ test('with the repository folder known, the run reads a detached worktree at the
   await ui.unmount()
 })
 
+// A stored auto review on #5's head, pending on GitHub as review 77.
+const reviewed = queued({ status: 'done', reviewId: 77, result: { verdict: 'request-changes', summary: 'One bug.', findings: [] }, tokens: 42_000 })
+const autoItem = { ...recent(5), headSha: 'h5' }
+
+test('a stored auto review offers its post buttons without Direct GitHub actions, the suggested one first in color, and a link to it on GitHub', AUTO_ON, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+
+  expect((await ui.find({ key: 'direct-post-changes-o/r#5' }))?.props.variant).toBe('primary')
+  expect((await ui.find({ key: 'direct-post-comment-o/r#5' }))?.props.variant).toBeUndefined()
+  expect(await ui.find({ key: 'direct-discard-o/r#5' })).toBeDefined()
+  expect(await ui.find({ key: 'direct-approve-o/r#5' })).toBeUndefined()
+  expect((await ui.find({ type: 'Link', text: /Open on GitHub/ }))?.props.href).toBe('https://github.com/o/r/pull/5/files')
+  await ui.unmount()
+})
+
+test('a post asks on the card, then submits my pending review with the verdict picked, and the card leaves auto review', AUTO_ON, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github(sent, 'h5') })
+
+  await ui.press({ key: 'direct-post-comment-o/r#5' })
+  expect(await shown(ui, /Post the auto review on o\/r#5 "r5" as me, as a comment/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT'])
+  expect(await shown(ui, /✓ Posted/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
+  expect(await shown(ui, /Auto review suggests/)).toBe(false)
+  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('new commits since the review stop a post and keep the pending review, while a discard deletes it whatever the head', AUTO_ON, async ($, on) => {
+  const sent: string[] = []
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github(sent, 'h6') })
+
+  await ui.press({ key: 'direct-post-changes-o/r#5' })
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual([])
+  expect(await shown(ui, /New commits since you looked/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].reviewId).toBe(77)
+
+  await ui.press({ key: 'direct-discard-o/r#5' })
+  expect(await shown(ui, /Delete me's pending review on o\/r#5 "r5"/)).toBe(true)
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X DELETE repos/o/r/pulls/5/reviews/77'])
+  expect(await shown(ui, /✓ Pending review deleted/)).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
+  await ui.unmount()
+})
+
+test('with Direct GitHub actions on, Approve on a card with my pending review submits that review', { options: { autoReview: 'on', directActions: 'on' } }, async ($, on) => {
+  const sent: string[] = []
+  const pending = queued({ status: 'done', reviewId: 9 })
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: pending }, run: github(sent, 'h5') })
+
+  expect(await ui.find({ key: 'direct-post-comment-o/r#5' })).toBeDefined()
+  await ui.press({ key: 'direct-post-approve-o/r#5' })
+  await clock.advance(300)
+  await ui.press({ key: 'direct-confirm-o/r#5' })
+  expect(sent).toEqual(['-X POST repos/o/r/pulls/5/reviews/9/events -f event=APPROVE'])
+  await ui.unmount()
+})
+
 test("the reviewer's agent type is kept out of the model's listing", AUTO_ON, async ($, on) => {
   const ui = await opened($, on, [], [], 'review')
   const offer = await $.agent.offer({ agent: 'review-inbox:auto-reviewer', description: 'd', source: 'plugin', provider: { plugin: 'review-inbox', tier: 'user' } } as never)

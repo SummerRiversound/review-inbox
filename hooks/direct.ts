@@ -5,9 +5,19 @@ export const CONFIRM_MS = 10_000
 // A confirm this soon after the press that asked is that press's key repeat or a double tap, not a decision.
 export const CONFIRM_GUARD_MS = 300
 
-export type AskedAction = 'approve' | 'ready' | 'update-branch'
-// Others see these, and none can be taken back, so each is asked on the card first.
-export const needsConfirm = (action: DirectAction): action is AskedAction => action === 'approve' || action === 'ready' || action === 'update-branch'
+export type AutoAction = 'post-comment' | 'post-approve' | 'post-changes' | 'discard'
+export const AUTO_ACTIONS: AutoAction[] = ['post-comment', 'post-approve', 'post-changes', 'discard']
+export const isAutoAction = (action: DirectAction): action is AutoAction => (AUTO_ACTIONS as DirectAction[]).includes(action)
+
+export type AskedAction = 'approve' | 'ready' | 'update-branch' | AutoAction
+// Others see these, and none can be taken back, so each is asked on the card first; a discard loses the review's text.
+export const needsConfirm = (action: DirectAction): action is AskedAction =>
+  action === 'approve' || action === 'ready' || action === 'update-branch' || isAutoAction(action)
+
+// GitHub moves a pending review on with an event; a head that moved since stops it first, as it stops an approve.
+export const checksHead = (action: DirectAction) => action === 'approve' || action === 'update-branch' || (isAutoAction(action) && action !== 'discard')
+
+const EVENTS = { 'post-comment': 'COMMENT', 'post-approve': 'APPROVE', 'post-changes': 'REQUEST_CHANGES' } as const
 
 // Only what the card's state makes useful: an approve on a draft or a rerun on a green PR would only fail.
 export const reviewActions = (item: InboxItem): DirectAction[] => (item.isDraft ? [] : ['approve'])
@@ -31,8 +41,16 @@ export function writeArgs(action: Exclude<DirectAction, 'rerun'>, target: Direct
   const path = `repos/${target.repo}`
   switch (action) {
     case 'approve':
+      // GitHub takes no new review while my pending one exists, so an approve submits that one.
+      if (target.reviewId) return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews/${target.reviewId}/events`, '-f', 'event=APPROVE']
       // Pinned to the commit I looked at, with no body: GitHub's own default is an empty approval.
       return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews`, '-f', 'event=APPROVE', '-f', `commit_id=${target.sha}`]
+    case 'post-comment':
+    case 'post-approve':
+    case 'post-changes':
+      return ['api', '-X', 'POST', `${path}/pulls/${target.number}/reviews/${target.reviewId}/events`, '-f', `event=${EVENTS[action]}`]
+    case 'discard':
+      return ['api', '-X', 'DELETE', `${path}/pulls/${target.number}/reviews/${target.reviewId}`]
     case 'ready':
       return ['pr', 'ready', `${target.number}`, '--repo', target.repo]
     case 'update-branch':

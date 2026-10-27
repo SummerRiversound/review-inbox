@@ -43,7 +43,7 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
   for (const item of items.filter(isCandidate)) {
     const key = itemKey(item)
     const job = file.jobs[key]
-    if (job?.headSha !== item.headSha) continue
+    if (job?.headSha !== item.headSha || job.status === 'closed') continue
     if (job.status === 'running') {
       states[key] = { kind: 'running', since: job.startedAt ?? job.heartbeatAt ?? now }
     } else if (job.status === 'done') {
