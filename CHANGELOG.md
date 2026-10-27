@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.15.2 — 2026-10-27
+
+### Changed
+
+- The `Auto review` switch atop the To review tab asks before it turns auto review on: what it costs, the daily limit, that your 👀 is visible to the PR's author, and whether large PRs and requests already waiting are included. Turning it off needs no asking.
+- The toast when auto review turns on or off only says so.
+
 ## 0.15.1 — 2026-10-27
 
 ### Added
