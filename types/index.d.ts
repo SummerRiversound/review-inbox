@@ -81,6 +81,10 @@ export type AutoJob = {
   staleFrom?: string
   // The commit a review with the same content was moved from, with no model call.
   carriedFrom?: string
+  // My 👀 on the PR while this machine reviews it, as its API path.
+  lock?: string
+  // Another machine of mine holds the 👀 since `since`; looked at again from `until`.
+  elsewhere?: { since: number; until: number }
   // My pending review on the head before this one, kept so a rebase can carry it.
   prev?: { headSha: string; reviewId: number; contentKey?: string; result?: AutoResult }
 }

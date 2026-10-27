@@ -30,6 +30,8 @@ import type {
 import {
   AGENT_TYPE,
   DAILY_DEFAULT,
+  ELSEWHERE_MS,
+  LOCK_MS,
   MAX_ATTEMPTS,
   RUN_STALE_MS,
   autoStates,
@@ -42,7 +44,11 @@ import {
   jsonLines,
   carried,
   deleteReviewArgs,
+  isLockPath,
+  lockArgs,
+  lockPath,
   myReview,
+  readLock,
   reviewBodyArgs,
   reviewCommentsArgs,
   nextJob,
@@ -723,7 +729,7 @@ async function runAuto($: EngineInterface, key: string) {
   const job = file?.jobs[key]
   if (!file || !job) return
   // Try again after a failure starts afresh.
-  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined, reviewId: undefined, staleFrom: undefined, prev: undefined } } }
+  const next = { ...file, jobs: { ...file.jobs, [key]: { ...job, manual: true as const, status: undefined, attempts: 0, error: undefined, reviewId: undefined, staleFrom: undefined, prev: undefined, elsewhere: undefined } } }
   await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
 }
@@ -746,15 +752,16 @@ const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?
   })
 
 // A job no run holds: undefined fields are left out when the file is written.
-const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined }
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined }
 
 const prOf = (key: string) => {
   const at = key.lastIndexOf('#')
   return { repo: key.slice(0, at), number: Number(key.slice(at + 1)) }
 }
 
-// The worktree goes first, so the checkout forgets it; then the folder.
+// The 👀 comes off first, so my other machines may review the PR; then the worktree, so the checkout forgets it; then the folder.
 async function removeRun($: EngineInterface, job: AutoJob) {
+  if (job.lock && isLockPath(job.lock)) await gh($, ['api', '-X', 'DELETE', job.lock], await ghEnv($)).catch(() => undefined)
   // The path comes from a shared file: nothing outside the mod's own runs folder is ever removed.
   if (!job.folder?.startsWith(`${await cacheDir($)}/runs/`) || job.folder.includes('..')) return
   const run = (argv: string[]) => $.process.run(argv, { timeoutMs: 60_000 }).catch(() => undefined)
@@ -804,6 +811,19 @@ async function addCheckout($: EngineInterface, item: InboxItem, folder: string):
   return (await git(['worktree', 'add', '--detach', `${folder}/repo`, item.headSha]))?.exitCode === 0 ? path : undefined
 }
 
+// My 👀 on the PR, added now or taken over from a machine that stopped an hour ago; no path when the repository takes no reactions, and the run goes ahead.
+async function takeLock($: EngineInterface, pr: InboxItem, env: Record<string, string>): Promise<{ path?: string } | { elsewhere: number }> {
+  const add = async () => readLock(await gh($, lockArgs(pr), env).catch(() => ''))
+  let lock = await add()
+  if (lock && !lock.isNew && Date.now() - lock.createdAt > LOCK_MS) {
+    // shortcut: two machines taking over the same stale 👀 at once both review; it needs a machine to stop mid-review first
+    await gh($, ['api', '-X', 'DELETE', lockPath(pr, lock.id)], env).catch(() => undefined)
+    lock = await add()
+  }
+  if (lock && !lock.isNew) return { elsewhere: lock.createdAt }
+  return lock ? { path: lockPath(pr, lock.id) } : {}
+}
+
 // Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
 async function startRun($: EngineInterface, key: string) {
   const item = (await read($, items)).find(i => itemKey(i) === key)
@@ -819,6 +839,10 @@ async function startRun($: EngineInterface, key: string) {
       return void (await setJob($, key, { ...IDLE, status: 'stale', reviewId: mineNow.id, staleFrom: mineNow.commit }, item.headSha))
     }
     if (mineNow) return void (await setJob($, key, { ...IDLE, status: 'done', ...(mineNow.kind === 'pending' ? { reviewId: mineNow.id } : {}) }, item.headSha))
+    const lock = await takeLock($, item, env)
+    if ('elsewhere' in lock) return void (await setJob($, key, { ...IDLE, elsewhere: { since: lock.elsewhere, until: Date.now() + ELSEWHERE_MS } }, item.headSha))
+    // Stored before anything can fail, so every way out of the run takes it off again.
+    if (lock.path) await setJob($, key, { lock: lock.path }, item.headSha)
     const folder = `${await cacheDir($)}/runs/${runName(key, item.headSha)}`
     await $.fs.write(`${folder}/pr.diff`, await gh($, diffArgs(item), env))
     if (item.reviewedSha && item.reviewedSha !== item.headSha) await $.fs.write(`${folder}/since.diff`, await gh($, sinceArgs(item, item.reviewedSha, item.headSha), env))

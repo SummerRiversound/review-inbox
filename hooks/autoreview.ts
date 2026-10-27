@@ -56,6 +56,8 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
     if (job?.headSha !== item.headSha || job.status === 'closed') continue
     if (job.status === 'running') {
       states[key] = { kind: 'running', since: job.startedAt ?? job.heartbeatAt ?? now }
+    } else if (job.elsewhere && now < job.elsewhere.until) {
+      states[key] = { kind: 'running', since: job.elsewhere.since }
     } else if (job.status === 'done') {
       states[key] = {
         kind: 'done',
@@ -244,6 +246,28 @@ export const createInput = (head: string, body: string, comments: (ReviewComment
 export const reviewBodyArgs = (pr: Pr, id: number) => ['api', `${pulls(pr)}/reviews/${id}`, '--jq', '.body']
 export const reviewCommentsArgs = (pr: Pr, id: number) => ['api', '--paginate', `${pulls(pr)}/reviews/${id}/comments`, '--jq', '.[] | {path, position, body} | tojson']
 export const deleteReviewArgs = (pr: Pr, id: number) => ['api', '-X', 'DELETE', `${pulls(pr)}/reviews/${id}`]
+
+// My 👀 on the PR says one of my machines is reviewing it. GitHub keeps one a person, so only the machine that added it hears 201.
+export const LOCK_MS = 60 * 60_000
+// A PR another machine reviews is looked at again this often: its review is there by then, or its 👀 has run out.
+export const ELSEWHERE_MS = 5 * 60_000
+export const lockArgs = (pr: Pr) => ['api', '-i', '-X', 'POST', `repos/${pr.repo}/issues/${pr.number}/reactions`, '-f', 'content=eyes', '--jq', '{id, created_at} | tojson']
+export const lockPath = (pr: Pr, id: number) => `repos/${pr.repo}/issues/${pr.number}/reactions/${id}`
+// The path comes from a shared file: nothing but one of my reactions is ever deleted.
+export const isLockPath = (path: string) => /^repos\/[\w.-]+\/[\w.-]+\/issues\/\d+\/reactions\/\d+$/.test(path)
+
+// `gh api -i` prints the status line first and the reaction last.
+export function readLock(text: string): { isNew: boolean; id: number; createdAt: number } | undefined {
+  const status = /^HTTP\/\S+ (\d{3})/.exec(text)?.[1]
+  const last = text.trim().split('\n').at(-1)
+  if (!status || !last) return undefined
+  try {
+    const { id, created_at } = JSON.parse(last) as { id: number; created_at: string }
+    return { isNew: status === '201', id, createdAt: Date.parse(created_at) }
+  } catch {
+    return undefined
+  }
+}
 
 // GitHub lists a pending review's comments by their place in the file's diff, with no line or side.
 export type GhComment = { path: string; position: number | null; body: string }

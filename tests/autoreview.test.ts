@@ -8,11 +8,13 @@ import {
   contentKey,
   createArgs,
   createInput,
+  isLockPath,
   myReview,
   nextJob,
   parseDaily,
   parseReview,
   placeFindings,
+  readLock,
   reviewBody,
   reviewerPrompt,
   reviewerSpec,
@@ -226,4 +228,16 @@ test("a re-request asks for what changed since my last review, and the style lin
   expect(again.includes('How I review: asks why first')).toBe(true)
   expect(again.includes('Only the diff is here')).toBe(true)
   expect(reviewerPrompt(item(1), { hasCheckout: true, language: '' }).includes('How I review')).toBe(false)
+})
+
+test("GitHub's answer to my 👀 says whether this machine added it, and a PR another machine reviews shows as running until it is looked at again", () => {
+  expect(readLock('HTTP/2.0 201 Created\nEtag: "e"\n\n{"created_at":"2026-10-27T08:00:00Z","id":3}\n')).toEqual({ isNew: true, id: 3, createdAt: Date.parse('2026-10-27T08:00:00Z') })
+  expect(readLock('HTTP/2.0 200 OK\n\n{"created_at":"2026-10-27T08:00:00Z","id":3}')!.isNew).toBe(false)
+  expect(readLock('')).toBeUndefined()
+  expect(isLockPath('repos/o/r/issues/5/reactions/3')).toBe(true)
+  expect(isLockPath('repos/o/r/issues/5/reactions/3/../x')).toBe(false)
+
+  const file = { enabledAt: 0, jobs: { 'o/r#1': { headSha: 'h1', firstSeenAt: 0, elsewhere: { since: 5, until: SETTLE_MS + 100 } } } }
+  expect(autoStates(file, [item(1)], ON, 50)['o/r#1']).toEqual({ kind: 'running', since: 5 })
+  expect(autoStates(file, [item(1)], ON, SETTLE_MS + 200)['o/r#1']!.kind).toBe('queued')
 })
