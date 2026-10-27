@@ -207,8 +207,13 @@ const en = {
     capped: "Auto review: today's limit reached, it starts tomorrow",
     switchOn: 'Auto review: on',
     switchOff: 'Auto review: off',
-    turnedOn: (limit: string) =>
-      `Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: ${limit}.`,
+    turnedOn: 'Auto review is on',
+    turnedOff: 'Auto review is off',
+    ask: (limit: string) =>
+      `Turn on auto review? Each PR that asks for your review gets a background subagent with your CLAUDE.md, hooks and listed skills, which uses noticeably more tokens. Daily limit: ${limit}. While one runs, a 👀 on the PR is visible to its author.`,
+    askLarge: 'PRs over 50 files or 2,000 changed lines are reviewed too.',
+    askBacklog: 'Requests already waiting are reviewed too.',
+    turnOn: 'Turn on',
     unlimited: 'none',
     running: (minutes: number) => `Auto review running · ${minutes} min so far`,
     suggests: (verdict: string) => `Auto review suggests ${verdict}`,

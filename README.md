@@ -66,7 +66,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
 | `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
 | `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions below. |
-| `autoReview` | `off` | `on` reviews PRs that ask for you in the background and keeps each review as your pending review until you post it. **It uses noticeably more tokens.** The `Auto review` button atop the To review tab turns it on and off too. See Auto review below. |
+| `autoReview` | `off` | `on` reviews PRs that ask for you in the background and keeps each review as your pending review until you post it. **It uses noticeably more tokens.** The `Auto review` button atop the To review tab turns it on and off too, asking first before it turns on. See Auto review below. |
 | `autoReviewModel` | `sonnet` | The model the reviewer runs on: `sonnet` or `opus`, which reviews deeper and costs more. |
 | `autoReviewDaily` | `5` | Most auto reviews started in a day: 3, 5, 10, 20 or `unlimited`. `Try again` on a card is not counted. |
 | `autoReviewSkills` | empty | Skills loaded into the reviewer, comma-separated, such as your review playbook. Empty loads none. |

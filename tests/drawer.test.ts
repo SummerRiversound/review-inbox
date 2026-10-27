@@ -654,7 +654,7 @@ const AUTO = `/home/me/.claude/plugins/data/review-inbox/autoreview-${cacheKey('
 const AUTO_ON = { options: { autoReview: 'on' } }
 const recent = (number: number): InboxItem => ({ ...item(number), headSha: `h${number}`, requestedAt: new Date(Date.now() - 60_000).toISOString() })
 
-test('turning auto review on records when, says once what it costs, and an older request is reviewed too', AUTO_ON, async ($, on) => {
+test('turning auto review on records when, says only that it is on, and an older request is reviewed too', AUTO_ON, async ($, on) => {
   const toasts: string[] = []
   on('ui.toast', async ($, e) => {
     toasts.push(e.text)
@@ -666,9 +666,7 @@ test('turning auto review on records when, says once what it costs, and an older
   })
 
   expect(JSON.parse(files.get(AUTO)!).enabledAt).toBeGreaterThan(Date.now() - 60_000)
-  expect(toasts.filter(t => t.startsWith('Auto review is on'))).toEqual([
-    'Auto review is on: each PR it reviews runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens. Daily limit: 5.',
-  ])
+  expect(toasts.filter(t => t.startsWith('Auto review is'))).toEqual(['Auto review is on'])
   expect(await shown(ui, /Auto review: next in line/)).toBe(true)
   await ui.unmount()
 })
@@ -683,18 +681,46 @@ test('with autoReviewBacklog off an older request says why on its card and has n
   await ui.unmount()
 })
 
-test('the switch atop the Review tab turns auto review on for every session, and a later change in the settings wins over it', async ($, on) => {
+test('the switch atop the Review tab warns before turning auto review on for every session, turns it off at once, and a later change in the settings wins over it', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
   const got = agents(on, () => ['a1'])
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [] }) })
   await tick()
   expect(got.spawns).toHaveLength(0)
 
+  // The warning says what it costs and who sees it; Cancel, or ten seconds, leaves it off.
   await ui.press({ key: 'auto-switch' })
+  expect(await shown(ui, /Turn on auto review\? .*noticeably more tokens.*Daily limit: 5.*👀/)).toBe(true)
+  expect(await shown(ui, /PRs over 50 files or 2,000 changed lines are reviewed too/)).toBe(true)
+  expect(await shown(ui, /Requests already waiting are reviewed too/)).toBe(true)
+  await ui.press({ key: 'auto-cancel' })
+  expect(await ui.find({ key: 'auto-confirm' })).toBeUndefined()
+  await ui.press({ key: 'auto-switch' })
+  await clock.advance(10_000)
+  expect(await ui.find({ key: 'auto-confirm' })).toBeUndefined()
+  expect(JSON.parse(files.get(AUTO)!).switch).toBeUndefined()
+
+  // A confirm in the first 300 ms is a stray key.
+  await ui.press({ key: 'auto-switch' })
+  await ui.press({ key: 'auto-confirm' })
+  expect(JSON.parse(files.get(AUTO)!).switch).toBeUndefined()
+  await clock.advance(300)
+  await ui.press({ key: 'auto-confirm' })
   const file = JSON.parse(files.get(AUTO)!)
   expect([file.switch, file.enabledAt > 0]).toEqual([{ isOn: true, option: false }, true])
   expect(await shown(ui, /Auto review: next in line/)).toBe(true)
   await tick()
   expect(got.spawns).toHaveLength(1)
+
+  await ui.press({ key: 'auto-switch' })
+  expect(JSON.parse(files.get(AUTO)!).switch).toEqual({ isOn: false, option: false })
+  // Toasts keep their gap; the first is this session forgetting when the file says auto review was last on.
+  await clock.advance(10_000)
+  expect(toasts.filter(t => t.startsWith('Auto review is'))).toEqual(['Auto review is off', 'Auto review is on', 'Auto review is off'])
 
   // The settings turned on since the press: the switch no longer speaks, and the settings say on.
   expect(switchedOn({ ...file, switch: { isOn: false, option: false } }, true)).toBe(true)

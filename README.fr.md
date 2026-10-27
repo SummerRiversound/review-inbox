@@ -66,7 +66,7 @@ Les options se définissent sur l'écran d'installation et se modifient ensuite 
 | `repoPaths` | vide | Où Claude travaille sur chaque dépôt, pour les boutons d'étape suivante. Voir ci-dessous. |
 | `motion` | `auto` | `off` supprime le clignotement des nombres de la barre. `auto` le supprime aussi quand le réglage de réduction des animations de Claude Code (`prefersReducedMotion`) est activé. |
 | `directActions` | `off` | `on` ajoute des boutons qui écrivent sur GitHub depuis une carte. Voir « Actions GitHub directes » plus bas. |
-| `autoReview` | `off` | `on` fait relire en arrière-plan les PR qui vous demandent une revue et garde chaque revue comme votre revue en attente jusqu'à ce que vous la publiiez. **Elle consomme nettement plus de tokens.** Le bouton `Revue automatique` en haut de l'onglet Revues à faire l'active et la désactive aussi. Voir « Revue automatique » plus bas. |
+| `autoReview` | `off` | `on` fait relire en arrière-plan les PR qui vous demandent une revue et garde chaque revue comme votre revue en attente jusqu'à ce que vous la publiiez. **Elle consomme nettement plus de tokens.** Le bouton `Revue automatique` en haut de l'onglet Revues à faire l'active et la désactive aussi, et demande confirmation avant de l'activer. Voir « Revue automatique » plus bas. |
 | `autoReviewModel` | `sonnet` | Le modèle sur lequel tourne le relecteur : `sonnet` ou `opus`, qui relit plus en profondeur et coûte plus cher. |
 | `autoReviewDaily` | `5` | Nombre maximal de revues automatiques lancées par jour : 3, 5, 10, 20 ou `unlimited`. `Réessayer` sur une carte n'est pas compté. |
 | `autoReviewSkills` | vide | Skills chargés dans le relecteur, séparés par des virgules, comme votre playbook de revue. Vide : aucun n'est chargé. |

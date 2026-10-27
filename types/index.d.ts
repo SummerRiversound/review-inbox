@@ -294,6 +294,8 @@ declare module 'claude-code' {
       added: string[]
       requested: string[]
       autoReview: AutoReviewFile
+      // When the switch's warning was asked, while it shows.
+      autoAsking: number | null
     }
   }
 }
