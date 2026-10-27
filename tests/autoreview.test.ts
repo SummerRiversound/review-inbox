@@ -44,7 +44,7 @@ const item = (number: number, more: Partial<InboxItem> = {}): InboxItem => ({
   ...more,
 })
 
-const ON = { isOn: true, daily: 5 }
+const ON = { isOn: true, daily: 5, large: true, backlog: true }
 // Turned on at 09:00; the requests above came at 10:00 and their heads were first seen then.
 const tracked = (items: InboxItem[], more: Partial<AutoReviewFile> = {}): AutoReviewFile => ({
   ...trackHeads({ jobs: {} }, items, Date.parse('2026-10-27T10:00:00Z')),
@@ -65,7 +65,7 @@ test('a head is remembered from when this machine first saw it, a new head start
 
 test('with auto review off no card shows anything', () => {
   const items = [item(1)]
-  expect(autoStates(tracked(items), items, { isOn: false, daily: 5 }, T0 + 5 * HOUR)).toEqual({})
+  expect(autoStates(tracked(items), items, { ...ON, isOn: false }, T0 + 5 * HOUR)).toEqual({})
 })
 
 test('team requests, drafts, bot PRs and a head I already reviewed are left alone', () => {
@@ -88,16 +88,22 @@ test('a head waits 30 minutes from when it was first seen, then joins the queue 
   })
 })
 
-test('a request from before auto review was turned on, or a PR too big, starts only by hand', () => {
+test('a request from before auto review was turned on, and a PR too big, are reviewed too unless their setting is off', () => {
   const items = [item(1, { requestedAt: '2026-10-27T08:59:00Z' }), item(2, { files: 51 }), item(3, { additions: 1_500, deletions: 501 })]
   expect(autoStates(tracked(items), items, ON, T0 + 5 * HOUR)).toEqual({
+    'o/r#1': { kind: 'queued', ahead: 0 },
+    'o/r#2': { kind: 'queued', ahead: 1 },
+    'o/r#3': { kind: 'queued', ahead: 2 },
+  })
+  const OFF = { ...ON, large: false, backlog: false }
+  expect(autoStates(tracked(items), items, OFF, T0 + 5 * HOUR)).toEqual({
     'o/r#1': { kind: 'manual', why: 'before' },
     'o/r#2': { kind: 'manual', why: 'too-big' },
     'o/r#3': { kind: 'manual', why: 'too-big' },
   })
   // A re-request after turning it on counts as new.
   const again = [item(1, { requestedAt: '2026-10-27T09:30:00Z', isRerequest: true, reviewedSha: 'h0' })]
-  expect(autoStates(tracked(again), again, ON, T0 + 5 * HOUR)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
+  expect(autoStates(tracked(again), again, OFF, T0 + 5 * HOUR)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
 })
 
 test('a run asked for by hand skips the wait and the size and goes first, past the daily limit', () => {
@@ -115,7 +121,7 @@ test('the daily limit holds settled heads in the queue until the next day, and u
   const today = Date.parse('2026-10-27T12:00:00Z')
   const file = tracked(items, { day: new Date(today).toDateString(), started: 5 })
   expect(autoStates(file, items, ON, today)).toEqual({ 'o/r#1': { kind: 'capped' } })
-  expect(autoStates(file, items, { isOn: true, daily: undefined }, today)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
+  expect(autoStates(file, items, { ...ON, daily: undefined }, today)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
   expect(autoStates(file, items, ON, today + 24 * HOUR)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
 })
 

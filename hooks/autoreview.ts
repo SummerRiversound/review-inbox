@@ -3,12 +3,16 @@ import { itemKey } from './inbox'
 
 // Authors often push again right after asking; a head this still is the one worth a review.
 export const SETTLE_MS = 30 * 60_000
-// Past either, one review could take a large share of a day's tokens, so only Run auto review starts it.
+// Past either, one review could take a large share of a day's tokens; with autoReviewLarge off such a PR is left alone.
 export const MAX_FILES = 50
 export const MAX_LINES = 2_000
 export const DAILY_DEFAULT = 5
 
-export type AutoSettings = { isOn: boolean; daily: number | undefined }
+// `large` and `backlog` let a PR past the size limits, or a request from before auto review was on, start by itself.
+export type AutoSettings = { isOn: boolean; daily: number | undefined; large: boolean; backlog: boolean }
+
+// The switch atop the Review tab speaks while the setting is still what it was when pressed; a later change in the settings wins.
+export const switchedOn = (file: AutoReviewFile, option: boolean) => (file.switch && file.switch.option === option ? file.switch.isOn : option)
 
 // `unlimited` has no limit; anything unreadable falls back to the default.
 export function parseDaily(option: string | undefined): number | undefined {
@@ -72,9 +76,9 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
       states[key] = { kind: 'failed', error: job.error ?? '' }
     } else if (job.manual) {
       ready.push({ key, item, isManual: true })
-    } else if (file.enabledAt === undefined || Date.parse(item.requestedAt) < file.enabledAt) {
+    } else if (!settings.backlog && (file.enabledAt === undefined || Date.parse(item.requestedAt) < file.enabledAt)) {
       states[key] = { kind: 'manual', why: 'before' }
-    } else if (isTooBig(item)) {
+    } else if (!settings.large && isTooBig(item)) {
       states[key] = { kind: 'manual', why: 'too-big' }
     } else if (now < job.firstSeenAt + SETTLE_MS) {
       states[key] = { kind: 'settling', startsAt: job.firstSeenAt + SETTLE_MS }

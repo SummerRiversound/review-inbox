@@ -35,6 +35,7 @@ import {
   MAX_ATTEMPTS,
   RUN_STALE_MS,
   autoStates,
+  switchedOn,
   bySeverity,
   createArgs,
   createInput,
@@ -194,6 +195,8 @@ const seenAt = atom({ plugin: 'review-inbox', key: 'seenAt' } as const, 0)
 const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, null as Confirming | null)
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
 const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
+// The autoReview setting itself; the switch atop the Review tab can turn auto review the other way.
+let autoOption = false
 
 type Options = {
   scope?: string
@@ -207,12 +210,14 @@ type Options = {
   autoReviewModel?: string
   autoReviewDaily?: string
   autoReviewSkills?: string
+  autoReviewLarge?: string
+  autoReviewBacklog?: string
 }
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[] }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[] }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -711,16 +716,23 @@ async function trackAuto($: EngineInterface, list: InboxItem[]) {
   for (const [key, job] of Object.entries(file.jobs)) if (job.status === 'running' && next.jobs[key] !== job) await removeRun($, job)
 }
 
-// Turning the setting on is what older requests are measured against; turning it off forgets it, so on again starts afresh.
+// Turning it on, by the setting or the switch, is what older requests are measured against; turning it off forgets it, so on again starts afresh.
 async function syncEnabled($: EngineInterface) {
   const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
   if (file === undefined) return
+  config.auto = { ...config.auto, isOn: switchedOn(file, autoOption) }
   if (config.auto.isOn === (file.enabledAt !== undefined)) return update($, autoReview, () => file)
   const { enabledAt: _, ...off } = file
   const next = config.auto.isOn ? { ...file, enabledAt: Date.now() } : off
   await writeJson($, autoFile(), next)
   await update($, autoReview, () => next)
   if (config.auto.isOn) toast($, m.auto.turnedOn(config.auto.daily === undefined ? m.auto.unlimited : `${config.auto.daily}`))
+}
+
+// Pressed in one session, it holds in all of them: the shared file carries it.
+async function switchAuto($: EngineInterface) {
+  await editAuto($, file => ({ ...file, switch: { isOn: !switchedOn(file, autoOption), option: autoOption } }))
+  await syncEnabled($)
 }
 
 // A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
@@ -1049,8 +1061,8 @@ async function show($: EngineInterface, file: InboxFile) {
   if (hiddenNow !== undefined) await update($, hidden, () => hiddenNow)
   const notesNow = await readJson($, notesFile(), {} as Record<string, Note>)
   if (notesNow !== undefined) await update($, notes, () => notesNow)
-  const autoNow = config.auto.isOn ? await readJson($, autoFile(), { jobs: {} } as AutoReviewFile) : undefined
-  if (autoNow !== undefined) await update($, autoReview, () => autoNow)
+  // The switch may have been pressed in another session.
+  await syncEnabled($).catch(() => undefined)
 
   // An empty file from before the first fetch, or an error result, must not become the baseline, or everything reads as new.
   if (claimed || file.fetchedAt === undefined || file.error !== undefined) return
@@ -1391,11 +1403,12 @@ export const register: Register = (on, options) => {
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
-    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily) },
+    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off' },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
     autoSkills: parseSkills(opts.autoReviewSkills),
   }
   m = MESSAGES.en
+  autoOption = config.auto.isOn
 
   on('session.start', async ($, e, next) => {
     // Before anything is drawn or fetched: the language decides the strings and which shared file is read.
@@ -1417,7 +1430,8 @@ export const register: Register = (on, options) => {
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
-    if (config.auto.isOn) $.clock.every(SYNC_MS, () => void tickAuto($).catch(() => undefined))
+    // Ticks with auto review off cost a check of a flag: the switch can turn it on at any time.
+    $.clock.every(SYNC_MS, () => void tickAuto($).catch(() => undefined))
     selfId = await $.session.id()
     loadedAt = Date.now()
     version = await $.fs
@@ -1441,7 +1455,8 @@ export const register: Register = (on, options) => {
 
   // A review's answer arrives as its subagent's last turn; the main loop's turns carry no agentId.
   on('turn.complete', async ($, e, next) => {
-    if (config.auto.isOn && e.agentId) {
+    // A review turned off while it ran is still stored.
+    if (e.agentId) {
       const tokens = e.usage ? tokensOf(e.usage) : undefined
       await finishRun($, e.agentId, e.answer, tokens, e.isAborted).catch(() => undefined)
     }
@@ -1837,9 +1852,7 @@ export const register: Register = (on, options) => {
           <Box flexShrink={1}>
             <Text color={s.kind === 'failed' || s.kind === 'stale' ? 'warning' : 'suggestion'}>{text}</Text>
           </Box>
-          {(s.kind === 'manual' || s.kind === 'failed') && (
-            <Button key={`auto-run-${key}`} label={s.kind === 'failed' ? m.auto.retry : m.auto.run} onPress={() => void runAuto($, key)} />
-          )}
+          {s.kind === 'failed' && <Button key={`auto-run-${key}`} label={m.auto.retry} onPress={() => void runAuto($, key)} />}
         </Box>
       )
     }
@@ -2322,6 +2335,14 @@ export const register: Register = (on, options) => {
 
             {active === 'review' && (
               <Box flexDirection="column">
+                <Box>
+                  <Button
+                    key="auto-switch"
+                    label={config.auto.isOn ? m.auto.switchOn : m.auto.switchOff}
+                    {...(config.auto.isOn ? { variant: 'primary' as const } : { dimColor: true })}
+                    onPress={() => void switchAuto($).catch(() => undefined)}
+                  />
+                </Box>
                 {unhide(everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
