@@ -2,6 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { AutoReviewFile, InboxItem } from '../types'
 import {
+  REVIEWER_RULES,
   SETTLE_MS,
   autoStates,
   carried,
@@ -229,11 +230,23 @@ test('a carried review keeps each line comment at its diff position, names the n
 })
 
 test("a re-request asks for what changed since my last review, and the style line goes in when there is one", () => {
-  const again = reviewerPrompt(item(1, { reviewedSha: 'old' }), { hasCheckout: false, style: 'asks why first', language: 'Write in English.' })
-  expect(again.includes('since.diff')).toBe(true)
+  const again = reviewerPrompt(item(1, { reviewedSha: 'old' }), { folder: '/runs/o-r-1-h1', hasCheckout: false, style: 'asks why first', language: 'Write in English.' })
+  expect(again.includes('/runs/o-r-1-h1/since.diff')).toBe(true)
   expect(again.includes('How I review: asks why first')).toBe(true)
   expect(again.includes('Only the diff is here')).toBe(true)
-  expect(reviewerPrompt(item(1), { hasCheckout: true, language: '' }).includes('How I review')).toBe(false)
+  expect(reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }).includes('How I review')).toBe(false)
+})
+
+// The engine may start the reviewer in the session's folder rather than the run folder, so the task names every file by its full path.
+test('the task names the run folder by its full path, so the reviewer finds the diff and the checkout wherever it starts', () => {
+  const task = reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' })
+  expect(task.includes('/runs/o-r-1-h1/pr.diff')).toBe(true)
+  expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
+})
+
+test('a reviewer that cannot read the diff answers without JSON, which counts as a failed run rather than a review', () => {
+  expect(REVIEWER_RULES.includes('UNREADABLE')).toBe(true)
+  expect(parseReview('UNREADABLE')).toBeUndefined()
 })
 
 test("GitHub's answer to my 👀 says whether this machine added it, and a PR another machine reviews shows as running until it is looked at again", () => {

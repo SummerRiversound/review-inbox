@@ -803,7 +803,7 @@ const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   return undefined
 }
 // The spawn as the Agent tool's call spells it.
-type Spawned = { subagent_type?: string; cwd?: string; model?: string; name?: string; run_in_background?: boolean }
+type Spawned = { subagent_type?: string; cwd?: string; model?: string; name?: string; run_in_background?: boolean; prompt?: string }
 function agents(on: On, live: () => string[] = () => []) {
   const got = { specs: [] as { tools?: readonly string[]; name: string }[], spawns: [] as Spawned[] }
   on('agent.register', async ($, e) => {
@@ -858,6 +858,7 @@ test('the next queued PR is reviewed by a read-only subagent and stored as my pe
   expect(got.spawns).toHaveLength(1)
   const spawn = got.spawns[0]!
   expect([spawn.subagent_type, spawn.cwd, spawn.model, spawn.run_in_background]).toEqual(['review-inbox:auto-reviewer', `${RUNS}/o-r-5-h5`, 'sonnet', true])
+  expect(spawn.prompt?.includes(`${RUNS}/o-r-5-h5/pr.diff`)).toBe(true)
   expect(got.specs[0]!.tools).toEqual(['Read', 'Grep', 'Glob'])
   expect(files.get(`${RUNS}/o-r-5-h5/pr.diff`)).toBe('diff --git a/a.ts b/a.ts')
   expect(await shown(ui, /Auto review running/)).toBe(true)
