@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.18.0 — 2026-10-28
+
+### Added
+
+- `autoReviewSettleMinutes`, `30` by default: how long a PR's head commit must stay unchanged before auto review starts on it. It takes 0, 10, 30, 60 or 120; `0` starts as soon as the head is seen, and an unreadable value keeps 30.
+
 ## 0.17.1 — 2026-10-28
 
 ### Fixed
