@@ -20,6 +20,7 @@ import {
   reviewerPrompt,
   reviewerSpec,
   setupList,
+  verifierPrompt,
   trackHeads,
 } from '../hooks/autoreview'
 
@@ -254,11 +255,22 @@ test('my own instructions go into the task when I wrote some, and nothing is add
 test('the setup list names every auto review setting with what it does, what it takes, its default and its value now, an unset one as its default', () => {
   const list = setupList({ autoReview: 'on', autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReview', 'autoReviewPost', 'autoReviewModel', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReview', 'autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)
   expect(list.includes('default empty; now empty (default)')).toBe(true)
+})
+
+test('the check of a draft hands over its findings and the run folder, and asks to keep only what the code bears out', () => {
+  const draft = { verdict: 'request-changes' as const, summary: 'One bug.', findings: [{ severity: 'major' as const, path: 'a.ts', line: 2, body: 'two is off by one' }] }
+  const task = verifierPrompt(draft, { folder: '/runs/o-r-1-h1', hasCheckout: true, instructions: 'Check the SQL first.', language: 'Write in Korean.' })
+  expect(task.includes(JSON.stringify(draft))).toBe(true)
+  expect(task.includes('/runs/o-r-1-h1/pr.diff')).toBe(true)
+  expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
+  expect(task.includes('drop a finding the code does not bear out')).toBe(true)
+  expect(task.includes('My instructions for this review: Check the SQL first.')).toBe(true)
+  expect(verifierPrompt(draft, { folder: '/runs/o-r-1-h1', hasCheckout: false, language: '' }).includes('/repo/')).toBe(false)
 })
 
 test('a reviewer that cannot read the diff answers without JSON, which counts as a failed run rather than a review', () => {

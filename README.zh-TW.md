@@ -69,6 +69,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `autoReview` | `off` | 設為 `on` 時，會在背景審查請求你的 PR，並把每份審查保留為你的待送出審查，直到你發布為止。**會明顯多用 token。**也可以用待審查分頁頂端的 `自動審查` 按鈕開關，開啟前會先確認。 請見下方的自動審查。 |
 | `autoReviewPost` | `pending` | 審查結束後怎麼處理：`pending` 保留為待送出審查，由你在卡片上送出；`comment` 以評論送出；`verdict` 依建議的結論送出，包括核准和要求變更。不是 `pending` 時會不經確認以你的名義送出。 |
 | `autoReviewModel` | `sonnet` | 審查者使用的模型：`sonnet` 或 `opus`；`opus` 審查得更深入，花費也更高。 |
+| `autoReviewVerify` | `off` | 設為 `on` 時，草稿儲存前由第二位審查者逐條對照程式碼核實：不成立的意見刪去，誇大的等級調低。有意見的審查約花費兩倍 token。 |
 | `autoReviewDaily` | `5` | 一天內最多開始的自動審查數：3、5、10、20 或 `unlimited`。卡片上的 `重試` 不計入。 |
 | `autoReviewSkills` | 空白 | 載入到審查者的技能，以逗號分隔，例如你的審查手冊。空白表示不載入任何技能。 |
 | `autoReviewInstructions` | 空白 | 用自己的話寫給審查者的指示，例如先看什麼、評論怎麼寫。空白表示不加入。 |

@@ -815,6 +815,42 @@ test('a post GitHub refuses keeps the auto review as my pending review, to post 
   await ui.unmount()
 })
 
+test('with autoReviewVerify on a draft with findings goes to a second reviewer that checks each one, and its answer is what is stored', { options: { autoReview: 'on', autoReviewVerify: 'on' } }, async ($, on) => {
+  const g: Github = { created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  const got = agents(on, () => ['a1', 'a2'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await finish($, 'a1', ANSWER)
+
+  expect(g.created).toHaveLength(0)
+  expect(got.spawns).toHaveLength(2)
+  expect(got.spawns[1]!.prompt?.includes('two is off by one')).toBe(true)
+  expect(got.spawns[1]!.prompt?.includes(`${RUNS}/o-r-5-h5/pr.diff`)).toBe(true)
+  const checking = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([checking.status, checking.agentId]).toEqual(['running', 'a2'])
+
+  const checked = { verdict: 'comment', summary: 'A small thing.', findings: [{ severity: 'minor', path: 'a.ts', line: 2, body: 'two reads oddly' }] }
+  await finish($, 'a2', JSON.stringify(checked))
+  expect(g.created).toHaveLength(1)
+  expect(g.created[0]!.includes('**minor** two reads oddly')).toBe(true)
+  expect(g.created[0]!.includes('off by one')).toBe(false)
+  const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([job.status, job.result.verdict, job.tokens, job.draft]).toEqual(['done', 'comment', 84_000, undefined])
+  await ui.unmount()
+})
+
+test('with autoReviewVerify on a draft with no findings is stored as it is, with no second reviewer', { options: { autoReview: 'on', autoReviewVerify: 'on' } }, async ($, on) => {
+  const g: Github = { created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await finish($, 'a1', JSON.stringify({ verdict: 'approve', summary: 'LGTM', findings: [] }))
+
+  expect(got.spawns).toHaveLength(1)
+  expect(g.created).toHaveLength(1)
+  await ui.unmount()
+})
+
 test('a new request waits for its commits to settle, and a team request shows no auto-review line', AUTO_ON, async ($, on) => {
   const now = Date.now()
   const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now }, 'o/r#6': { headSha: 'h6', firstSeenAt: now } } }

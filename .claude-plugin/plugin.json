@@ -85,6 +85,13 @@
       "options": ["sonnet", "opus"],
       "default": "sonnet"
     },
+    "autoReviewVerify": {
+      "type": "string",
+      "title": "Auto review check",
+      "description": "on has a second reviewer check each finding of a draft against the code before it is stored, dropping what does not hold and lowering what is overstated; a review with findings costs about twice the tokens",
+      "options": ["off", "on"],
+      "default": "off"
+    },
     "autoReviewDaily": {
       "type": "string",
       "title": "Auto reviews a day",
