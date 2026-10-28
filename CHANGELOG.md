@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.22.0 — 2026-10-28
+
+### Changed
+
+- The `Auto review done` group holds the auto reviews posted for you (`autoReviewPost` at `comment` or `verdict`), with their verdict, so one is not missed once its PR leaves the To review tab. They stay until `Check all` clears the group, and the band's auto-reviewed count is the same number. A review still waiting to be posted stays in its request group, with its post and discard buttons. Reviews posted before this release do not show in the group.
+
 ## 0.21.0 — 2026-10-28
 
 ### Changed
