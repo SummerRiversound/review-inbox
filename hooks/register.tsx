@@ -69,6 +69,7 @@ import {
   reviewerSpec,
   reviewsArgs,
   runName,
+  agentName,
   setupList,
   severityCounts,
   sinceArgs,
@@ -925,7 +926,7 @@ async function startRun($: EngineInterface, key: string) {
     const checkout = await addCheckout($, item, folder)
     if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
     await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
-    const name = `auto-review-${runName(key, item.headSha)}`
+    const name = agentName('auto-review', key, item.headSha)
     const spawned = await $.agent.spawn({
       name,
       subagentType: AGENT_TYPE,
@@ -1013,7 +1014,7 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
 // The second reviewer takes over the run: same folder, same 👀, and the job now waits on its answer.
 async function verifyRun($: EngineInterface, key: string, job: AutoJob, draft: AutoResult, tokens: number | undefined) {
   try {
-    const name = `auto-review-check-${runName(key, job.headSha)}`
+    const name = agentName('auto-review-check', key, job.headSha)
     const spawned = await $.agent.spawn({
       name,
       subagentType: AGENT_TYPE,
