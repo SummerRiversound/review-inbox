@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.21.0 — 2026-10-28
+
+### Changed
+
+- A posted auto review names each severity in the mod's language, as the card does (`블로커`, `메이저`, `마이너`, `nit` in Korean), instead of always in English.
+- Findings that go into the review body because they are outside the diff are grouped under their severity, most severe first, and each one's file and line come after its text instead of before it.
+
 ## 0.20.0 — 2026-10-28
 
 ### Added
