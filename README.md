@@ -69,6 +69,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `autoReview` | `off` | `on` reviews PRs that ask for you in the background and keeps each review as your pending review until you post it. **It uses noticeably more tokens.** The `Auto review` button atop the To review tab turns it on and off too, asking first before it turns on. See Auto review below. |
 | `autoReviewPost` | `pending` | What a finished review becomes: `pending` keeps it as your pending review to post from the card, `comment` posts it as a comment, `verdict` posts it with the verdict it suggests, approve and request changes included. Anything but `pending` posts under your name without asking. |
 | `autoReviewModel` | `sonnet` | The model the reviewer runs on: `sonnet` or `opus`, which reviews deeper and costs more. |
+| `autoReviewVerify` | `off` | `on` has a second reviewer check each finding of a draft against the code before it is stored, dropping what does not hold and lowering what is overstated. A review with findings then costs about twice the tokens. |
 | `autoReviewDaily` | `5` | Most auto reviews started in a day: 3, 5, 10, 20 or `unlimited`. `Try again` on a card is not counted. |
 | `autoReviewSkills` | empty | Skills loaded into the reviewer, comma-separated, such as your review playbook. Empty loads none. |
 | `autoReviewInstructions` | empty | Your own words to the reviewer, such as what to check first or how to word comments. Empty adds none. |

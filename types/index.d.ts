@@ -77,6 +77,8 @@ export type AutoJob = {
   reviewId?: number
   result?: AutoResult
   tokens?: number
+  // The first reviewer's answer and its tokens while a second reviewer checks it (autoReviewVerify).
+  draft?: { result: AutoResult; tokens?: number }
   error?: string
   staleFrom?: string
   // The commit a review with the same content was moved from, with no model call.

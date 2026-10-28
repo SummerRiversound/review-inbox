@@ -153,6 +153,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReview', does: 'whether PRs that ask for my review are reviewed in the background', takes: 'on | off', fallback: 'off' },
   { key: 'autoReviewPost', does: 'what a finished review becomes: my pending review to post myself, posted as a comment, or posted with the verdict it suggests, approve and request changes included', takes: 'pending | comment | verdict', fallback: 'pending' },
   { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
+  { key: 'autoReviewVerify', does: 'whether a second reviewer checks each finding of the draft against the code before it is stored, dropping or lowering what does not hold; a review with findings costs about twice the tokens', takes: 'on | off', fallback: 'off' },
   { key: 'autoReviewDaily', does: 'the most reviews started in a day; Try again on a card is not counted', takes: '3 | 5 | 10 | 20 | unlimited', fallback: '5' },
   { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },
   { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
@@ -177,6 +178,20 @@ export function reviewerPrompt(item: InboxItem, facts: RunFacts): string {
       ? `This is a re-request: I last reviewed ${item.reviewedSha}. Review what ${facts.folder}/since.diff changes; read ${facts.folder}/pr.diff only for context.`
       : `Review the whole change in ${facts.folder}/pr.diff.`,
     facts.hasCheckout ? `The code at the head commit is in ${facts.folder}/repo/.` : 'Only the diff is here; the rest of the code could not be checked out.',
+    facts.style ? `How I review: ${facts.style}` : '',
+    facts.instructions ? `My instructions for this review: ${facts.instructions}` : '',
+    facts.language,
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+// The task of the second reviewer, which checks a draft that has findings before it is stored.
+export function verifierPrompt(draft: AutoResult, facts: RunFacts): string {
+  return [
+    `Check this draft review of the change in ${facts.folder}/pr.diff before it reaches me. For each finding, read the code it points to and decide whether it holds: drop a finding the code does not bear out, lower the severity of one that is real but overstated, and keep the rest. Add no new findings, and set the verdict and summary from the findings that remain.`,
+    facts.hasCheckout ? `The code at the head commit is in ${facts.folder}/repo/.` : 'Only the diff is here; the rest of the code could not be checked out.',
+    `Draft: ${JSON.stringify(draft)}`,
     facts.style ? `How I review: ${facts.style}` : '',
     facts.instructions ? `My instructions for this review: ${facts.instructions}` : '',
     facts.language,

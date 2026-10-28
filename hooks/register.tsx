@@ -5,6 +5,7 @@ import type {
   Actions,
   Activity,
   AutoJob,
+  AutoResult,
   AutoReviewFile,
   ButtonScope,
   Capped,
@@ -59,6 +60,7 @@ import {
   placeFindings,
   reviewBody,
   reviewerPrompt,
+  verifierPrompt,
   reviewerSpec,
   reviewsArgs,
   runName,
@@ -69,7 +71,7 @@ import {
   tokensOf,
   trackHeads,
 } from './autoreview'
-import type { AutoSettings, GhComment, GhReview, PrFile } from './autoreview'
+import type { AutoSettings, GhComment, GhReview, PrFile, RunFacts } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -212,6 +214,7 @@ type Options = {
   directActions?: string
   autoReview?: string
   autoReviewModel?: string
+  autoReviewVerify?: string
   autoReviewPost?: string
   autoReviewDaily?: string
   autoReviewSkills?: string
@@ -223,7 +226,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -807,7 +810,7 @@ const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?
   })
 
 // A job no run holds: undefined fields are left out when the file is written.
-const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, checked: undefined }
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, checked: undefined, draft: undefined }
 
 const prOf = (key: string) => {
   const at = key.lastIndexOf('#')
@@ -879,6 +882,12 @@ async function takeLock($: EngineInterface, pr: InboxItem, env: Record<string, s
   return lock ? { path: lockPath(pr, lock.id) } : {}
 }
 
+// What both reviewers of a run are told besides their task.
+async function runFacts($: EngineInterface, folder: string, hasCheckout: boolean): Promise<RunFacts> {
+  const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
+  return { folder, hasCheckout, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language }
+}
+
 // Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
 async function startRun($: EngineInterface, key: string) {
   const item = (await read($, items)).find(i => itemKey(i) === key)
@@ -905,13 +914,12 @@ async function startRun($: EngineInterface, key: string) {
     const checkout = await addCheckout($, item, folder)
     if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
     await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
-    const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
     const name = `auto-review-${runName(key, item.headSha)}`
     const spawned = await $.agent.spawn({
       name,
       subagentType: AGENT_TYPE,
       description: `Auto review ${item.repo} #${item.number}`,
-      prompt: reviewerPrompt(item, { folder, hasCheckout: checkout !== undefined, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language }),
+      prompt: reviewerPrompt(item, await runFacts($, folder, checkout !== undefined)),
       model: config.autoModel,
       cwd: folder,
     })
@@ -943,6 +951,9 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
   }
   const result = parseReview(answer)
   if (!result) return failRun($, key, m.auto.unreadable)
+  // With autoReviewVerify a draft with findings goes to a second reviewer first; its answer is the one stored.
+  if (config.autoVerify && !job.draft && result.findings.length > 0) return verifyRun($, key, job, result, tokens)
+  const spent = job.draft ? (job.draft.tokens ?? 0) + (tokens ?? 0) || undefined : tokens
   const pr = prOf(key)
   try {
     const env = await ghEnv($)
@@ -977,8 +988,29 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
       await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined }, job.headSha)
       return toast($, `${m.auto.posted(m.auto.verdicts[post === 'post-comment' ? 'comment' : result.verdict])} · ${pr.repo} #${pr.number}`)
     }
-    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) }, job.headSha)
+    await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(spent ? { tokens: spent } : {}) }, job.headSha)
     toast($, `${refused === undefined ? m.auto.finished(m.auto.verdicts[result.verdict]) : m.auto.postFailed(refused)} · ${pr.repo} #${pr.number}`)
+  } catch (error) {
+    await failRun($, key, error instanceof Error ? error.message : String(error))
+  }
+}
+
+// The second reviewer takes over the run: same folder, same 👀, and the job now waits on its answer.
+async function verifyRun($: EngineInterface, key: string, job: AutoJob, draft: AutoResult, tokens: number | undefined) {
+  try {
+    const name = `auto-review-check-${runName(key, job.headSha)}`
+    const spawned = await $.agent.spawn({
+      name,
+      subagentType: AGENT_TYPE,
+      description: `Check auto review ${key}`,
+      prompt: verifierPrompt(draft, await runFacts($, job.folder ?? '', job.checkout !== undefined)),
+      model: config.autoModel,
+      ...(job.folder ? { cwd: job.folder } : {}),
+    })
+    if (spawned.deny !== undefined) throw new Error(spawned.deny)
+    const agentId = spawned.agentId ?? (await $.agent.list()).find(a => a.name === name)?.id
+    if (!agentId) throw new Error('no agent started')
+    await setJob($, key, { agentId, heartbeatAt: Date.now(), draft: { result: draft, ...(tokens ? { tokens } : {}) } }, job.headSha)
   } catch (error) {
     await failRun($, key, error instanceof Error ? error.message : String(error))
   }
@@ -1461,6 +1493,7 @@ export const register: Register = (on, options) => {
     directActions: opts.directActions === 'on',
     auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off' },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
+    autoVerify: opts.autoReviewVerify === 'on',
     autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',
     autoSkills: parseSkills(opts.autoReviewSkills),
     autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
