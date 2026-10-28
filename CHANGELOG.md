@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.17.0 — 2026-10-28
+
+### Added
+
+- `autoReviewVerify`, `off` by default: with it `on`, a second reviewer checks each finding of an auto review's draft against the code before it is stored, dropping what does not hold and lowering what is overstated, then sets the verdict again. A draft with no findings skips the check; one with findings costs about twice the tokens, and the card shows both runs' tokens together.
+
 ## 0.16.0 — 2026-10-28
 
 ### Added
