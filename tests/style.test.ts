@@ -52,9 +52,10 @@ test('a style learned under older rules is learned again and not used meanwhile'
   expect(learnedStyle(undefined)).toBeUndefined()
 })
 
-test('the style description leaves out greetings, praise and how a review is laid out', async () => {
+test('the style description leaves out greetings, praise, and how long a review is and how it is laid out', async () => {
   const rules = styleRules('en')
-  for (const word of ['greetings', 'praise', 'order']) expect(rules.includes(word)).toBe(true)
+  for (const word of ['greetings', 'praise', 'length', 'order']) expect(rules.includes(word)).toBe(true)
+  expect(rules.includes('how long their comments are')).toBe(false)
 })
 
 test('a style reply becomes one line, and an empty one is no style', async () => {

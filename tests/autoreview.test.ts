@@ -334,6 +334,8 @@ test('the built-in rules carry a way to review and a way to write for the reader
   // How to review: check every finding against the code, and grade by what merging would cost.
   expect(REVIEWER_RULES.includes('Read the code each finding points to again before you keep it')).toBe(true)
   expect(REVIEWER_RULES.includes('blocker: hard to undo after merging or harmful in production')).toBe(true)
+  expect(REVIEWER_RULES.includes('A blocker is closed in this pull request')).toBe(true)
+  expect(REVIEWER_RULES.includes('counting only the severities that call for the verdict')).toBe(true)
   // How to write: the verdict alone on the first line without a greeting, a conclusion line then its reason a finding, what breaks and what to decide rather than how the code works, no file or line on a comment that already sits on the code, no account of the work.
   expect(REVIEWER_RULES.includes("The summary's first line is the verdict alone, in bold, as your own decision and with no greeting")).toBe(true)
   expect(REVIEWER_RULES.includes('Each finding body puts its conclusion alone on the first line')).toBe(true)
