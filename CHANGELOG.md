@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.25.0 — 2026-10-28
+
+### Changed
+
+- An auto review reads like a hand-written one: the verdict alone and in bold on the summary's first line, and each finding its severity and conclusion on a bold first line with the reason below. Findings outside the diff sit under a heading per severity.
+- A blocker is always closed in its pull request; what can follow after merging is minor. The summary's verdict counts only the severities that call for it, so a request for a decision no longer reads "0 blockers".
+- The weekly style learning leaves out how long comments run, as it already left out greetings and layout. The current description is learned again.
+
+### Fixed
+
+- The review card shows each finding's conclusion line only, instead of the whole finding.
+
 ## 0.24.0 — 2026-10-28
 
 ### Changed
