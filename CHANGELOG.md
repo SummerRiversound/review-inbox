@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.23.1 — 2026-10-28
+
+### Fixed
+
+- Auto review no longer fails to start on a PR whose repository has a long or dotted name: the reviewer's name kept the repository name whole and could pass Claude Code's limit of 64 letters, digits, `_` and `-`. A long repository name is now cut, with the PR number and head commit kept.
+
 ## 0.23.0 — 2026-10-28
 
 ### Changed
