@@ -188,7 +188,9 @@ test("the reviewer's answer is read from one JSON object, fenced or not, and fin
   expect(parseReview('{"verdict": "approve", "summary": ')).toBeUndefined()
 })
 
-test('a finding on a changed or context line of a hunk becomes a comment, any other goes into the body with the marker', () => {
+const NAMES = { blocker: '블로커', major: '메이저', minor: '마이너', nit: 'nit' }
+
+test('a finding on a changed or context line of a hunk becomes a comment labelled in the review language, any other goes into the body', () => {
   // New-file lines 10 to 13: 10 context, 11 added, removed line skipped, 12 context; 20 is outside every hunk.
   const files = [{ filename: 'a.ts', patch: '@@ -10,3 +10,3 @@ fn\n keep\n+added\n-gone\n keep2' }, { filename: 'bin.png' }]
   const findings = [
@@ -198,15 +200,24 @@ test('a finding on a changed or context line of a hunk becomes a comment, any ot
     { severity: 'minor' as const, path: 'bin.png', line: 1, body: 'no patch' },
     { severity: 'minor' as const, path: 'other.ts', line: 1, body: 'not in the PR' },
   ]
-  const { comments, rest } = placeFindings(files, findings)
+  const { comments, rest } = placeFindings(files, findings, NAMES)
   expect(comments).toEqual([
-    { path: 'a.ts', line: 11, side: 'RIGHT', body: '**major** on the added line' },
-    { path: 'a.ts', line: 12, side: 'RIGHT', body: '**minor** on context' },
+    { path: 'a.ts', line: 11, side: 'RIGHT', body: '**메이저** on the added line' },
+    { path: 'a.ts', line: 12, side: 'RIGHT', body: '**마이너** on context' },
   ])
   expect(rest.map(f => f.body)).toEqual(['outside', 'no patch', 'not in the PR'])
-  expect(reviewBody('Looks fine.', rest.slice(0, 1), 'abc', 'k1')).toBe(
-    'Looks fine.\n\n- `a.ts:20` **nit** outside\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
+})
+
+test('findings in the body are grouped under their severity, most severe first, each with its place after the text', () => {
+  const rest = [
+    { severity: 'nit' as const, path: 'a.ts', line: 20, body: 'outside' },
+    { severity: 'blocker' as const, path: 'b.ts', line: 3, body: 'data loss' },
+    { severity: 'nit' as const, path: 'c.ts', line: 7, body: 'naming' },
+  ]
+  expect(reviewBody('Looks fine.', rest, 'abc', 'k1', NAMES)).toBe(
+    'Looks fine.\n\n**블로커**\n- data loss (`b.ts:3`)\n\n**nit**\n- outside (`a.ts:20`)\n- naming (`c.ts:7`)\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
   )
+  expect(reviewBody('LGTM', [], 'abc', 'k1', NAMES)).toBe('LGTM\n\n<!-- review-inbox auto-review sha=abc key=k1 -->')
 })
 
 test('the pending review is created on the head with no event, its comments and body on stdin', () => {
