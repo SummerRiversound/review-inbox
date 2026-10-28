@@ -14,6 +14,12 @@ export type AutoSettings = { isOn: boolean; daily: number | undefined; large: bo
 // The setting is only where auto review starts: once the switch atop the Review tab is pressed, it alone turns it on and off.
 export const switchedOn = (file: AutoReviewFile, option: boolean) => file.switch?.isOn ?? option
 
+// With a review session named, only it starts reviews; a run already going is still renewed by whoever holds it.
+export const mayStart = (file: AutoReviewFile, sessionId: string) => file.reviewer === undefined || file.reviewer === sessionId
+
+// The named review session is not among the open ones, so nothing starts until it is back or another takes over.
+export const reviewerAway = (file: AutoReviewFile, live: Record<string, unknown>) => file.reviewer !== undefined && !(file.reviewer in live)
+
 // `unlimited` has no limit; anything unreadable falls back to the default.
 export function parseDaily(option: string | undefined): number | undefined {
   if (option === 'unlimited') return undefined

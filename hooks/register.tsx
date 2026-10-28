@@ -38,6 +38,8 @@ import {
   RUN_STALE_MS,
   autoStates,
   switchedOn,
+  mayStart,
+  reviewerAway,
   bySeverity,
   createArgs,
   createInput,
@@ -748,8 +750,12 @@ async function syncEnabled($: EngineInterface) {
 }
 
 // Pressed in one session, it holds in all of them: the shared file carries it.
+// Turned on, this session becomes the one that runs reviews; turned off, none is named.
 async function switchAuto($: EngineInterface) {
-  await editAuto($, file => ({ ...file, switch: { isOn: !switchedOn(file, autoOption) } }))
+  await editAuto($, ({ reviewer: _, ...file }) => {
+    const isOn = !switchedOn(file, autoOption)
+    return { ...file, switch: { isOn }, ...(isOn ? { reviewer: selfId } : {}) }
+  })
   await syncEnabled($)
 }
 
@@ -1052,6 +1058,7 @@ async function tickAuto($: EngineInterface) {
       quietRun = isQuiet ? run : undefined
       return
     }
+    if (!mayStart(file, selfId)) return
     const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))
     if (!key) return
     // As sync claims the fetch: write, wait, read back; the last claim written wins.
@@ -1521,7 +1528,7 @@ export const register: Register = (on, options) => {
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
     $.ui.invalidate('ui.render')
-    await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search | auto-review-config]' })
+    await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search | auto-review-config | auto-review-here | auto-review-anywhere]' })
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -1579,6 +1586,14 @@ export const register: Register = (on, options) => {
     if (sub === 'auto-review-config') {
       const filled = await $.prompt.fill({ text: await setupPrompt($), mode: 'append' })
       return { text: filled.isFilled ? m.command.filled : m.toast.promptBusy }
+    }
+    if (sub === 'auto-review-here') {
+      await editAuto($, file => ({ ...file, reviewer: selfId }))
+      return { text: m.command.reviewerHere }
+    }
+    if (sub === 'auto-review-anywhere') {
+      await editAuto($, ({ reviewer: _, ...file }) => file)
+      return { text: m.command.reviewerAnywhere }
     }
     if (sub === 'add-button' || sub === 'add-search') {
       await loadActions($)
@@ -1905,6 +1920,7 @@ export const register: Register = (on, options) => {
 
     const autoNow = await read($, autoReview)
     const autoMap = autoStates(autoNow, everything, config.auto, now)
+    const isAway = reviewerAway(autoNow, await read($, sessions))
     // Where the card stands in auto review; nothing when it is off or the card is not one it reviews.
     const autoLine = (item: InboxItem) => {
       const key = itemKey(item)
@@ -1947,7 +1963,9 @@ export const register: Register = (on, options) => {
                     ? m.auto.failed(s.error)
                     : s.kind === 'stale'
                       ? m.auto.stale(s.from.slice(0, 7))
-                      : m.auto.queued(s.ahead)
+                      : isAway
+                        ? m.auto.waitingSession
+                        : m.auto.queued(s.ahead)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
           <Box flexShrink={1}>
@@ -2443,6 +2461,7 @@ export const register: Register = (on, options) => {
                   <Box flexDirection="column">
                     <Text color="warning">{m.auto.ask}</Text>
                     <Text dimColor>{m.auto.askSettings}</Text>
+                    <Text dimColor>{m.auto.askHere}</Text>
                     <Box flexDirection="row" justifyContent="flex-end" gap={1}>
                       <Button key="auto-cancel" label={m.direct.cancel} onPress={() => void update($, autoAsking, () => null)} />
                       <Button key="auto-confirm" label={m.auto.turnOn} variant="primary" onPress={() => void confirmSwitch($).catch(() => undefined)} />
