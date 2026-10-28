@@ -681,7 +681,7 @@ test('with autoReviewBacklog off an older request says why on its card and has n
   await ui.unmount()
 })
 
-test('the switch atop the Review tab warns before turning auto review on for every session, turns it off at once, and a later change in the settings wins over it', async ($, on) => {
+test('the switch atop the Review tab warns before turning auto review on for every session, turns it off at once, and once pressed decides whatever the setting says', async ($, on) => {
   const toasts: string[] = []
   on('ui.toast', async ($, e) => {
     toasts.push(e.text)
@@ -710,20 +710,21 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await clock.advance(300)
   await ui.press({ key: 'auto-confirm' })
   const file = JSON.parse(files.get(AUTO)!)
-  expect([file.switch, file.enabledAt > 0]).toEqual([{ isOn: true, option: false }, true])
+  expect([file.switch, file.enabledAt > 0]).toEqual([{ isOn: true }, true])
   expect(await shown(ui, /Auto review: next in line/)).toBe(true)
   await tick()
   expect(got.spawns).toHaveLength(1)
 
   await ui.press({ key: 'auto-switch' })
-  expect(JSON.parse(files.get(AUTO)!).switch).toEqual({ isOn: false, option: false })
+  expect(JSON.parse(files.get(AUTO)!).switch).toEqual({ isOn: false })
   // Toasts keep their gap; the first is this session forgetting when the file says auto review was last on.
   await clock.advance(10_000)
   expect(toasts.filter(t => t.startsWith('Auto review is'))).toEqual(['Auto review is off', 'Auto review is on', 'Auto review is off'])
 
-  // The settings turned on since the press: the switch no longer speaks, and the settings say on.
-  expect(switchedOn({ ...file, switch: { isOn: false, option: false } }, true)).toBe(true)
-  expect(switchedOn({ ...file, switch: { isOn: false, option: true } }, true)).toBe(false)
+  // The setting is only where it starts: a pressed switch holds whichever way the setting turns later.
+  expect(switchedOn({ ...file, switch: { isOn: false } }, true)).toBe(false)
+  expect(switchedOn({ ...file, switch: { isOn: true } }, false)).toBe(true)
+  expect(switchedOn({ jobs: {} }, true)).toBe(true)
   await ui.unmount()
 })
 
@@ -749,7 +750,9 @@ test('the first time the switch turns auto review on, a request to set it up wit
   expect(fills).toHaveLength(1)
   expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
   expect(fills[0]!.includes('/home/me/.claude/settings.json')).toBe(true)
-  expect(fills[0]!.includes('- autoReview: whether PRs that ask for my review are reviewed in the background. Takes on | off; default off; now on')).toBe(true)
+  // On and off is the switch's alone, so the setup neither asks about it nor writes it.
+  expect(fills[0]!.includes('- autoReview:')).toBe(false)
+  expect(fills[0]!.includes('Leave autoReview out')).toBe(true)
   expect(fills[0]!.includes('- autoReviewInstructions:')).toBe(true)
   expect(JSON.parse(files.get(AUTO)!).setupAt > 0).toBe(true)
   await clock.advance(10_000)
@@ -771,7 +774,7 @@ test('/review-inbox auto-review-config puts the setup request into the prompt wi
 
   expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-config' })).text).toBe('Added to your prompt; press Enter to send it.')
   expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
-  expect(fills[0]!.includes('default off; now off (default)')).toBe(true)
+  expect(fills[0]!.includes('- autoReview:')).toBe(false)
   expect(fills[0]!.includes('default sonnet; now opus')).toBe(true)
   expect(fills[0]!.includes('now Check the SQL first.')).toBe(true)
   await ui.unmount()

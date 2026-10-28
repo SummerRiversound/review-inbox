@@ -227,7 +227,7 @@ export const ja: Messages = {
   prompt: {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,
     addGroup: (path: string) => `レビュー受信トレイに保存した検索を1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,
-    autoSetup: (path, list) => `レビュー受信箱の自動レビュー設定を一緒に決めて。以下は自動レビューの設定ごとの役割、指定できる値、既定値、今の値です。一つずつ順に、何をするか、既定値と今の値をわかりやすく説明して、変えるかどうか聞いて。私が選んだ値は ${path} の "pluginConfigs" の review-inbox の項目に書いて。/config が変える値と同じ場所で、それ以外はそのままにして。変えた値は次のセッションから効くと伝えて。\n${list}`,
+    autoSetup: (path, list) => `レビュー受信箱の自動レビュー設定を一緒に決めて。以下は自動レビューの設定ごとの役割、指定できる値、既定値、今の値です。一つずつ順に、何をするか、既定値と今の値をわかりやすく説明して、変えるかどうか聞いて。私が選んだ値は ${path} の "pluginConfigs" の review-inbox の項目に書いて。/config が変える値と同じ場所で、それ以外はそのままにして。autoReview は書かないで。自動レビューのオン・オフは要レビュータブの上にある自動レビューのスイッチで切り替える。変えた値は次のセッションから効くと伝えて。\n${list}`,
     review: (url: string) => `${url} をレビューして。`,
     refine: (url: string, sha: string) => `${url} にある自分の保留中のレビューを一緒に仕上げよう。head ${sha} をレビューしたもの。本文とコメントは \`gh api\` で読み、決めたとおりにそこで直して。`,
     pending: (id: number, repo: string, number: number) =>

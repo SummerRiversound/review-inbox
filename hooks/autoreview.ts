@@ -11,8 +11,8 @@ export const DAILY_DEFAULT = 5
 // `large` and `backlog` let a PR past the size limits, or a request from before auto review was on, start by itself.
 export type AutoSettings = { isOn: boolean; daily: number | undefined; large: boolean; backlog: boolean }
 
-// The switch atop the Review tab speaks while the setting is still what it was when pressed; a later change in the settings wins.
-export const switchedOn = (file: AutoReviewFile, option: boolean) => (file.switch && file.switch.option === option ? file.switch.isOn : option)
+// The setting is only where auto review starts: once the switch atop the Review tab is pressed, it alone turns it on and off.
+export const switchedOn = (file: AutoReviewFile, option: boolean) => file.switch?.isOn ?? option
 
 // `unlimited` has no limit; anything unreadable falls back to the default.
 export function parseDaily(option: string | undefined): number | undefined {
@@ -148,9 +148,8 @@ export const parseSkills = (option: string | undefined) =>
 
 export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; instructions?: string; language: string }
 
-// The settings the setup request walks through, with what each takes and its default as the manifest has them.
+// The settings the setup request walks through, all but autoReview, which the switch keeps, with what each takes and its default as the manifest has them.
 export const AUTO_SETTINGS = [
-  { key: 'autoReview', does: 'whether PRs that ask for my review are reviewed in the background', takes: 'on | off', fallback: 'off' },
   { key: 'autoReviewPost', does: 'what a finished review becomes: my pending review to post myself, posted as a comment, or posted with the verdict it suggests, approve and request changes included', takes: 'pending | comment | verdict', fallback: 'pending' },
   { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
   { key: 'autoReviewVerify', does: 'whether a second reviewer checks each finding of the draft against the code before it is stored, dropping or lowering what does not hold; a review with findings costs about twice the tokens', takes: 'on | off', fallback: 'off' },

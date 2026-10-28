@@ -227,7 +227,7 @@ export const ko: Messages = {
   prompt: {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,
     addGroup: path => `리뷰 인박스에 저장한 검색을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,
-    autoSetup: (path, list) => `리뷰 인박스의 자동 리뷰 설정을 같이 정해 줘. 아래는 자동 리뷰 설정마다 하는 일, 넣을 수 있는 값, 기본값, 지금 값이야. 하나씩 차례로, 무엇을 하는지와 기본값·지금 값을 쉬운 말로 설명하고 바꿀지 물어봐. 내가 고른 값은 ${path}의 "pluginConfigs"에서 review-inbox 항목에 써 줘. /config가 바꾸는 값과 같은 곳이고, 그 밖의 내용은 그대로 둬. 바뀐 값은 다음 세션부터 적용된다고 알려 줘.\n${list}`,
+    autoSetup: (path, list) => `리뷰 인박스의 자동 리뷰 설정을 같이 정해 줘. 아래는 자동 리뷰 설정마다 하는 일, 넣을 수 있는 값, 기본값, 지금 값이야. 하나씩 차례로, 무엇을 하는지와 기본값·지금 값을 쉬운 말로 설명하고 바꿀지 물어봐. 내가 고른 값은 ${path}의 "pluginConfigs"에서 review-inbox 항목에 써 줘. /config가 바꾸는 값과 같은 곳이고, 그 밖의 내용은 그대로 둬. autoReview는 쓰지 마. 자동 리뷰를 켜고 끄는 건 리뷰 대기 탭 위의 자동 리뷰 스위치야. 바뀐 값은 다음 세션부터 적용된다고 알려 줘.\n${list}`,
     review: url => `${url} 리뷰해 줘.`,
     refine: (url: string, sha: string) => `${url}에 있는 내 임시 리뷰를 같이 다듬자. head ${sha}를 리뷰한 거야. 본문과 코멘트는 \`gh api\`로 읽고, 우리가 정한 대로 거기서 고쳐.`,
     pending: (id: number, repo: string, number: number) =>
