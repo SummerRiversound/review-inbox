@@ -885,7 +885,7 @@ async function startRun($: EngineInterface, key: string) {
       name,
       subagentType: AGENT_TYPE,
       description: `Auto review ${item.repo} #${item.number}`,
-      prompt: reviewerPrompt(item, { hasCheckout: checkout !== undefined, ...(style ? { style } : {}), language: m.model.language }),
+      prompt: reviewerPrompt(item, { folder, hasCheckout: checkout !== undefined, ...(style ? { style } : {}), language: m.model.language }),
       model: config.autoModel,
       cwd: folder,
     })
