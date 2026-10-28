@@ -3,6 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { AutoReviewFile, InboxItem } from '../types'
 import {
   REVIEWER_RULES,
+  agentName,
   SETTLE_MS,
   autoStates,
   carried,
@@ -343,4 +344,13 @@ test("GitHub's answer to my 👀 says whether this machine added it, and a PR an
   const file = { enabledAt: 0, jobs: { 'o/r#1': { headSha: 'h1', firstSeenAt: 0, elsewhere: { since: 5, until: SETTLE_MS + 100 } } } }
   expect(autoStates(file, [item(1)], ON, 50)['o/r#1']).toEqual({ kind: 'running', since: 5 })
   expect(autoStates(file, [item(1)], ON, SETTLE_MS + 200)['o/r#1']!.kind).toBe('queued')
+})
+
+test('a subagent name keeps to letters, digits, _ and - within 64 characters, cutting a long repository name but never the PR number or head', () => {
+  const valid = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
+  const long = agentName('auto-review-check', 'dtonic/deview-data-modeling-service#142', '2f2195a1234')
+  expect(valid.test(long)).toBe(true)
+  expect(long.endsWith('-142-2f2195a')).toBe(true)
+  expect(agentName('auto-review', 'my.org/some.repo#7', 'abcdef0123')).toBe('auto-review-my-org-some-repo-7-abcdef0')
+  expect(agentName('auto-review', 'o/r#5', 'h5h5h5h5')).toBe('auto-review-o-r-5-h5h5h5h')
 })

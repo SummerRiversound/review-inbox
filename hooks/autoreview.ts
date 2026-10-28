@@ -395,5 +395,12 @@ export const bySeverity = (findings: Finding[]) => [...findings].sort((a, b) => 
 export const severityCounts = (findings: Finding[]) =>
   SEVERITIES.map(severity => ({ severity, count: findings.filter(f => f.severity === severity).length })).filter(c => c.count > 0)
 
+// A subagent's name takes only letters, digits, _ and -, at most 64: a long repository name is cut, the PR number and head kept.
+export function agentName(prefix: string, key: string, head: string): string {
+  const at = key.lastIndexOf('#')
+  const tail = `-${key.slice(at + 1)}-${head.slice(0, 7)}`
+  return `${prefix}-${key.slice(0, at).replace(/[^A-Za-z0-9_-]+/g, '-')}`.slice(0, 64 - tail.length) + tail
+}
+
 // The run folder's name: one per PR and head, safe on any file system.
 export const runName = (key: string, head: string) => `${key.replace(/[^\w.-]+/g, '-')}-${head.slice(0, 7)}`
