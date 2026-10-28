@@ -1172,6 +1172,27 @@ test('a stored auto review offers its post buttons without Direct GitHub actions
   await ui.unmount()
 })
 
+test('reviews auto review stored gather in a folding Auto review done group under the switch, and Check all sends them back to their requests', AUTO_ON, async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem, recent(6)], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+
+  expect(await label('fold-review:auto')).toBe('▾ Auto review done 1')
+  expect(await label('fold-review:direct')).toBe('▾ Direct requests 1')
+  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeDefined()
+
+  await ui.press({ key: 'fold-review:auto' })
+  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeUndefined()
+  await ui.press({ key: 'fold-review:auto' })
+
+  await ui.press({ key: 'auto-check-all' })
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].checked).toBe(true)
+  expect(await ui.find({ key: 'fold-review:auto' })).toBeUndefined()
+  expect(await label('fold-review:direct')).toBe('▾ Direct requests 2')
+  // The stored review stays on its card, to post or discard.
+  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeDefined()
+  await ui.unmount()
+})
+
 test('a post asks on the card, then submits my pending review with the verdict picked, and the card leaves auto review', AUTO_ON, async ($, on) => {
   const sent: string[] = []
   const ui = await opened($, on, [], [], 'review', { items: [autoItem], files: { [AUTO]: reviewed }, run: github(sent, 'h5') })

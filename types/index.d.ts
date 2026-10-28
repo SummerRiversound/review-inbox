@@ -81,6 +81,8 @@ export type AutoJob = {
   staleFrom?: string
   // The commit a review with the same content was moved from, with no model call.
   carriedFrom?: string
+  // Put away from the Auto review done group by Check all; any new run clears it.
+  checked?: true
   // My 👀 on the PR while this machine reviews it, as its API path.
   lock?: string
   // Another machine of mine holds the 👀 since `since`; looked at again from `until`.
