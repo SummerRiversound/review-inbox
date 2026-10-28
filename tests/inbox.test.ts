@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  REFRESH_MS, detailsOf, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  INBOX_QUERY, REFRESH_MS, detailsOf, headCommittedAt, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -159,6 +159,14 @@ test('waiting counts from the latest request to me or a team still on the PR, no
   expect(requestedAt(pr(events, ['fe']), 'me')).toBe('2026-09-01T00:00:00Z')
   expect(requestedAt(pr(events, []), 'me')).toBe('2026-08-02T00:00:00Z')
   expect(requestedAt(pr([], []), 'me')).toBe('2026-08-01T00:00:00Z')
+})
+
+test('the head commit\'s time comes from the one commit the search asks for, and is absent when GitHub gives none', async () => {
+  const pr = (nodes: { commit: { committedDate: string } }[] | undefined) => ({ ...(nodes ? { commits: { nodes } } : {}) }) as unknown as Parameters<typeof headCommittedAt>[0]
+  expect(headCommittedAt(pr([{ commit: { committedDate: '2026-10-27T09:50:00Z' } }]))).toBe('2026-10-27T09:50:00Z')
+  expect(headCommittedAt(pr([]))).toBeUndefined()
+  expect(headCommittedAt(pr(undefined))).toBeUndefined()
+  expect(INBOX_QUERY.includes('commits(last: 1) { nodes { commit { committedDate } } }')).toBe(true)
 })
 
 test('the configured scope narrows the base query, and empty means every repository', async () => {

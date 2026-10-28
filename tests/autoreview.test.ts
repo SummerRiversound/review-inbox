@@ -131,6 +131,18 @@ test('a head waits as long as autoReviewSettleMinutes says, and 0 queues it as s
   expect(autoStates(file, items, { ...ON, settleMs: 0 }, seen)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
 })
 
+test('the wait counts from the head commit\'s time when GitHub gives it, so an old head starts as soon as it is seen', () => {
+  const seen = Date.parse('2026-10-27T10:00:00Z')
+  const old = [item(1, { headCommittedAt: '2026-10-25T10:00:00Z' })]
+  expect(autoStates(tracked(old), old, ON, seen)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
+
+  const fresh = [item(1, { headCommittedAt: '2026-10-27T09:50:00Z' })]
+  expect(autoStates(tracked(fresh), fresh, ON, seen)).toEqual({ 'o/r#1': { kind: 'settling', startsAt: Date.parse('2026-10-27T09:50:00Z') + SETTLE_MS } })
+
+  const unreadable = [item(1, { headCommittedAt: 'soon' })]
+  expect(autoStates(tracked(unreadable), unreadable, ON, seen)).toEqual({ 'o/r#1': { kind: 'settling', startsAt: seen + SETTLE_MS } })
+})
+
 test('autoReviewSettleMinutes reads whole minutes from 0, and anything else falls back to 30', () => {
   expect([parseSettle('0'), parseSettle('10'), parseSettle('120'), parseSettle(undefined), parseSettle('-5'), parseSettle('x'), parseSettle('1.5')]).toEqual(
     [0, 10, 120, 30, 30, 30, 30].map(m => m * 60_000),
