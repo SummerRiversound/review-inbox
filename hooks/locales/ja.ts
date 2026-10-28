@@ -221,6 +221,8 @@ export const ja: Messages = {
     stopped: 'レビューが中断されました',
     reviewed: '自動レビュー: このコミットはレビュー済みです',
     finished: (verdict: string) => `自動レビュー完了、提案: ${verdict}`,
+    posted: verdict => `自動レビューを ${verdict} として投稿しました`,
+    postFailed: error => `自動レビューは保留中のレビューとして残しました。投稿に失敗しました: ${error}`,
   },
   prompt: {
     addButton: (path: string, names: string) => `レビュー受信トレイにボタンを1つ追加して。${path} を編集して、なければ {"buttons": []} として作って。各項目は {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} で、prompt では {{.Name}} の形で ${names} を使える。まずボタンで何をしたいか私に聞いて。`,

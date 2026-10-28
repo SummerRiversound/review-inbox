@@ -777,6 +777,44 @@ test('/review-inbox auto-review-config puts the setup request into the prompt wi
   await ui.unmount()
 })
 
+test('with autoReviewPost on verdict a finished review is posted with the verdict it suggests and leaves auto review', { options: { autoReview: 'on', autoReviewPost: 'verdict' } }, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const g: Github = { created: [], posted: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await finish($, 'a1', ANSWER)
+
+  expect(g.created).toHaveLength(1)
+  expect(g.posted).toEqual(['gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=REQUEST_CHANGES'])
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
+  expect(toasts).toContain('Auto review posted as Request changes · o/r #5')
+  await ui.unmount()
+})
+
+test('a post GitHub refuses keeps the auto review as my pending review, to post from the card', { options: { autoReview: 'on', autoReviewPost: 'comment' } }, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const g: Github = { created: [], posted: [], postFails: true, locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await finish($, 'a1', ANSWER)
+
+  expect(g.posted).toEqual(['gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT'])
+  const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
+  expect([job.status, job.reviewId]).toEqual(['done', 77])
+  expect(toasts.some(t => t.startsWith('Auto review kept as your pending review; posting it failed'))).toBe(true)
+  await ui.unmount()
+})
+
 test('a new request waits for its commits to settle, and a team request shows no auto-review line', AUTO_ON, async ($, on) => {
   const now = Date.now()
   const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now }, 'o/r#6': { headSha: 'h6', firstSeenAt: now } } }
@@ -820,7 +858,7 @@ const RUNS = '/home/me/.claude/plugins/data/review-inbox/runs'
 const queued = (more: Record<string, unknown> = {}) =>
   JSON.stringify({ enabledAt: Date.now() - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: Date.now() - 3_600_000, ...more } } })
 // `locks`: GitHub's answer to each 👀 added, in turn; none fails the add, as on a repository that takes no reactions.
-type Github = { reviews?: string; created?: string[]; createFails?: boolean; calls?: string[]; deleted?: string[]; locks?: { status: number; at: number }[]; unlocked?: string[] }
+type Github = { reviews?: string; created?: string[]; createFails?: boolean; posted?: string[]; postFails?: boolean; calls?: string[]; deleted?: string[]; locks?: { status: number; at: number }[]; unlocked?: string[] }
 const PATCH = '@@ -1,2 +1,3 @@\n one\n+two\n three'
 const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   g.calls?.push(args)
@@ -837,6 +875,10 @@ const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   if (args.startsWith('gh api --paginate repos/o/r/pulls/5/files'))
     return { exitCode: 0, stdout: `${JSON.stringify({ filename: 'a.ts', patch: PATCH })}\n` }
   if (args === 'gh pr diff 5 --repo o/r') return { exitCode: 0, stdout: 'diff --git a/a.ts b/a.ts' }
+  if (args.startsWith('gh api -X POST repos/o/r/pulls/5/reviews/77/events')) {
+    g.posted?.push(args)
+    return g.postFails ? { exitCode: 1, stderr: 'gh: Unprocessable Entity (HTTP 422)' } : { exitCode: 0 }
+  }
   if (args.startsWith('gh api -X POST repos/o/r/pulls/5/reviews')) {
     g.created?.push(stdin ?? '')
     return g.createFails ? { exitCode: 1, stderr: 'gh: Unprocessable Entity (HTTP 422)' } : { exitCode: 0, stdout: '77\n' }

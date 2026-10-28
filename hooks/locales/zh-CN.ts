@@ -221,6 +221,8 @@ export const zhCN: Messages = {
     stopped: '审查已中断',
     reviewed: '自动审查：这个提交你已经审查过',
     finished: (verdict: string) => `自动审查完成，建议：${verdict}`,
+    posted: verdict => `自动审查已以「${verdict}」提交`,
+    postFailed: error => `自动审查已保留为待提交审查；提交失败：${error}`,
   },
   prompt: {
     addButton: (path, names) => `给我的审查收件箱添加一个按钮：编辑 ${path}，如果不存在就创建为 {"buttons": []}。每一项是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 里可以用 {{.Name}} 的形式使用 ${names}。先问我这个按钮要做什么。`,

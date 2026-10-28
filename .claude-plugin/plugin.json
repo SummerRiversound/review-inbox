@@ -71,6 +71,13 @@
       "options": ["off", "on"],
       "default": "off"
     },
+    "autoReviewPost": {
+      "type": "string",
+      "title": "Auto review posting",
+      "description": "What a finished review becomes: pending keeps it as your pending review to post from the card, comment posts it as a comment, verdict posts it with the verdict it suggests, approve and request changes included",
+      "options": ["pending", "comment", "verdict"],
+      "default": "pending"
+    },
     "autoReviewModel": {
       "type": "string",
       "title": "Auto review model",

@@ -221,6 +221,8 @@ export const ko: Messages = {
     stopped: '리뷰가 중단됨',
     reviewed: '자동 리뷰: 이 커밋은 이미 리뷰함',
     finished: (verdict: string) => `자동 리뷰 완료, 제안: ${verdict}`,
+    posted: verdict => `자동 리뷰를 게시했습니다: ${verdict}`,
+    postFailed: error => `자동 리뷰를 임시 리뷰로 남겼습니다. 게시에 실패했습니다: ${error}`,
   },
   prompt: {
     addButton: (path, names) => `리뷰 인박스에 버튼을 하나 추가해 줘. ${path}를 고치고, 없으면 {"buttons": []}로 만들어. 항목은 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"} 모양이고, prompt에는 {{.이름}} 형태로 ${names}를 쓸 수 있어. 먼저 버튼이 무엇을 할지 나에게 물어봐.`,
