@@ -192,11 +192,11 @@ test("the reviewer's answer is read from one JSON object, fenced or not, and fin
 
 const NAMES = { blocker: '블로커', major: '메이저', minor: '마이너', nit: 'nit' }
 
-test('a finding on a changed or context line of a hunk becomes a comment labelled in the review language, any other goes into the body', () => {
+test('a finding on a changed or context line of a hunk becomes a comment that opens with its severity and conclusion in bold, the reason below; any other goes into the body', () => {
   // New-file lines 10 to 13: 10 context, 11 added, removed line skipped, 12 context; 20 is outside every hunk.
   const files = [{ filename: 'a.ts', patch: '@@ -10,3 +10,3 @@ fn\n keep\n+added\n-gone\n keep2' }, { filename: 'bin.png' }]
   const findings = [
-    { severity: 'major' as const, path: 'a.ts', line: 11, body: 'on the added line' },
+    { severity: 'major' as const, path: 'a.ts', line: 11, body: 'on the added line\nbecause it breaks' },
     { severity: 'minor' as const, path: 'a.ts', line: 12, body: 'on context' },
     { severity: 'nit' as const, path: 'a.ts', line: 20, body: 'outside' },
     { severity: 'minor' as const, path: 'bin.png', line: 1, body: 'no patch' },
@@ -204,20 +204,20 @@ test('a finding on a changed or context line of a hunk becomes a comment labelle
   ]
   const { comments, rest } = placeFindings(files, findings, NAMES)
   expect(comments).toEqual([
-    { path: 'a.ts', line: 11, side: 'RIGHT', body: '**메이저** on the added line' },
-    { path: 'a.ts', line: 12, side: 'RIGHT', body: '**마이너** on context' },
+    { path: 'a.ts', line: 11, side: 'RIGHT', body: '**메이저 · on the added line**\nbecause it breaks' },
+    { path: 'a.ts', line: 12, side: 'RIGHT', body: '**마이너 · on context**' },
   ])
   expect(rest.map(f => f.body)).toEqual(['outside', 'no patch', 'not in the PR'])
 })
 
-test('findings in the body are grouped under their severity, most severe first, each with its place after the text', () => {
+test('findings in the body are grouped under a heading per severity, most severe first, each a bold conclusion with its reason and place below', () => {
   const rest = [
     { severity: 'nit' as const, path: 'a.ts', line: 20, body: 'outside' },
-    { severity: 'blocker' as const, path: 'b.ts', line: 3, body: 'data loss' },
+    { severity: 'blocker' as const, path: 'b.ts', line: 3, body: 'data loss\nrows are dropped' },
     { severity: 'nit' as const, path: 'c.ts', line: 7, body: 'naming' },
   ]
   expect(reviewBody('Looks fine.', rest, 'abc', 'k1', NAMES)).toBe(
-    'Looks fine.\n\n**블로커**\n- data loss (`b.ts:3`)\n\n**nit**\n- outside (`a.ts:20`)\n- naming (`c.ts:7`)\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
+    'Looks fine.\n\n### 블로커\n\n**data loss**\nrows are dropped (`b.ts:3`)\n\n### nit\n\n**outside** (`a.ts:20`)\n\n**naming** (`c.ts:7`)\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
   )
   expect(reviewBody('LGTM', [], 'abc', 'k1', NAMES)).toBe('LGTM\n\n<!-- review-inbox auto-review sha=abc key=k1 -->')
 })
@@ -334,9 +334,9 @@ test('the built-in rules carry a way to review and a way to write for the reader
   // How to review: check every finding against the code, and grade by what merging would cost.
   expect(REVIEWER_RULES.includes('Read the code each finding points to again before you keep it')).toBe(true)
   expect(REVIEWER_RULES.includes('blocker: hard to undo after merging or harmful in production')).toBe(true)
-  // How to write: the verdict first without a greeting, one short paragraph a finding, what breaks and what to decide rather than how the code works, no file or line on a comment that already sits on the code, no account of the work.
-  expect(REVIEWER_RULES.includes('The summary opens with the verdict as your own decision, with no greeting')).toBe(true)
-  expect(REVIEWER_RULES.includes('a conclusion and the reason for it')).toBe(true)
+  // How to write: the verdict alone on the first line without a greeting, a conclusion line then its reason a finding, what breaks and what to decide rather than how the code works, no file or line on a comment that already sits on the code, no account of the work.
+  expect(REVIEWER_RULES.includes("The summary's first line is the verdict alone, in bold, as your own decision and with no greeting")).toBe(true)
+  expect(REVIEWER_RULES.includes('Each finding body puts its conclusion alone on the first line')).toBe(true)
   expect(REVIEWER_RULES.includes('do not narrate how it works inside')).toBe(true)
   expect(REVIEWER_RULES.includes('so the body names no file or line')).toBe(true)
   expect(REVIEWER_RULES.includes('Never describe how you checked')).toBe(true)
