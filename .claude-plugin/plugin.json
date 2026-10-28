@@ -124,6 +124,12 @@
       "description": "Your own words to the reviewer, such as what to check first or how to word comments; empty adds none",
       "default": ""
     },
+    "autoReviewSeverityNames": {
+      "type": "string",
+      "title": "Auto review severity names",
+      "description": "What the four severities are called on a review, blocker to nit, comma-separated, such as Blocker, Decision needed, Follow-up, nit; empty uses the language's own",
+      "default": ""
+    },
     "autoReviewLarge": {
       "type": "string",
       "title": "Auto review large PRs",

@@ -15,6 +15,7 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseSeverityNames,
   parseReview,
   placeFindings,
   readLock,
@@ -288,6 +289,17 @@ test('the task names the run folder by its full path, so the reviewer finds the 
   expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
 })
 
+test("severity names are mine when I set all four, blocker to nit, and the language's own otherwise", () => {
+  const own = { blocker: '블로커', major: '메이저', minor: '마이너', nit: 'nit' }
+  expect(parseSeverityNames('블로커, 결정 필요, 보완, nit', own)).toEqual({ blocker: '블로커', major: '결정 필요', minor: '보완', nit: 'nit' })
+  expect([parseSeverityNames('', own), parseSeverityNames(undefined, own), parseSeverityNames('a, b, c', own), parseSeverityNames('a, , c, d', own)]).toEqual([own, own, own, own])
+})
+
+test('the summary counts findings by the names the labels show', () => {
+  const task = reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '', severities: { blocker: '블로커', major: '결정 필요', minor: '보완', nit: 'nit' } })
+  expect(task.includes('call the severities blocker "블로커", major "결정 필요", minor "보완", nit "nit"')).toBe(true)
+})
+
 test('my own instructions go into the task, winning over the built-in rules, when I wrote some, and nothing is added when I did not', () => {
   const facts = { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }
   expect(reviewerPrompt(item(1), { ...facts, instructions: 'Check the SQL first.' }).includes(`${MINE} Check the SQL first.`)).toBe(true)
@@ -297,7 +309,7 @@ test('my own instructions go into the task, winning over the built-in rules, whe
 test('the setup list names every auto review setting but on and off, which the switch keeps, with what it does, what it takes, its default and its value now, an unset one as its default', () => {
   const list = setupList({ autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewSeverityNames', 'autoReviewLarge', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)
@@ -322,10 +334,11 @@ test('the built-in rules carry a way to review and a way to write for the reader
   // How to review: check every finding against the code, and grade by what merging would cost.
   expect(REVIEWER_RULES.includes('Read the code each finding points to again before you keep it')).toBe(true)
   expect(REVIEWER_RULES.includes('blocker: hard to undo after merging or harmful in production')).toBe(true)
-  // How to write: the verdict first, one short paragraph a finding, direction rather than code, no account of the work.
-  expect(REVIEWER_RULES.includes('The summary opens with the verdict')).toBe(true)
+  // How to write: the verdict first without a greeting, one short paragraph a finding, what breaks and what to decide rather than how the code works, no file or line on a comment that already sits on the code, no account of the work.
+  expect(REVIEWER_RULES.includes('The summary opens with the verdict as your own decision, with no greeting')).toBe(true)
   expect(REVIEWER_RULES.includes('a conclusion and the reason for it')).toBe(true)
-  expect(REVIEWER_RULES.includes('Give the direction, not new code')).toBe(true)
+  expect(REVIEWER_RULES.includes('do not narrate how it works inside')).toBe(true)
+  expect(REVIEWER_RULES.includes('so the body names no file or line')).toBe(true)
   expect(REVIEWER_RULES.includes('Never describe how you checked')).toBe(true)
 })
 
