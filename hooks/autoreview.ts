@@ -1,7 +1,7 @@
 import type { AutoResult, AutoReviewFile, AutoState, Finding, InboxItem, Severity, Verdict } from '../types'
 import { itemKey } from './inbox'
 
-// Authors often push again right after asking; a head this still is the one worth a review.
+// Authors often push again right after asking; a head this still is the one worth a review, unless autoReviewSettleMinutes says otherwise.
 export const SETTLE_MS = 30 * 60_000
 // Past either, one review could take a large share of a day's tokens; with autoReviewLarge off such a PR is left alone.
 export const MAX_FILES = 50
@@ -9,7 +9,7 @@ export const MAX_LINES = 2_000
 export const DAILY_DEFAULT = 5
 
 // `large` and `backlog` let a PR past the size limits, or a request from before auto review was on, start by itself.
-export type AutoSettings = { isOn: boolean; daily: number | undefined; large: boolean; backlog: boolean }
+export type AutoSettings = { isOn: boolean; daily: number | undefined; large: boolean; backlog: boolean; settleMs: number }
 
 // The setting is only where auto review starts: once the switch atop the Review tab is pressed, it alone turns it on and off.
 export const switchedOn = (file: AutoReviewFile, option: boolean) => file.switch?.isOn ?? option
@@ -19,6 +19,12 @@ export function parseDaily(option: string | undefined): number | undefined {
   if (option === 'unlimited') return undefined
   const n = Number(option)
   return Number.isInteger(n) && n > 0 ? n : DAILY_DEFAULT
+}
+
+// Whole minutes from 0; anything unreadable falls back to the default.
+export function parseSettle(option: string | undefined): number {
+  const n = Number(option)
+  return option !== undefined && option.trim() !== '' && Number.isInteger(n) && n >= 0 ? n * 60_000 : SETTLE_MS
 }
 
 // One job per PR on the list, keyed by its head: a new head starts its wait over and forgets a run asked for by hand.
@@ -80,8 +86,8 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
       states[key] = { kind: 'manual', why: 'before' }
     } else if (!settings.large && isTooBig(item)) {
       states[key] = { kind: 'manual', why: 'too-big' }
-    } else if (now < job.firstSeenAt + SETTLE_MS) {
-      states[key] = { kind: 'settling', startsAt: job.firstSeenAt + SETTLE_MS }
+    } else if (now < job.firstSeenAt + settings.settleMs) {
+      states[key] = { kind: 'settling', startsAt: job.firstSeenAt + settings.settleMs }
     } else {
       ready.push({ key, item, isManual: false })
     }
@@ -154,6 +160,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
   { key: 'autoReviewVerify', does: 'whether a second reviewer checks each finding of the draft against the code before it is stored, dropping or lowering what does not hold; a review with findings costs about twice the tokens', takes: 'on | off', fallback: 'off' },
   { key: 'autoReviewDaily', does: 'the most reviews started in a day; Try again on a card is not counted', takes: '3 | 5 | 10 | 20 | unlimited', fallback: '5' },
+  { key: 'autoReviewSettleMinutes', does: 'how long a PR\'s commits must stay still before its review starts, since authors often push again right after asking; 0 starts at once', takes: '0 | 10 | 30 | 60 | 120', fallback: '30' },
   { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },
   { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
   { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },

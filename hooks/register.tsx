@@ -31,6 +31,7 @@ import type {
 import {
   AGENT_TYPE,
   DAILY_DEFAULT,
+  SETTLE_MS,
   ELSEWHERE_MS,
   LOCK_MS,
   MAX_ATTEMPTS,
@@ -55,6 +56,7 @@ import {
   reviewCommentsArgs,
   nextJob,
   parseDaily,
+  parseSettle,
   parseReview,
   parseSkills,
   placeFindings,
@@ -217,6 +219,7 @@ type Options = {
   autoReviewVerify?: string
   autoReviewPost?: string
   autoReviewDaily?: string
+  autoReviewSettleMinutes?: string
   autoReviewSkills?: string
   autoReviewInstructions?: string
   autoReviewLarge?: string
@@ -226,7 +229,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -1490,7 +1493,7 @@ export const register: Register = (on, options) => {
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
-    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off' },
+    auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off', settleMs: parseSettle(opts.autoReviewSettleMinutes) },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
     autoVerify: opts.autoReviewVerify === 'on',
     autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',

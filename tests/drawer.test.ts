@@ -864,6 +864,15 @@ test('a new request waits for its commits to settle, and a team request shows no
   await ui.unmount()
 })
 
+test('with autoReviewSettleMinutes set, a new request waits that long instead of 30 minutes', { options: { autoReview: 'on', autoReviewSettleMinutes: '10' } }, async ($, on) => {
+  const now = Date.now()
+  const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now } } }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: JSON.stringify(auto) } })
+
+  expect(await shown(ui, /Auto review starts in about 10 min/)).toBe(true)
+  await ui.unmount()
+})
+
 test('with auto review off no card shows an auto-review line, nothing is recorded and no agent type is registered', async ($, on) => {
   const got = agents(on)
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)] })
