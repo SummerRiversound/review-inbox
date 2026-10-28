@@ -64,7 +64,7 @@ export const STYLE_RETRY_MS = 86_400_000
 const MAX_STYLE_CHARS = 600
 
 // Raise when styleRules or the samples it reads change, so a style described under the old rules is learned again instead of used for a week.
-export const STYLE_RULES = 3
+export const STYLE_RULES = 4
 
 // Shared by every session like the inbox: the learned style, the rules it was learned under, when it was last learned, and when to retry after a failure.
 export type StyleFile = { profile?: string; rules?: number; checkedAt?: number; samples?: number; retryAt?: number }
@@ -85,8 +85,8 @@ ${MESSAGES[language].model.style}
 Read their past review comments and reply with two to four short sentences in one paragraph, covering:
 - the language and tone they review in, such as short and direct or polite questions
 - what they usually check first in the code
-- how they phrase requests, and how long their comments are
-Leave out greetings, thanks, praise and the order or layout of their comments: past comments may have been drafted from an earlier description, so reading those back only grows them.
+- how they phrase requests
+Leave out greetings, thanks, praise, and the length, order or layout of their comments: past comments may have been drafted from an earlier description, so reading those back only grows them.
 Describe the style; do not give advice. No quotes, names, repository names, code, file paths or issue numbers.
 Reply with the paragraph only.`
 }
