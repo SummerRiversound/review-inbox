@@ -2,6 +2,19 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.16.0 — 2026-10-28
+
+### Added
+
+- `autoReviewInstructions`: your own words to the auto reviewer, such as what to check first or how to word comments.
+- `autoReviewPost`: what a finished auto review becomes. `pending` (the default) keeps it as your pending review; `comment` posts it as a comment; `verdict` posts it with the verdict it suggests, approve and request changes included. A post GitHub refuses stays pending on the card.
+- A setup request for auto review: the first time the `Auto review` button turns it on, and whenever you run `/review-inbox auto-review-config`, the prompt gets each auto review setting with what it does, what it takes, its default and its value now, for Claude to go through with you.
+- An `Auto review done` group right below the `Auto review` button gathers the cards with a stored auto review; `Check all` on its row sends them back to their request groups.
+
+### Fixed
+
+- The auto reviewer finds the PR's diff wherever it starts: its task names the run folder's files by full path. A reviewer that still cannot read the diff fails the run instead of storing a review that says so.
+
 ## 0.15.3 — 2026-10-27
 
 ### Changed
