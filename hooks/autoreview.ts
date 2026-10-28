@@ -260,15 +260,18 @@ export function rightLines(patch: string): Set<number> {
 
 export type ReviewComment = { path: string; line: number; side: 'LEFT' | 'RIGHT'; body: string }
 
-const label = (f: Finding) => `**${f.severity}** ${f.body}`
+// What each severity is called in the review's language.
+export type SeverityNames = Record<Severity, string>
+
+const label = (f: Finding, names: SeverityNames) => `**${names[f.severity]}** ${f.body}`
 
 // One comment outside the diff makes GitHub refuse the whole review, so those go into the body instead.
-export function placeFindings(files: PrFile[], findings: Finding[]): { comments: ReviewComment[]; rest: Finding[] } {
+export function placeFindings(files: PrFile[], findings: Finding[], names: SeverityNames): { comments: ReviewComment[]; rest: Finding[] } {
   const lines = new Map(files.map(f => [f.filename, rightLines(f.patch ?? '')]))
   const comments: ReviewComment[] = []
   const rest: Finding[] = []
   for (const f of findings) {
-    if (lines.get(f.path)?.has(f.line)) comments.push({ path: f.path, line: f.line, side: 'RIGHT', body: label(f) })
+    if (lines.get(f.path)?.has(f.line)) comments.push({ path: f.path, line: f.line, side: 'RIGHT', body: label(f, names) })
     else rest.push(f)
   }
   return { comments, rest }
@@ -276,9 +279,11 @@ export function placeFindings(files: PrFile[], findings: Finding[]): { comments:
 
 export const marker = (head: string, key: string) => `<!-- review-inbox auto-review sha=${head} key=${key} -->`
 
-export function reviewBody(summary: string, rest: Finding[], head: string, key: string): string {
-  const outside = rest.map(f => `- \`${f.path}:${f.line}\` ${label(f)}`)
-  return [summary, outside.join('\n'), marker(head, key)].filter(Boolean).join('\n\n')
+// The findings left out of the diff, grouped under their severity, most severe first.
+export function reviewBody(summary: string, rest: Finding[], head: string, key: string, names: SeverityNames): string {
+  const groups = SEVERITIES.map(severity => ({ severity, findings: rest.filter(f => f.severity === severity) })).filter(g => g.findings.length > 0)
+  const outside = groups.map(g => [`**${names[g.severity]}**`, ...g.findings.map(f => `- ${f.body} (\`${f.path}:${f.line}\`)`)].join('\n'))
+  return [summary, ...outside, marker(head, key)].filter(Boolean).join('\n\n')
 }
 
 // FNV-1a over the files' names and patches, sorted: a rebase or an amend that changes no content keeps its key.
