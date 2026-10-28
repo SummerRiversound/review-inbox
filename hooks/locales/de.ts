@@ -205,6 +205,7 @@ export const de: Messages = {
     ask: 'Automatisches Review einschalten? Jeder PR, der Sie um ein Review bittet, startet im Hintergrund einen Subagenten mit Ihrer CLAUDE.md, Ihren Hooks und den angegebenen Skills und verbraucht mehr Tokens.',
     askSettings: 'Die Details ändern Sie in /config.',
     turnOn: 'Einschalten',
+    setupFilled: 'Eine Einrichtungsanfrage steht in Ihrer Eingabe; mit Enter gehen Sie die Einstellungen mit Claude durch.',
     running: (minutes: number) => `Automatisches Review läuft · seit ${minutes} Min.`,
     suggests: (verdict: string) => `Automatisches Review schlägt vor: ${verdict}`,
     verdicts: { comment: 'Kommentieren', approve: 'Genehmigen', 'request-changes': 'Änderungen anfordern' },
@@ -226,6 +227,7 @@ export const de: Messages = {
   prompt: {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,
     addGroup: path => `Füge meinem Review-Posteingang eine gespeicherte Suche hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,
+    autoSetup: (path, list) => `Richte mit mir das automatische Review in meiner Review-Inbox ein. Unten steht jede Einstellung des automatischen Reviews: was sie tut, welche Werte sie annimmt, ihr Standardwert und ihr aktueller Wert. Geh sie einzeln durch: Erkläre in einfachen Worten, was sie tut, ihren Standardwert und ihren aktuellen Wert, und frag, ob ich sie ändern will. Schreib, was ich wähle, in den review-inbox-Eintrag von "pluginConfigs" in ${path}, also die Werte, die /config ändert, und lass alles andere dort, wie es ist. Sag mir, dass sie ab der nächsten Sitzung gelten.\n${list}`,
     review: url => `Bitte reviewe ${url}.`,
     refine: (url: string, sha: string) => `Überarbeite mit mir mein ausstehendes Review auf ${url}; es prüft den Head ${sha}. Lies Text und Kommentare mit \`gh api\` und ändere sie dort so, wie wir es abstimmen.`,
     pending: (id: number, repo: string, number: number) =>

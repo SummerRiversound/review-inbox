@@ -146,7 +146,27 @@ export const parseSkills = (option: string | undefined) =>
     .map(s => s.trim())
     .filter(Boolean)
 
-export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; language: string }
+export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; instructions?: string; language: string }
+
+// The settings the setup request walks through, with what each takes and its default as the manifest has them.
+export const AUTO_SETTINGS = [
+  { key: 'autoReview', does: 'whether PRs that ask for my review are reviewed in the background', takes: 'on | off', fallback: 'off' },
+  { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
+  { key: 'autoReviewDaily', does: 'the most reviews started in a day; Try again on a card is not counted', takes: '3 | 5 | 10 | 20 | unlimited', fallback: '5' },
+  { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },
+  { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
+  { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },
+  { key: 'autoReviewBacklog', does: 'whether requests from before auto review was on are reviewed too, a few a day', takes: 'on | off', fallback: 'on' },
+] as const
+
+// One line a setting; the engine hands an unset one over as its default, so a value equal to it is marked as the default.
+export function setupList(now: Partial<Record<(typeof AUTO_SETTINGS)[number]['key'], string>>): string {
+  const shown = (value: string) => value || 'empty'
+  return AUTO_SETTINGS.map(s => {
+    const value = now[s.key]?.trim() || s.fallback
+    return `- ${s.key}: ${s.does}. Takes ${s.takes}; default ${shown(s.fallback)}; now ${shown(value)}${value === s.fallback ? ' (default)' : ''}`
+  }).join('\n')
+}
 
 // The task one run is given; the rules are its system prompt.
 export function reviewerPrompt(item: InboxItem, facts: RunFacts): string {
@@ -157,6 +177,7 @@ export function reviewerPrompt(item: InboxItem, facts: RunFacts): string {
       : `Review the whole change in ${facts.folder}/pr.diff.`,
     facts.hasCheckout ? `The code at the head commit is in ${facts.folder}/repo/.` : 'Only the diff is here; the rest of the code could not be checked out.',
     facts.style ? `How I review: ${facts.style}` : '',
+    facts.instructions ? `My instructions for this review: ${facts.instructions}` : '',
     facts.language,
   ]
     .filter(Boolean)

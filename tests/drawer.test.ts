@@ -727,6 +727,56 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await ui.unmount()
 })
 
+test('the first time the switch turns auto review on, a request to set it up with Claude goes into the prompt, and later times it does not', async ($, on) => {
+  const fills: string[] = []
+  on('prompt.fill', async ($, e) => {
+    fills.push(e.text)
+    return { isFilled: true }
+  })
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [] }) })
+  const turnOn = async () => {
+    await ui.press({ key: 'auto-switch' })
+    await clock.advance(300)
+    await ui.press({ key: 'auto-confirm' })
+  }
+
+  await turnOn()
+  expect(fills).toHaveLength(1)
+  expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
+  expect(fills[0]!.includes('/home/me/.claude/settings.json')).toBe(true)
+  expect(fills[0]!.includes('- autoReview: whether PRs that ask for my review are reviewed in the background. Takes on | off; default off; now on')).toBe(true)
+  expect(fills[0]!.includes('- autoReviewInstructions:')).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).setupAt > 0).toBe(true)
+  await clock.advance(10_000)
+  expect(toasts).toContain('Added a setup request to your prompt; press Enter to go through the settings with Claude.')
+
+  await ui.press({ key: 'auto-switch' })
+  await turnOn()
+  expect(fills).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('/review-inbox auto-review-config puts the setup request into the prompt with the values set now', { options: { autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' } }, async ($, on) => {
+  const fills: string[] = []
+  on('prompt.fill', async ($, e) => {
+    fills.push(e.text)
+    return { isFilled: true }
+  })
+  const ui = await opened($, on, [], [], 'review')
+
+  expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-config' })).text).toBe('Added to your prompt; press Enter to send it.')
+  expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
+  expect(fills[0]!.includes('default off; now off (default)')).toBe(true)
+  expect(fills[0]!.includes('default sonnet; now opus')).toBe(true)
+  expect(fills[0]!.includes('now Check the SQL first.')).toBe(true)
+  await ui.unmount()
+})
+
 test('a new request waits for its commits to settle, and a team request shows no auto-review line', AUTO_ON, async ($, on) => {
   const now = Date.now()
   const auto = { enabledAt: now - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: now }, 'o/r#6': { headSha: 'h6', firstSeenAt: now } } }

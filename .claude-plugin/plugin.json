@@ -91,6 +91,12 @@
       "description": "Skills loaded into the reviewer, comma-separated, such as a review playbook; empty loads none",
       "default": ""
     },
+    "autoReviewInstructions": {
+      "type": "string",
+      "title": "Auto review instructions",
+      "description": "Your own words to the reviewer, such as what to check first or how to word comments; empty adds none",
+      "default": ""
+    },
     "autoReviewLarge": {
       "type": "string",
       "title": "Auto review large PRs",

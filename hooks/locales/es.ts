@@ -204,6 +204,7 @@ export const es: Messages = {
     ask: '¿Activar la revisión automática? Cada PR que te pide revisión lanza en segundo plano un subagente con tu CLAUDE.md, tus hooks y las skills indicadas, y gasta más tokens.',
     askSettings: 'Cambia los detalles en /config.',
     turnOn: 'Activar',
+    setupFilled: 'Se añadió a tu prompt una solicitud de configuración; pulsa Enter para repasar los ajustes con Claude.',
     running: (minutes: number) => `Revisión automática en curso · ${minutes} min`,
     suggests: (verdict: string) => `La revisión automática sugiere: ${verdict}`,
     verdicts: { comment: 'Comentar', approve: 'Aprobar', 'request-changes': 'Pedir cambios' },
@@ -225,6 +226,7 @@ export const es: Messages = {
   prompt: {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,
     addGroup: (path: string) => `Añade una búsqueda guardada a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarla en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
+    autoSetup: (path, list) => `Configura conmigo la revisión automática de mi bandeja de revisiones. Abajo está cada ajuste de la revisión automática: qué hace, qué valores acepta, su valor por defecto y su valor actual. Repásalos uno a uno: explica con palabras sencillas qué hace, su valor por defecto y su valor actual, y pregúntame si quiero cambiarlo. Escribe lo que elija en la entrada review-inbox de "pluginConfigs" en ${path}, los valores que cambia /config, y deja todo lo demás como está. Dime que se aplican desde la próxima sesión.\n${list}`,
     review: (url: string) => `Revisa ${url}.`,
     refine: (url: string, sha: string) => `Pule conmigo mi revisión pendiente en ${url}; revisa el head ${sha}. Lee su texto y sus comentarios con \`gh api\` y cámbialos ahí según lo acordemos.`,
     pending: (id: number, repo: string, number: number) =>
