@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.20.0 — 2026-10-28
+
+### Added
+
+- Auto reviews run in the session where the `Auto review` switch was turned on, and the warning before it says so. `/review-inbox auto-review-here` moves them to the current session, and `/review-inbox auto-review-anywhere` lets any session start them. While the review session is closed, queued PRs wait and their cards say so.
+
 ## 0.19.0 — 2026-10-28
 
 ### Changed
