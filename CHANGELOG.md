@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.24.0 — 2026-10-28
+
+### Changed
+
+- Auto review comments stay at the level a human reviewer discusses: a finding says what goes wrong and what must be decided or hold, and leaves how the code works inside and how to fix it to the author. A comment on a line names no file or line, since it already sits on that code.
+- The summary opens with the verdict and no greeting, and mentions what the change does well only when something stands out.
+- The weekly style learning leaves out auto reviews posted under your name, so it learns only from what you wrote yourself. The current description is learned again without them.
+
+### Added
+
+- `autoReviewSeverityNames` names the four severities on a review, blocker to nit, such as `Blocker, Decision needed, Follow-up, nit`. The summary counts findings by the same names.
+
 ## 0.23.1 — 2026-10-28
 
 ### Fixed
