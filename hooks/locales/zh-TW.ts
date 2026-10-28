@@ -201,6 +201,7 @@ export const zhTW: Messages = {
     ask: '要開啟自動審查嗎？每個請你審查的 PR 都會在背景執行一個帶有你的 CLAUDE.md、hooks 和所列技能的子代理，會多用 token。',
     askSettings: '詳細設定可在 /config 中修改。',
     turnOn: '開啟',
+    setupFilled: '已把一起設定的請求放進提示框；按 Enter 即可與 Claude 逐項設定。',
     running: (minutes: number) => `自動審查進行中 · 已 ${minutes} 分鐘`,
     suggests: (verdict: string) => `自動審查建議：${verdict}`,
     verdicts: { comment: '留言', approve: '核准', 'request-changes': '要求變更' },
@@ -222,6 +223,7 @@ export const zhTW: Messages = {
   prompt: {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,
     addGroup: path => `幫我的審查收件匣新增一個已儲存的搜尋：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,
+    autoSetup: (path, list) => `和我一起設定審查收件匣的自動審查。下面是每項自動審查設定的作用、可填的值、預設值和目前的值。請逐項進行：用簡單的話說明它的作用、預設值和目前的值，並問我是否要改。把我選的值寫進 ${path} 裡 "pluginConfigs" 的 review-inbox 項目，也就是 /config 修改的那些值，其他內容保持不變。告訴我這些值從下一個工作階段起生效。\n${list}`,
     review: url => `幫我審查一下 ${url}。`,
     refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待送出審查；它審查的是 head ${sha}。用 \`gh api\` 讀取它的內文和留言，並照我們談好的在那裡修改。`,
     pending: (id: number, repo: string, number: number) =>

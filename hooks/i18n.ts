@@ -212,6 +212,7 @@ const en = {
     ask: 'Turn on auto review? Each PR that asks for your review gets a background subagent with your CLAUDE.md, hooks and listed skills, which uses more tokens.',
     askSettings: 'Change the details in /config.',
     turnOn: 'Turn on',
+    setupFilled: 'Added a setup request to your prompt; press Enter to go through the settings with Claude.',
     running: (minutes: number) => `Auto review running · ${minutes} min so far`,
     suggests: (verdict: string) => `Auto review suggests ${verdict}`,
     verdicts: { comment: 'Comment', approve: 'Approve', 'request-changes': 'Request changes' },
@@ -233,6 +234,7 @@ const en = {
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
     addGroup: (path: string) => `Add a saved search to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,
+    autoSetup: (path: string, list: string) => `Set up auto review in my review inbox with me. Below is each auto review setting: what it does, what it takes, its default and its value now. Go through them one at a time: say in plain words what it does, its default and its value now, and ask whether to change it. Write what I choose into the review-inbox entry of "pluginConfigs" in ${path}, the values /config changes, and leave everything else there as it is. Tell me they apply from the next session.\n${list}`,
     review: (url: string) => `Review ${url}.`,
     refine: (url: string, sha: string) => `Refine my pending review on ${url} with me; it reviews head ${sha}. Read its body and comments with \`gh api\` and change them there as we agree.`,
     pending: (id: number, repo: string, number: number) =>

@@ -62,6 +62,7 @@ import {
   reviewerSpec,
   reviewsArgs,
   runName,
+  setupList,
   severityCounts,
   sinceArgs,
   startedToday,
@@ -198,6 +199,8 @@ const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, 
 const autoAsking = atom({ plugin: 'review-inbox', key: 'autoAsking' } as const, null as number | null)
 // The autoReview setting itself; the switch atop the Review tab can turn auto review the other way.
 let autoOption = false
+// The settings as set, for the setup request to show their values now.
+let optionValues: Options = {}
 
 type Options = {
   scope?: string
@@ -211,6 +214,7 @@ type Options = {
   autoReviewModel?: string
   autoReviewDaily?: string
   autoReviewSkills?: string
+  autoReviewInstructions?: string
   autoReviewLarge?: string
   autoReviewBacklog?: string
 }
@@ -218,7 +222,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[] }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[], autoInstructions: '' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -259,12 +263,16 @@ let version: string | undefined
 let home = ''
 
 // Claude Code's per-plugin data folder; a mod is not told its id, so it falls back to a fixed name there.
-async function cacheDir($: EngineInterface) {
+async function configDir($: EngineInterface) {
   const home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE'))
-  const configDir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
+  const dir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
   // Without it a relative path would land inside whatever repo the session is in.
-  if (!configDir) throw new Error('neither HOME nor USERPROFILE is set')
-  return `${configDir}/plugins/data/review-inbox`
+  if (!dir) throw new Error('neither HOME nor USERPROFILE is set')
+  return dir
+}
+
+async function cacheDir($: EngineInterface) {
+  return `${await configDir($)}/plugins/data/review-inbox`
 }
 
 // undefined when the file exists but does not parse: another session may be mid-write, so skip this look.
@@ -750,6 +758,16 @@ async function confirmSwitch($: EngineInterface) {
   if (at === null || (await $.clock.now()) - at < CONFIRM_GUARD_MS) return
   await update($, autoAsking, () => null)
   await switchAuto($)
+  // The first time on, Claude can go through the settings with me; Enter sends the request.
+  if (!config.auto.isOn || !(await editAuto($, file => (file.setupAt === undefined ? { ...file, setupAt: Date.now() } : undefined)))) return
+  const filled = await $.prompt.fill({ text: await setupPrompt($), mode: 'append' })
+  toast($, filled.isFilled ? m.auto.setupFilled : m.toast.promptBusy)
+}
+
+// Each auto review setting with its value now; autoReview is whether it is on, which the switch may have turned.
+async function setupPrompt($: EngineInterface) {
+  const autoReview = config.auto.isOn ? 'on' : 'off'
+  return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList({ ...optionValues, autoReview }))
 }
 
 // A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
@@ -885,7 +903,7 @@ async function startRun($: EngineInterface, key: string) {
       name,
       subagentType: AGENT_TYPE,
       description: `Auto review ${item.repo} #${item.number}`,
-      prompt: reviewerPrompt(item, { folder, hasCheckout: checkout !== undefined, ...(style ? { style } : {}), language: m.model.language }),
+      prompt: reviewerPrompt(item, { folder, hasCheckout: checkout !== undefined, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language }),
       model: config.autoModel,
       cwd: folder,
     })
@@ -1410,6 +1428,7 @@ async function setHidden($: EngineInterface, change: (hideMap: Record<string, st
 
 export const register: Register = (on, options) => {
   const opts = options as Options
+  optionValues = opts
   languageOption = opts.language
   const minutes = Number(opts.refreshMinutes)
   config = {
@@ -1423,6 +1442,7 @@ export const register: Register = (on, options) => {
     auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off' },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
     autoSkills: parseSkills(opts.autoReviewSkills),
+    autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
   }
   m = MESSAGES.en
   autoOption = config.auto.isOn
@@ -1443,7 +1463,7 @@ export const register: Register = (on, options) => {
     const pane = (await $.ui.panes()).find(p => p.id === PANE)
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
     $.ui.invalidate('ui.render')
-    await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search]' })
+    await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search | auto-review-config]' })
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -1498,6 +1518,10 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'review-inbox' }, async ($, e) => {
     const sub = e.args.trim()
     if (sub === 'buttons') return { text: await buttonsReport($) }
+    if (sub === 'auto-review-config') {
+      const filled = await $.prompt.fill({ text: await setupPrompt($), mode: 'append' })
+      return { text: filled.isFilled ? m.command.filled : m.toast.promptBusy }
+    }
     if (sub === 'add-button' || sub === 'add-search') {
       await loadActions($)
       const text = sub === 'add-button' ? m.prompt.addButton(actionsPath, VARIABLES.join(', ')) : m.prompt.addGroup(actionsPath)

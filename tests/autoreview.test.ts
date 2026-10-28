@@ -19,6 +19,7 @@ import {
   reviewBody,
   reviewerPrompt,
   reviewerSpec,
+  setupList,
   trackHeads,
 } from '../hooks/autoreview'
 
@@ -242,6 +243,22 @@ test('the task names the run folder by its full path, so the reviewer finds the 
   const task = reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' })
   expect(task.includes('/runs/o-r-1-h1/pr.diff')).toBe(true)
   expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
+})
+
+test('my own instructions go into the task when I wrote some, and nothing is added when I did not', () => {
+  const facts = { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }
+  expect(reviewerPrompt(item(1), { ...facts, instructions: 'Check the SQL first.' }).includes('My instructions for this review: Check the SQL first.')).toBe(true)
+  expect(reviewerPrompt(item(1), facts).includes('My instructions')).toBe(false)
+})
+
+test('the setup list names every auto review setting with what it does, what it takes, its default and its value now, an unset one as its default', () => {
+  const list = setupList({ autoReview: 'on', autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
+  const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
+  expect(keys).toEqual(['autoReview', 'autoReviewModel', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
+  expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
+  expect(list.includes('default 5; now 5 (default)')).toBe(true)
+  expect(list.includes('default empty; now empty (default)')).toBe(true)
 })
 
 test('a reviewer that cannot read the diff answers without JSON, which counts as a failed run rather than a review', () => {
