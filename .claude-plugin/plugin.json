@@ -67,7 +67,7 @@
     "autoReview": {
       "type": "string",
       "title": "Auto review",
-      "description": "on reviews each PR that asks for you directly in the background, one at a time, once its commits have been still for 30 minutes, and keeps the result as your pending review until you post it from the card. The Auto review button atop the Review tab turns it on or off too, until this setting changes. Each review runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens",
+      "description": "on reviews each PR that asks for you directly in the background, one at a time, once its commits have been still for 30 minutes, and keeps the result as your pending review until you post it from the card. This is only where it starts: once the Auto review button atop the Review tab is pressed, the button alone turns it on and off. Each review runs a subagent with your CLAUDE.md, hooks and listed skills, and uses noticeably more tokens",
       "options": ["off", "on"],
       "default": "off"
     },

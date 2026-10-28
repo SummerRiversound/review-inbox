@@ -199,7 +199,7 @@ const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, 
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
 const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
 const autoAsking = atom({ plugin: 'review-inbox', key: 'autoAsking' } as const, null as number | null)
-// The autoReview setting itself; the switch atop the Review tab can turn auto review the other way.
+// The autoReview setting itself: where auto review starts until the switch atop the Review tab is first pressed.
 let autoOption = false
 // The settings as set, for the setup request to show their values now.
 let optionValues: Options = {}
@@ -744,7 +744,7 @@ async function syncEnabled($: EngineInterface) {
 
 // Pressed in one session, it holds in all of them: the shared file carries it.
 async function switchAuto($: EngineInterface) {
-  await editAuto($, file => ({ ...file, switch: { isOn: !switchedOn(file, autoOption), option: autoOption } }))
+  await editAuto($, file => ({ ...file, switch: { isOn: !switchedOn(file, autoOption) } }))
   await syncEnabled($)
 }
 
@@ -768,10 +768,9 @@ async function confirmSwitch($: EngineInterface) {
   toast($, filled.isFilled ? m.auto.setupFilled : m.toast.promptBusy)
 }
 
-// Each auto review setting with its value now; autoReview is whether it is on, which the switch may have turned.
+// Each auto review setting with its value now.
 async function setupPrompt($: EngineInterface) {
-  const autoReview = config.auto.isOn ? 'on' : 'off'
-  return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList({ ...optionValues, autoReview }))
+  return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList(optionValues))
 }
 
 // Check all: the done reviews leave their group for their requests; the pending reviews stay on the cards.

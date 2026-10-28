@@ -252,10 +252,10 @@ test('my own instructions go into the task when I wrote some, and nothing is add
   expect(reviewerPrompt(item(1), facts).includes('My instructions')).toBe(false)
 })
 
-test('the setup list names every auto review setting with what it does, what it takes, its default and its value now, an unset one as its default', () => {
-  const list = setupList({ autoReview: 'on', autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
+test('the setup list names every auto review setting but on and off, which the switch keeps, with what it does, what it takes, its default and its value now, an unset one as its default', () => {
+  const list = setupList({ autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReview', 'autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)
