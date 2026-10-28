@@ -85,8 +85,6 @@ export type AutoJob = {
   staleFrom?: string
   // The commit a review with the same content was moved from, with no model call.
   carriedFrom?: string
-  // Put away from the Auto review done group by Check all; any new run clears it.
-  checked?: true
   // My 👀 on the PR while this machine reviews it, as its API path.
   lock?: string
   // Another machine of mine holds the 👀 since `since`; looked at again from `until`.
@@ -94,6 +92,9 @@ export type AutoJob = {
   // My pending review on the head before this one, kept so a rebase can carry it.
   prev?: { headSha: string; reviewId: number; contentKey?: string; result?: AutoResult }
 }
+
+// An auto review posted by itself, kept after its PR leaves the list so it is not missed, until Check all.
+export type PostedReview = { repo: string; number: number; title: string; url: string; verdict: Verdict; at: number }
 
 // Shared by every session on the machine, beside the inbox file.
 export type AutoReviewFile = {
@@ -109,6 +110,7 @@ export type AutoReviewFile = {
   day?: string
   started?: number
   jobs: Record<string, AutoJob>
+  posted?: PostedReview[]
 }
 
 // What a card's auto-review line says.
