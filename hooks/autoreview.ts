@@ -55,6 +55,12 @@ const isTooBig = (item: InboxItem) => item.files > MAX_FILES || item.additions +
 
 export const startedToday = (file: AutoReviewFile, now: number) => (file.day === new Date(now).toDateString() ? (file.started ?? 0) : 0)
 
+// The head commit's time when GitHub gave a readable one, else when this machine first saw the head.
+const settledFrom = (item: InboxItem, firstSeenAt: number) => {
+  const committed = Date.parse(item.headCommittedAt ?? '')
+  return Number.isNaN(committed) ? firstSeenAt : committed
+}
+
 // What each card's auto-review line says; a card left out shows none. Costs nothing: no GitHub call, no model call.
 export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: AutoSettings, now: number): Record<string, AutoState> {
   if (!settings.isOn) return {}
@@ -86,8 +92,8 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
       states[key] = { kind: 'manual', why: 'before' }
     } else if (!settings.large && isTooBig(item)) {
       states[key] = { kind: 'manual', why: 'too-big' }
-    } else if (now < job.firstSeenAt + settings.settleMs) {
-      states[key] = { kind: 'settling', startsAt: job.firstSeenAt + settings.settleMs }
+    } else if (now < settledFrom(item, job.firstSeenAt) + settings.settleMs) {
+      states[key] = { kind: 'settling', startsAt: settledFrom(item, job.firstSeenAt) + settings.settleMs }
     } else {
       ready.push({ key, item, isManual: false })
     }
@@ -160,7 +166,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
   { key: 'autoReviewVerify', does: 'whether a second reviewer checks each finding of the draft against the code before it is stored, dropping or lowering what does not hold; a review with findings costs about twice the tokens', takes: 'on | off', fallback: 'off' },
   { key: 'autoReviewDaily', does: 'the most reviews started in a day; Try again on a card is not counted', takes: '3 | 5 | 10 | 20 | unlimited', fallback: '5' },
-  { key: 'autoReviewSettleMinutes', does: 'how long a PR\'s commits must stay still before its review starts, since authors often push again right after asking; 0 starts at once', takes: '0 | 10 | 30 | 60 | 120', fallback: '30' },
+  { key: 'autoReviewSettleMinutes', does: 'how long after a PR\'s latest commit its review starts, since authors often push again right after asking; 0 starts at once', takes: '0 | 10 | 30 | 60 | 120', fallback: '30' },
   { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },
   { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
   { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },

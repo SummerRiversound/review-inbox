@@ -38,6 +38,7 @@ export type GqlPr = SearchHit & GqlDetails & {
   deletions: number
   changedFiles: number
   headRefOid: string
+  commits?: { nodes: { commit: { committedDate: string } }[] }
   files: { nodes: { path: string }[] } | null
   reviewRequests: { nodes: { requestedReviewer: Reviewer }[] }
   reviews: { nodes: { state?: string; author: { login: string } | null; commit: { oid: string } | null }[] }
@@ -54,6 +55,7 @@ export const INBOX_QUERY = `query($q: String!, ${PAGE_ARGS}) {
         author { __typename login }
         repository { nameWithOwner defaultBranchRef { name } }
         files(first: 80) { nodes { path } }
+        commits(last: 1) { nodes { commit { committedDate } } }
         reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name slug } } } }
         reviews(last: 50) { nodes { state author { login } commit { oid } } }
         timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 50) {
@@ -81,7 +83,7 @@ export function cacheKey(...parts: string[]): string {
 
 // Part of the shared inbox file's name, so a session still running an older release, which keeps writing its own file,
 // never hands a newer one its lists or errors. Raise it in a release that changes what the file holds or how it is fetched.
-export const INBOX_FORMAT = 3
+export const INBOX_FORMAT = 4
 
 export function toDetail(pr: GqlPr): PrDetail {
   return {
@@ -95,6 +97,9 @@ export function toDetail(pr: GqlPr): PrDetail {
     reviews: pr.reviews.nodes,
   }
 }
+
+// When the head commit was made, which auto review waits from; a rebase or amend makes it anew.
+export const headCommittedAt = (pr: GqlPr): string | undefined => pr.commits?.nodes[0]?.commit.committedDate
 
 // The latest time my review was asked for, directly or through a team still on the PR.
 export function requestedAt(pr: GqlPr, me: string): string {

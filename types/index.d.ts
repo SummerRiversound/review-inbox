@@ -22,6 +22,8 @@ export type InboxItem = CardDetails & {
   title: string
   url: string
   headSha: string
+  // When the head commit was made: what auto review's wait counts from, when GitHub gives it.
+  headCommittedAt?: string
   author: string
   createdAt: string
   // Any activity on the PR; newer than the last close of the drawer marks the card.
