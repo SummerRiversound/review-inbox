@@ -20,7 +20,7 @@
 
 最後一行會打開收件匣。選項與更新方式請參閱[安裝](#安裝)。
 
-- **輸入框上方的資訊列** — 一行文字，只計算需要你處理的項目：等待你審查的 PR、你的 PR 中待處理的項目，以及指派給你或提及你的議題。顏色代表最久的審查請求已等待多久（3 天起為黃色，14 天起為紅色）。按 `開啟` 會開啟收件匣。 數字減少時會短暫變成綠色。
+- **輸入框上方的資訊列** — 一行文字，只計算需要你處理的項目：等待你審查的 PR、你的 PR 中待處理的項目，以及指派給你或提及你的議題。顏色代表最久的審查請求已等待多久（3 天起為黃色，14 天起為紅色）。按 `開啟` 會開啟收件匣。 數字減少時會短暫變成綠色。 開啟自動審查時，代你送出的審查留在收件匣期間，數字後面會顯示 `已自動審查 N`。
 - **審查收件匣** — `/review-inbox`，共有五個分頁：待審查、我的 PR 和指派與提及是要處理的項目，已儲存的搜尋和 GitHub 通知則是用來瀏覽的。焦點在收件匣時按 1 到 5，即可由左至右切換到對應的分頁。分頁上的數字是卡片數量；已儲存的搜尋沒有數字，GitHub 通知只計算未讀的。
 - **通知** — 你工作時有新動態，就會跳出一則簡短的通知。
 
@@ -178,7 +178,7 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 ### 通知
 
-以下情況會跳出通知：新的審查請求、你的 PR 有新審查、你的 PR 變成請求變更、CI 失敗或合併衝突，以及新的指派、提及或引用。新的工作階段不會逐則通知，而是用一則通知彙整上次有工作階段查看之後的變化，例如 `你離開期間 · CI 失敗 2`；沒有變化時不提示。同時有多則通知時，會依序逐一顯示，間隔 4.5 秒。
+以下情況會跳出通知：新的審查請求、你的 PR 有新審查、你的 PR 變成請求變更、CI 失敗或合併衝突，以及新的指派、提及或引用。新的工作階段不會逐則通知，而是用一則通知彙整上次有工作階段查看之後的變化，例如 `你離開期間 · CI 失敗 2`；沒有變化時不提示。開啟自動審查時，審查完成或代你送出時也會跳出通知。同時有多則通知時，會依序逐一顯示，間隔 4.5 秒。
 
 你的 PR 獲得核准且沒有正在執行的 CI 時，會提示一次 `可以合併`。
 
@@ -218,7 +218,7 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 > **會明顯多用 token。** 每次審查都會執行一個子代理，讀取 diff 和程式碼，並帶著你的 CLAUDE.md、你的 hooks 和 `autoReviewSkills` 中的技能：每個 PR 數萬個 token，使用 `opus` 時更多。卡片會顯示每次審查的花費，`autoReviewDaily` 則限制一天最多開始幾次。
 
-- **什麼會觸發審查。** 直接指名給你（不是給團隊）的請求，且該 PR 不是草稿、也不是機器人開啟的，並在從最後一次 commit 的時間起經過 `autoReviewSettleMinutes`（預設 30 分鐘）之後。所有工作階段合計，同一時間只進行一個審查。你的其他機器看到這個 👀 就會略過該 PR；審查中途停下的機器留下的 👀，一小時後由其他機器接手。在你開啟此功能之前提出的請求，以及超過 50 個檔案或 2,000 行變更的 PR，也會審查；把 `autoReviewBacklog` 或 `autoReviewLarge` 設為 `off` 則略過。待審查分頁頂端的 `自動審查` 按鈕會在所有工作階段中開關自動審查；之後在 `/config` 中修改 `autoReview` 時以設定為準。沒有到期的項目時什麼都不會執行：不會詢問模型，也不會啟動代理。
+- **什麼會觸發審查。** 直接指名給你（不是給團隊）的請求，且該 PR 不是草稿、也不是機器人開啟的，並在從最後一次 commit 的時間起經過 `autoReviewSettleMinutes`（預設 30 分鐘）之後。所有工作階段合計，同一時間只進行一個審查。你的其他機器看到這個 👀 就會略過該 PR；審查中途停下的機器留下的 👀，一小時後由其他機器接手。在你開啟此功能之前提出的請求，以及超過 50 個檔案或 2,000 行變更的 PR，也會審查；把 `autoReviewBacklog` 或 `autoReviewLarge` 設為 `off` 則略過。待審查分頁頂端的 `自動審查` 按鈕會在所有工作階段中開關自動審查；按過一次之後，再修改 `/config` 中的 `autoReview` 就不會有任何作用。沒有到期的項目時什麼都不會執行：不會詢問模型，也不會啟動代理。
 - **設定精靈。** 第一次用待審查分頁的 `自動審查` 按鈕開啟時，提示框裡會放入一則設定請求，列出除開關（由按鈕決定）以外每項自動審查設定的作用、可填的值、預設值和目前的值。按 Enter 後，Claude 會和你逐項設定，並把你選的值寫到 `/config` 儲存它們的位置；變更從下一個工作階段起生效。隨時可以用 `/review-inbox auto-review-config` 放入同樣的請求。
 - **由哪個工作階段執行。** 你開啟 `自動審查` 按鈕的那個工作階段負責在這台機器上啟動審查，開啟前的確認也會說明這一點。在別的工作階段執行 `/review-inbox auto-review-here` 可把審查移過去，執行 `/review-inbox auto-review-anywhere` 則任何工作階段都可啟動。該工作階段關閉期間，排隊的 PR 會等待，卡片上會標明。
 - **讀取什麼。** 審查者只有唯讀工具（`Read`、`Grep`、`Glob`），沒有 shell。mod 會把 PR 的 diff 寫進執行資料夾，重新請求時還會寫入你上次審查後的 diff；如果它知道儲存庫的資料夾（下一步按鈕使用的那個），也會在那裡把 head commit 簽出為分離的 worktree，並在審查儲存後移除。
@@ -230,7 +230,7 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 ## 語言
 
-資訊列、收件匣、通知、放進輸入框的審查請求，以及模型撰寫的摘要和審查風格描述，全都使用同一種語言。
+資訊列、收件匣、通知、放進輸入框的審查請求，以及模型撰寫的摘要、審查風格描述和自動審查，全都使用同一種語言。
 
 | 代碼 | 語言 |
 | --- | --- |
@@ -253,14 +253,14 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 ## 讀取與執行的內容
 
-這個 mod 只透過你自己的 `gh` 存取 GitHub；它會把 PR 的文字送給 Claude 撰寫摘要，並每週一次把你自己的審查留言送給 Claude 描述你的風格；它只會寫入自己的快取資料夾。以下逐項列出它存取的內容和原因，與 `claude plugin validate .` 為這個 mod 列出的項目一致。開啟 `autoReview` 時，它還會請 Claude 審查 PR，把每份審查以你的待送出審查儲存在 GitHub 上，並在審查進行期間於儲存庫的資料夾中加入一個 worktree。
+這個 mod 只透過你自己的 `gh` 存取 GitHub；它會把 PR 的文字送給 Claude 撰寫摘要，並每週一次把你自己的審查留言送給 Claude 描述你的風格；它只會寫入自己的快取資料夾。以下逐項列出它存取的內容和原因，與 `claude plugin validate .` 為這個 mod 列出的項目一致。開啟 `autoReview` 時，它還會請 Claude 審查 PR，把每份審查以你的待送出審查儲存在 GitHub 上或依 `autoReviewPost` 送出，並在審查進行期間於儲存庫的資料夾中加入一個 worktree。
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **執行 `gh`**：以 `gh api graphql` 取得清單，並每週一次取得你最近的審查留言；對已重新請求審查的 PR 執行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；設定了 `githubUser` 時執行 `gh auth token -u <githubUser>`。GitHub 通知分頁執行 `gh api notifications`；按下 `完成` 或 `取消訂閱` 時執行 `gh api -X DELETE notifications/threads/<id>`（取消訂閱時先加上 `/subscription`）。`directActions` 為 `on` 時，按下按鈕會先執行 `gh api user` 取得帳號名稱、`gh api repos/<owner>/<repo>/pulls/<n>` 讀取最新提交，再執行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。開啟 `autoReview` 時，會在每次審查前後執行 `gh api …/pulls/<n>/reviews` 和 `…/pulls/<n>/files`，執行 `gh pr diff`，並執行 `gh api -X POST …/pulls/<n>/reviews`，把審查內容從 stdin 傳入，以儲存為你的待送出審查；移到新的 commit 時，會讀取 `…/reviews/<id>` 和 `…/reviews/<id>/comments`，並在重新建立之前執行 `gh api -X DELETE …/reviews/<id>`。每次審查前後，它用 `gh api -i -X POST …/issues/<n>/reactions`（`content=eyes`）和 `gh api -X DELETE …/issues/<n>/reactions/<id>` 加上和移除這個 👀。卡片的按鈕在讀取 head commit 之後，會執行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）或 `gh api -X DELETE …/reviews/<id>`。除此之外，mod 本身不會發出任何網路請求。 `autoReviewPost` 為 `comment` 或 `verdict` 時，會接著對儲存的審查執行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）。
+- **執行 `gh`**：以 `gh api graphql` 取得清單，並每週一次取得你最近的審查留言；對已重新請求審查的 PR 執行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；設定了 `githubUser` 時執行 `gh auth token -u <githubUser>`。GitHub 通知分頁執行 `gh api notifications`；按下 `完成` 或 `取消訂閱` 時執行 `gh api -X DELETE notifications/threads/<id>`（取消訂閱時先加上 `/subscription`）。`directActions` 為 `on` 時，按下按鈕會先執行 `gh api user` 取得帳號名稱、`gh api repos/<owner>/<repo>/pulls/<n>` 讀取最新提交，再執行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。開啟 `autoReview` 時，會在每次審查前後執行 `gh api …/pulls/<n>/reviews` 和 `…/pulls/<n>/files`，執行 `gh pr diff`，並執行 `gh api -X POST …/pulls/<n>/reviews`，把審查內容從 stdin 傳入，以儲存為你的待送出審查；移到新的 commit 時，會讀取 `…/reviews/<id>` 和 `…/reviews/<id>/comments`，並在重新建立之前執行 `gh api -X DELETE …/reviews/<id>`。每次審查前後，它用 `gh api -i -X POST …/issues/<n>/reactions`（`content=eyes`）和 `gh api -X DELETE …/issues/<n>/reactions/<id>` 加上和移除這個 👀。卡片的按鈕在讀取 head commit 之後，會執行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）或 `gh api -X DELETE …/reviews/<id>`。`autoReviewPost` 為 `comment` 或 `verdict` 時，會接著對儲存的審查執行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）。 除此之外，mod 本身不會發出任何網路請求。
 - **執行 `git`**：每 30 秒在工作階段資料夾中執行 `git branch --show-current` 和 `git remote -v`，以找到位於你的 PR 分支上的工作階段；並執行 `git rev-parse --path-format=absolute --git-common-dir`，以記住該儲存庫的主資料夾。開啟 `autoReview` 且知道儲存庫的資料夾時，每次審查都會在那裡執行 `git fetch origin pull/<n>/head` 和 `git worktree add --detach`，審查結束時執行 `git worktree remove --force`。
 - **詢問 Claude**（`sonnet` 模型）：為每份摘要傳送 PR 的儲存庫名稱、標題、說明（前 12,000 個字元）、變更的檔案路徑（最多 80 個）和變更規模；若是已重新請求審查的 PR，還會傳送你上次審查後每個 commit 訊息的第一行，以及最多 60 個檔案路徑。這會計入你的 Claude Code 用量。每個 PR 在每個 head commit 和語言下只摘要一次；摘要失敗時，每個 commit 最多嘗試三次。此外，每週一次會傳送你在最近審查過的至多 30 個 PR 上留下的審查留言，用來描述你的審查風格：每則截至 500 個字元，最多 60 則，總計不超過 12,000 個字元；少於 5 則時不會傳送任何內容。
-- **啟動子代理**（僅在 `autoReview` 開啟時）：一次一個 `auto-reviewer`，使用 `autoReviewModel`，只有唯讀工具，並帶著你的 CLAUDE.md、hooks 和 `autoReviewSkills`。這會計入你的 Claude Code 用量。它的代理類型不在你自己的 Claude 可選擇的清單中。停止它時使用 `TaskStop`。
+- **啟動子代理**（僅在 `autoReview` 開啟時）：一次一個 `auto-reviewer`，使用 `autoReviewModel`（開啟 `autoReviewVerify` 時還有第二個代理核對其發現），只有唯讀工具，並帶著你的 CLAUDE.md、hooks 和 `autoReviewSkills`。這會計入你的 Claude Code 用量。它的代理類型不在你自己的 Claude 可選擇的清單中。停止它時使用 `TaskStop`。
 - **寫入檔案**：只寫入快取資料夾 `~/.claude/plugins/data/review-inbox`（設定了 `CLAUDE_CONFIG_DIR` 時，會以它取代 `~/.claude`）。`inbox-<hash>-f<n>.json` 存放清單和摘要；`hidden-<hash>.json` 存放已隱藏的 PR；`notes-<hash>.json` 存放備註和延後（與語言無關，每個帳號和範圍一個檔案）；`sessions.json` 存放每個活動工作階段的資料夾名稱、mod 版本、分支、GitHub 遠端儲存庫和提示中出現的 PR 連結（與帳號無關，一個檔案）； `repos.json` 存放工作階段執行過的每個 GitHub 儲存庫的主資料夾（供下一步按鈕使用）； `style-<hash>.json` 存放你的審查風格描述。每個檔案會先寫入旁邊的暫存檔，再用 `mv` 取代，因此其他工作階段不會讀到寫到一半的檔案；在沒有 `mv` 的環境（如 Windows）則直接寫入。如果你建立了 `actions.json`，只會從那裡讀取，從不寫入。`autoreview-<hash>.json` 存放每個 PR 在自動審查中的進度和最近一次的結果，`runs/` 存放執行資料夾，審查結束時以 `rm -rf` 移除。
 - **讀取環境變數**：讀取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 來找到該資料夾；像 `gh` 一樣讀取 `GH_REPO` 來確定目前工作階段的儲存庫；只有 `language` 為 `auto` 時才讀取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不設定任何環境變數。
 - **讀取 Claude Code 設定**：只有 `language` 為 `auto` 時才讀取 `language` 鍵，只有 `motion` 為 `auto` 時才讀取 `prefersReducedMotion` 鍵。
