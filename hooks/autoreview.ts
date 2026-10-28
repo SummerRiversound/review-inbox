@@ -150,12 +150,12 @@ Severity, by what merging as it is would cost:
 - nit: small and optional.
 
 Writing rules, for someone reading this code for the first time:
-- The summary opens with the verdict as your own decision, with no greeting, such as "Approving." or "Requesting changes (1 blocker).", in the review's language, then at most two short sentences on what remains. Add one sentence on what the change does well only when something genuinely stands out; never add one by habit. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
-- Each finding body is one short paragraph: a conclusion and the reason for it, two or three short sentences, never more than five lines. With four or more minor and nit findings, keep each of them to a single short line.
+- The summary's first line is the verdict alone, in bold, as your own decision and with no greeting, such as "**Approving.**" or "**Requesting changes (1 blocker).**", in the review's language; after a blank line, at most two short sentences on what remains. Add one sentence on what the change does well only when something genuinely stands out; never add one by habit. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
+- Each finding body puts its conclusion alone on the first line, in one sentence; the next line gives the reason for it and what must be decided or hold, in one or two short sentences, never more than five lines in all. With four or more minor and nit findings, keep each of them to the conclusion line alone.
 - Stay at the level a human reviewer discusses: what goes wrong for users, data or the next developer, and what must be decided or hold instead. The author knows the code better than you, so do not narrate how it works inside, and do not write new code; how to fix it is theirs.
 - Use plain words and name things by what they do rather than by code identifiers, unless the reader needs the name to find it.
 - Never describe how you checked, what you could not run, or what you left out; only what to fix and the verdict.
-- No headings, bold, lists or code blocks inside a finding body, and no severity word in it: the severity field carries it. The finding's file and line go in path and line, and the comment is shown on that code, so the body names no file or line; when another place matters, name it by what it does.
+- Write a finding body as plain text: the mod shows its severity and its conclusion line in bold and groups the findings, so add no headings, bold, lists, code blocks or severity word yourself. The finding's file and line go in path and line, and the comment is shown on that code, so the body names no file or line; when another place matters, name it by what it does.
 
 Reply with one JSON object and nothing else:
 {"verdict": "comment" | "approve" | "request-changes", "summary": string, "findings": [{"severity": "blocker" | "major" | "minor" | "nit", "path": string, "line": number, "body": string}]}
@@ -301,7 +301,16 @@ export type ReviewComment = { path: string; line: number; side: 'LEFT' | 'RIGHT'
 // What each severity is called in the review's language.
 export type SeverityNames = Record<Severity, string>
 
-const label = (f: Finding, names: SeverityNames) => `**${names[f.severity]}** ${f.body}`
+// A finding's first line is its conclusion, shown in bold after the severity; the lines below give the reason.
+function split(body: string): [string, string] {
+  const [title = '', ...rest] = body.trim().split('\n')
+  return [title.trim(), rest.join('\n').trim()]
+}
+
+function label(f: Finding, names: SeverityNames): string {
+  const [title, reason] = split(f.body)
+  return [`**${names[f.severity]} · ${title}**`, reason].filter(Boolean).join('\n')
+}
 
 // One comment outside the diff makes GitHub refuse the whole review, so those go into the body instead.
 export function placeFindings(files: PrFile[], findings: Finding[], names: SeverityNames): { comments: ReviewComment[]; rest: Finding[] } {
@@ -320,7 +329,15 @@ export const marker = (head: string, key: string) => `${AUTO_MARK}sha=${head} ke
 // The findings left out of the diff, grouped under their severity, most severe first.
 export function reviewBody(summary: string, rest: Finding[], head: string, key: string, names: SeverityNames): string {
   const groups = SEVERITIES.map(severity => ({ severity, findings: rest.filter(f => f.severity === severity) })).filter(g => g.findings.length > 0)
-  const outside = groups.map(g => [`**${names[g.severity]}**`, ...g.findings.map(f => `- ${f.body} (\`${f.path}:${f.line}\`)`)].join('\n'))
+  const outside = groups.map(g =>
+    [
+      `### ${names[g.severity]}`,
+      ...g.findings.map(f => {
+        const [title, reason] = split(f.body)
+        return [`**${title}**`, reason].filter(Boolean).join('\n') + ` (\`${f.path}:${f.line}\`)`
+      }),
+    ].join('\n\n'),
+  )
   return [summary, ...outside, marker(head, key)].filter(Boolean).join('\n\n')
 }
 

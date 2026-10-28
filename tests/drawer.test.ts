@@ -842,7 +842,7 @@ test('with autoReviewVerify on a draft with findings goes to a second reviewer t
   const checked = { verdict: 'comment', summary: 'A small thing.', findings: [{ severity: 'minor', path: 'a.ts', line: 2, body: 'two reads oddly' }] }
   await finish($, 'a2', JSON.stringify(checked))
   expect(g.created).toHaveLength(1)
-  expect(g.created[0]!.includes('**minor** two reads oddly')).toBe(true)
+  expect(g.created[0]!.includes('**minor · two reads oddly**')).toBe(true)
   expect(g.created[0]!.includes('off by one')).toBe(false)
   const job = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
   expect([job.status, job.result.verdict, job.tokens, job.draft]).toEqual(['done', 'comment', 84_000, undefined])
@@ -1046,8 +1046,8 @@ test('the next queued PR is reviewed by a read-only subagent and stored as my pe
   const sent = JSON.parse(g.created![0]!)
   expect(sent.commit_id).toBe('h5')
   expect(sent.event).toBeUndefined()
-  expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major** two is off by one' }])
-  expect(sent.body.includes('**nit**\n- outside the diff (`a.ts:40`)')).toBe(true)
+  expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major · two is off by one**' }])
+  expect(sent.body.includes('### nit\n\n**outside the diff** (`a.ts:40`)')).toBe(true)
   expect(sent.body.includes('<!-- review-inbox auto-review sha=h5 key=')).toBe(true)
   const done = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
   expect([done.status, done.reviewId, done.tokens, done.lock]).toEqual(['done', 77, 42_000, undefined])
