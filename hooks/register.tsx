@@ -770,6 +770,13 @@ async function setupPrompt($: EngineInterface) {
   return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList({ ...optionValues, autoReview }))
 }
 
+// Check all: the done reviews leave their group for their requests; the pending reviews stay on the cards.
+const checkAuto = ($: EngineInterface, keys: string[]) =>
+  editAuto($, file => ({
+    ...file,
+    jobs: Object.fromEntries(Object.entries(file.jobs).map(([key, job]) => [key, keys.includes(key) && job.status === 'done' ? { ...job, checked: true as const } : job])),
+  }))
+
 // A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
 async function runAuto($: EngineInterface, key: string) {
   const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
@@ -799,7 +806,7 @@ const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?
   })
 
 // A job no run holds: undefined fields are left out when the file is written.
-const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined }
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, checked: undefined }
 
 const prOf = (key: string) => {
   const at = key.lastIndexOf('#')
@@ -1845,7 +1852,8 @@ export const register: Register = (on, options) => {
         </Box>
       )
 
-    const autoMap = autoStates(await read($, autoReview), everything, config.auto, now)
+    const autoNow = await read($, autoReview)
+    const autoMap = autoStates(autoNow, everything, config.auto, now)
     // Where the card stands in auto review; nothing when it is off or the card is not one it reviews.
     const autoLine = (item: InboxItem) => {
       const key = itemKey(item)
@@ -2132,19 +2140,20 @@ export const register: Register = (on, options) => {
         <Text dimColor>{text}</Text>
       )
 
-    // A category with a header that folds it; an empty one is left out.
-    const section = <T,>(id: string, label: string, list: T[], render: (item: T) => RenderChildren) => {
+    // A category with a header that folds it, and `action` at the header's right; an empty one is left out.
+    const section = <T,>(id: string, label: string, list: T[], render: (item: T) => RenderChildren, action?: RenderChildren) => {
       if (list.length === 0) return undefined
       const isShut = shut.includes(id)
       return (
         <Box key={`section-${id}`} flexDirection="column">
-          <Box marginBottom={1}>
+          <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
             <Button
               key={`fold-${id}`}
               label={`${isShut ? '▸' : '▾'} ${label}`}
               dimColor
               onPress={() => void update($, collapsed, ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]))}
             />
+            {action}
           </Box>
           {!isShut && list.map(render)}
         </Box>
@@ -2277,7 +2286,9 @@ export const register: Register = (on, options) => {
 
     // Cards some session is working on gather at the top of their tab; the counts stay as they are.
     const reviewing = list.filter(i => where(i).length > 0)
-    const idle = ready.filter(i => !reviewing.includes(i))
+    // Reviews auto review stored and I have not checked yet gather under the switch.
+    const autoDone = ready.filter(i => !reviewing.includes(i) && autoMap[itemKey(i)]?.kind === 'done' && !autoNow.jobs[itemKey(i)]?.checked)
+    const idle = ready.filter(i => !reviewing.includes(i) && !autoDone.includes(i))
     const directReady = idle.filter(i => i.team === undefined)
     const teamReady = idle.filter(i => i.team !== undefined)
     const idleDrafts = drafts.filter(i => !reviewing.includes(i))
@@ -2395,6 +2406,9 @@ export const register: Register = (on, options) => {
                       onPress={() => void pressSwitch($).catch(() => undefined)}
                     />
                   </Box>
+                )}
+                {section('review:auto', m.sections.autoDone(autoDone.length), autoDone, card,
+                  <Button key="auto-check-all" label={m.auto.checkAll} onPress={() => void checkAuto($, autoDone.map(itemKey)).catch(() => undefined)} />,
                 )}
                 {unhide(everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
