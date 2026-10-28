@@ -1,5 +1,6 @@
 import type { AutoResult, AutoReviewFile, AutoState, Finding, InboxItem, Severity, Verdict } from '../types'
 import { itemKey } from './inbox'
+import { AUTO_MARK } from './style'
 
 // Authors often push again right after asking; a head this still is the one worth a review, unless autoReviewSettleMinutes says otherwise.
 export const SETTLE_MS = 30 * 60_000
@@ -149,12 +150,12 @@ Severity, by what merging as it is would cost:
 - nit: small and optional.
 
 Writing rules, for someone reading this code for the first time:
-- The summary opens with the verdict as your own decision, such as "Approving." or "Requesting changes (1 blocker).", in the review's language, then at most two short sentences on what remains. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
+- The summary opens with the verdict as your own decision, with no greeting, such as "Approving." or "Requesting changes (1 blocker).", in the review's language, then at most two short sentences on what remains. Add one sentence on what the change does well only when something genuinely stands out; never add one by habit. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
 - Each finding body is one short paragraph: a conclusion and the reason for it, two or three short sentences, never more than five lines. With four or more minor and nit findings, keep each of them to a single short line.
-- Give the direction, not new code: say what is wrong and what must hold, and leave how to write it to the author. Point to existing code only as evidence.
+- Stay at the level a human reviewer discusses: what goes wrong for users, data or the next developer, and what must be decided or hold instead. The author knows the code better than you, so do not narrate how it works inside, and do not write new code; how to fix it is theirs.
 - Use plain words and name things by what they do rather than by code identifiers, unless the reader needs the name to find it.
 - Never describe how you checked, what you could not run, or what you left out; only what to fix and the verdict.
-- No headings, bold, lists or code blocks inside a finding body, and no severity word in it: the severity field carries it. The finding's own file and line go in path and line; cite another place only at the end, on one line.
+- No headings, bold, lists or code blocks inside a finding body, and no severity word in it: the severity field carries it. The finding's file and line go in path and line, and the comment is shown on that code, so the body names no file or line; when another place matters, name it by what it does.
 
 Reply with one JSON object and nothing else:
 {"verdict": "comment" | "approve" | "request-changes", "summary": string, "findings": [{"severity": "blocker" | "major" | "minor" | "nit", "path": string, "line": number, "body": string}]}
@@ -177,13 +178,24 @@ export function reviewerSpec(model: string, skills: string[]) {
   }
 }
 
+// Four names, blocker to nit; anything else keeps the language's own.
+export function parseSeverityNames(option: string | undefined, fallback: SeverityNames): SeverityNames {
+  const names = (option ?? '').split(',').map(s => s.trim())
+  if (names.length !== SEVERITIES.length || names.some(n => !n)) return fallback
+  return Object.fromEntries(SEVERITIES.map((s, i) => [s, names[i]])) as SeverityNames
+}
+
+// The summary counts findings by the same names the labels show.
+const namesLine = (names: SeverityNames | undefined) =>
+  names ? `In the summary, call the severities ${SEVERITIES.map(s => `${s} "${names[s]}"`).join(', ')}.` : ''
+
 export const parseSkills = (option: string | undefined) =>
   (option ?? '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean)
 
-export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; instructions?: string; language: string }
+export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; instructions?: string; language: string; severities?: SeverityNames }
 
 // The settings the setup request walks through, all but autoReview, which the switch keeps, with what each takes and its default as the manifest has them.
 export const AUTO_SETTINGS = [
@@ -194,6 +206,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewSettleMinutes', does: 'how long after a PR\'s latest commit its review starts, since authors often push again right after asking; 0 starts at once', takes: '0 | 10 | 30 | 60 | 120', fallback: '30' },
   { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },
   { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
+  { key: 'autoReviewSeverityNames', does: 'what the four severities are called on the review, blocker to nit', takes: 'four names, comma-separated', fallback: '' },
   { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },
   { key: 'autoReviewBacklog', does: 'whether requests from before auto review was on are reviewed too, a few a day', takes: 'on | off', fallback: 'on' },
 ] as const
@@ -221,6 +234,7 @@ export function reviewerPrompt(item: InboxItem, facts: RunFacts): string {
     facts.hasCheckout ? `The code at the head commit is in ${facts.folder}/repo/.` : 'Only the diff is here; the rest of the code could not be checked out.',
     facts.style ? `${TONE} ${facts.style}` : '',
     facts.instructions ? `${MINE} ${facts.instructions}` : '',
+    namesLine(facts.severities),
     facts.language,
   ]
     .filter(Boolean)
@@ -235,6 +249,7 @@ export function verifierPrompt(draft: AutoResult, facts: RunFacts): string {
     `Draft: ${JSON.stringify(draft)}`,
     facts.style ? `${TONE} ${facts.style}` : '',
     facts.instructions ? `${MINE} ${facts.instructions}` : '',
+    namesLine(facts.severities),
     facts.language,
   ]
     .filter(Boolean)
@@ -300,7 +315,7 @@ export function placeFindings(files: PrFile[], findings: Finding[], names: Sever
   return { comments, rest }
 }
 
-export const marker = (head: string, key: string) => `<!-- review-inbox auto-review sha=${head} key=${key} -->`
+export const marker = (head: string, key: string) => `${AUTO_MARK}sha=${head} key=${key} -->`
 
 // The findings left out of the diff, grouped under their severity, most severe first.
 export function reviewBody(summary: string, rest: Finding[], head: string, key: string, names: SeverityNames): string {

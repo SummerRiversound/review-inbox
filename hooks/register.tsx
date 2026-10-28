@@ -60,6 +60,7 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseSeverityNames,
   parseReview,
   parseSkills,
   placeFindings,
@@ -227,6 +228,7 @@ type Options = {
   autoReviewSettleMinutes?: string
   autoReviewSkills?: string
   autoReviewInstructions?: string
+  autoReviewSeverityNames?: string
   autoReviewLarge?: string
   autoReviewBacklog?: string
 }
@@ -234,7 +236,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -895,9 +897,12 @@ async function takeLock($: EngineInterface, pr: InboxItem, env: Record<string, s
 }
 
 // What both reviewers of a run are told besides their task.
+// What the severities are called on a review: my names when I set all four, else the language's.
+const severityNames = () => parseSeverityNames(config.autoSeverityNames, m.auto.severities)
+
 async function runFacts($: EngineInterface, folder: string, hasCheckout: boolean): Promise<RunFacts> {
   const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
-  return { folder, hasCheckout, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language }
+  return { folder, hasCheckout, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language, severities: severityNames() }
 }
 
 // Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
@@ -975,8 +980,8 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
     }
     let reviewId = await pendingId()
     if (reviewId === undefined) {
-      const { comments, rest } = placeFindings(jsonLines<PrFile>(await gh($, filesArgs(pr), env)), result.findings, m.auto.severities)
-      const body = reviewBody(result.summary, rest, job.headSha, job.contentKey ?? '', m.auto.severities)
+      const { comments, rest } = placeFindings(jsonLines<PrFile>(await gh($, filesArgs(pr), env)), result.findings, severityNames())
+      const body = reviewBody(result.summary, rest, job.headSha, job.contentKey ?? '', severityNames())
       // GitHub allows one pending review a PR: a create refused because another machine made one adopts that one.
       reviewId = await gh($, createArgs(pr), env, createInput(job.headSha, body, comments)).then(
         id => Number(id.trim()),
@@ -1514,6 +1519,7 @@ export const register: Register = (on, options) => {
     autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',
     autoSkills: parseSkills(opts.autoReviewSkills),
     autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
+    autoSeverityNames: opts.autoReviewSeverityNames ?? '',
   }
   m = MESSAGES.en
   autoOption = config.auto.isOn
@@ -1934,7 +1940,7 @@ export const register: Register = (on, options) => {
       if (!s) return undefined
       if (s.kind === 'done' && s.result) {
         const { result } = s
-        const counts = severityCounts(result.findings).map(c => `${c.count} ${m.auto.severities[c.severity]}`)
+        const counts = severityCounts(result.findings).map(c => `${c.count} ${severityNames()[c.severity]}`)
         const head = [m.auto.suggests(m.auto.verdicts[result.verdict]), counts.length > 0 ? counts.join(', ') : m.auto.noFindings, s.tokens ? m.auto.tokens(Math.round(s.tokens / 1000)) : '']
         return (
           <Box flexDirection="column" marginTop={1}>
@@ -1944,7 +1950,7 @@ export const register: Register = (on, options) => {
               .slice(0, 3)
               .map((f, i) => (
                 <Text key={`auto-finding-${key}-${i}`} dimColor wrap="truncate-end">
-                  {m.auto.severities[f.severity]} · {f.path}:{f.line} · {f.body}
+                  {severityNames()[f.severity]} · {f.path}:{f.line} · {f.body}
                 </Text>
               ))}
           </Box>

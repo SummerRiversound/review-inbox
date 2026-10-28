@@ -17,6 +17,11 @@ test('style samples are my own review bodies and inline comments, blanks left ou
   expect(styleSamples(nodes, 'me')).toEqual(['Looks good, one question.', 'Why a new cache here?', 'Can this be a constant?'])
 })
 
+test('an auto review posted under my name is not learned from, its inline comments included', async () => {
+  const auto = review('me', 'Approving.\n\n<!-- review-inbox auto-review sha=abc key=k -->', ['A finding the reviewer wrote.'])
+  expect(styleSamples([{ reviews: { nodes: [auto, review('me', 'Why a new cache here?')] } }], 'me')).toEqual(['Why a new cache here?'])
+})
+
 test('style samples are cut to 500 characters each and stop at 60', async () => {
   const many = Array.from({ length: 70 }, (_, i) => `comment ${i}`)
   const samples = styleSamples([{ reviews: { nodes: [review('me', 'x'.repeat(900), many)] } }], 'me')

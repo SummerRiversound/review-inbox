@@ -2,6 +2,8 @@ import { MESSAGES } from './i18n'
 import type { Language } from './i18n'
 import { PAGE, PAGE_ARGS } from './pages'
 
+export const AUTO_MARK = '<!-- review-inbox auto-review '
+
 // PRs I reviewed and did not write, newest first; only my own reviews are kept, cut short, to stay far below gh's output cap.
 export const STYLE_QUERY = `query($q: String!, ${PAGE_ARGS}) {
   viewer { login }
@@ -35,6 +37,8 @@ export function styleSamples(nodes: Partial<GqlReviewed>[], me: string): string[
   for (const pr of nodes) {
     for (const review of pr.reviews?.nodes ?? []) {
       if (review.author?.login.toLowerCase() !== me.toLowerCase()) continue
+      // An auto review is posted under my name but written by the reviewer; learning from it would copy the reviewer back.
+      if (review.body?.includes(AUTO_MARK)) continue
       for (const body of [review.body, ...(review.comments?.nodes ?? []).map(c => c.body)]) {
         const text = (body ?? '').trim().slice(0, SAMPLE_CHARS)
         if (!text) continue
@@ -59,8 +63,8 @@ export const STYLE_MS = 7 * 86_400_000
 export const STYLE_RETRY_MS = 86_400_000
 const MAX_STYLE_CHARS = 600
 
-// Raise when styleRules changes, so a style described under the old rules is learned again instead of used for a week.
-export const STYLE_RULES = 2
+// Raise when styleRules or the samples it reads change, so a style described under the old rules is learned again instead of used for a week.
+export const STYLE_RULES = 3
 
 // Shared by every session like the inbox: the learned style, the rules it was learned under, when it was last learned, and when to retry after a failure.
 export type StyleFile = { profile?: string; rules?: number; checkedAt?: number; samples?: number; retryAt?: number }
