@@ -1950,7 +1950,7 @@ export const register: Register = (on, options) => {
               .slice(0, 3)
               .map((f, i) => (
                 <Text key={`auto-finding-${key}-${i}`} dimColor wrap="truncate-end">
-                  {severityNames()[f.severity]} · {f.path}:{f.line} · {f.body}
+                  {severityNames()[f.severity]} · {f.path}:{f.line} · {f.body.split('\n')[0]}
                 </Text>
               ))}
           </Box>
