@@ -21,6 +21,7 @@ import type {
   IssueItem,
   MyPr,
   Note,
+  PostedReview,
   Presence,
   RepoPaths,
   SearchGroup,
@@ -784,12 +785,12 @@ async function setupPrompt($: EngineInterface) {
   return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList(optionValues))
 }
 
-// Check all: the done reviews leave their group for their requests; the pending reviews stay on the cards.
-const checkAuto = ($: EngineInterface, keys: string[]) =>
-  editAuto($, file => ({
-    ...file,
-    jobs: Object.fromEntries(Object.entries(file.jobs).map(([key, job]) => [key, keys.includes(key) && job.status === 'done' ? { ...job, checked: true as const } : job])),
-  }))
+// Check all: the posted reviews shown leave their group; one posted since the press stays.
+const checkAuto = ($: EngineInterface, ats: number[]) =>
+  editAuto($, file => {
+    const posted = (file.posted ?? []).filter(p => !ats.includes(p.at))
+    return { ...file, posted: posted.length > 0 ? posted : undefined }
+  })
 
 // A run asked for by hand skips the wait, the size limit and the daily limit, for this head only; it is also Try again.
 async function runAuto($: EngineInterface, key: string) {
@@ -820,7 +821,7 @@ const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?
   })
 
 // A job no run holds: undefined fields are left out when the file is written.
-const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, checked: undefined, draft: undefined }
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, draft: undefined }
 
 const prOf = (key: string) => {
   const at = key.lastIndexOf('#')
@@ -995,8 +996,12 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
         )
       : undefined
     if (post && refused === undefined) {
+      const verdict = post === 'post-comment' ? 'comment' : result.verdict
+      const item = (await read($, items)).find(i => itemKey(i) === key)
       await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined }, job.headSha)
-      return toast($, `${m.auto.posted(m.auto.verdicts[post === 'post-comment' ? 'comment' : result.verdict])} · ${pr.repo} #${pr.number}`)
+      const posted = { ...pr, title: item?.title ?? '', url: item?.url ?? `https://github.com/${pr.repo}/pull/${pr.number}`, verdict, at: Date.now() }
+      await editAuto($, file => ({ ...file, posted: [...(file.posted ?? []), posted] }))
+      return toast($, `${m.auto.posted(m.auto.verdicts[verdict])} · ${pr.repo} #${pr.number}`)
     }
     await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(spent ? { tokens: spent } : {}) }, job.headSha)
     toast($, `${refused === undefined ? m.auto.finished(m.auto.verdicts[result.verdict]) : m.auto.postFailed(refused)} · ${pr.repo} #${pr.number}`)
@@ -1633,8 +1638,8 @@ export const register: Register = (on, options) => {
     // bandLabels keeps this order and leaves out the same zeros.
     const keys = BAND_KEYS.filter(k => band[k] > 0)
     const flashing = await read($, dropped)
-    // Finished reviews waiting for my verdict, among the cards the band counts.
-    const finished = config.auto.isOn ? Object.values(autoStates(await read($, autoReview), reviews, config.auto, Date.now())).filter(s => s.kind === 'done').length : 0
+    // Auto reviews posted by themselves and not checked yet.
+    const finished = (await read($, autoReview)).posted?.length ?? 0
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const now = Date.now()
@@ -2281,6 +2286,19 @@ export const register: Register = (on, options) => {
         </Text>
       </Box>
     )
+    const postedRow = (p: PostedReview) => (
+      <Box key={`posted-${p.repo}#${p.number}-${p.at}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
+        <Box flexShrink={1}>
+          <Text wrap="truncate-end">
+            <Text bold>
+              {p.repo} #{p.number}
+            </Text>{' '}
+            <Link href={p.url}>{p.title} ↗</Link>
+          </Text>
+        </Box>
+        <Text dimColor>{m.auto.verdicts[p.verdict]}</Text>
+      </Box>
+    )
     const reasonText = (reason: string) => (m.activity.reasons as Record<string, string>)[reason] ?? reason.replace(/_/g, ' ')
     // A thread sent off shows its Undo in its place until the call goes.
     const threadRow = (t: Thread) => {
@@ -2355,9 +2373,9 @@ export const register: Register = (on, options) => {
 
     // Cards some session is working on gather at the top of their tab; the counts stay as they are.
     const reviewing = list.filter(i => where(i).length > 0)
-    // Reviews auto review stored and I have not checked yet gather under the switch.
-    const autoDone = ready.filter(i => !reviewing.includes(i) && autoMap[itemKey(i)]?.kind === 'done' && !autoNow.jobs[itemKey(i)]?.checked)
-    const idle = ready.filter(i => !reviewing.includes(i) && !autoDone.includes(i))
+    // Auto reviews posted by themselves gather under the switch, newest first, so one is not missed once its PR leaves the list.
+    const autoDone = [...(autoNow.posted ?? [])].reverse()
+    const idle = ready.filter(i => !reviewing.includes(i))
     const directReady = idle.filter(i => i.team === undefined)
     const teamReady = idle.filter(i => i.team !== undefined)
     const idleDrafts = drafts.filter(i => !reviewing.includes(i))
@@ -2477,8 +2495,8 @@ export const register: Register = (on, options) => {
                     />
                   </Box>
                 )}
-                {section('review:auto', m.sections.autoDone(autoDone.length), autoDone, card,
-                  <Button key="auto-check-all" label={m.auto.checkAll} onPress={() => void checkAuto($, autoDone.map(itemKey)).catch(() => undefined)} />,
+                {section('review:auto', m.sections.autoDone(autoDone.length), autoDone, postedRow,
+                  <Button key="auto-check-all" label={m.auto.checkAll} onPress={() => void checkAuto($, autoDone.map(p => p.at)).catch(() => undefined)} />,
                 )}
                 {unhide(everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}

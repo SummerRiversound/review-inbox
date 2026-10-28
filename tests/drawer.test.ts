@@ -798,7 +798,12 @@ test('with autoReviewPost on verdict a finished review is posted with the verdic
   expect(g.posted).toEqual(['gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=REQUEST_CHANGES'])
   expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('closed')
   expect(toasts).toContain('Auto review posted as Request changes · o/r #5')
+  const [posted] = JSON.parse(files.get(AUTO)!).posted
+  expect([posted.repo, posted.number, posted.title, posted.url, posted.verdict]).toEqual(['o/r', 5, recent(5).title, recent(5).url, 'request-changes'])
   await ui.unmount()
+  const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+  expect(await shown(band, /auto-reviewed 1/)).toBe(true)
+  await band.unmount()
 })
 
 test('a post GitHub refuses keeps the auto review as my pending review, to post from the card', { options: { autoReview: 'on', autoReviewPost: 'comment' } }, async ($, on) => {
@@ -1052,8 +1057,9 @@ test('the next queued PR is reviewed by a read-only subagent and stored as my pe
   expect(await shown(ui, /major · a.ts:2 · two is off by one/)).toBe(true)
   await ui.unmount()
 
+  // Not posted yet, so the band counts it among the requests, not as auto-reviewed.
   const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
-  expect(await shown(band, /auto-reviewed 1/)).toBe(true)
+  expect(await shown(band, /auto-reviewed/)).toBe(false)
   await band.unmount()
 })
 
@@ -1293,23 +1299,26 @@ test('a stored auto review offers its post buttons without Direct GitHub actions
   await ui.unmount()
 })
 
-test('reviews auto review stored gather in a folding Auto review done group under the switch, and Check all sends them back to their requests', AUTO_ON, async ($, on) => {
+test('auto reviews posted by themselves gather in a folding Auto review done group, after their PR leaves the list too, until Check all; a stored one stays in its request group', AUTO_ON, async ($, on) => {
   const label = async (key: string) => (await ui.find({ key }))?.props.label
-  const ui = await opened($, on, [], [], 'review', { items: [autoItem, recent(6)], files: { [AUTO]: reviewed }, run: github([], 'h5') })
+  const posted = { repo: 'o/r', number: 9, title: 'Gone from the list', url: 'https://github.com/o/r/pull/9', verdict: 'approve', at: Date.now() - 60_000 }
+  const file = JSON.stringify({ ...JSON.parse(reviewed), posted: [posted] })
+  const ui = await opened($, on, [], [], 'review', { items: [autoItem, recent(6)], files: { [AUTO]: file }, run: github([], 'h5') })
 
   expect(await label('fold-review:auto')).toBe('▾ Auto review done 1')
-  expect(await label('fold-review:direct')).toBe('▾ Direct requests 1')
+  expect(await shown(ui, /Gone from the list/)).toBe(true)
+  expect((await ui.find({ type: 'Link', text: /Gone from the list/ }))?.props.href).toBe(posted.url)
+  // The review stored and not posted waits on its card among the direct requests, to post or discard.
+  expect(await label('fold-review:direct')).toBe('▾ Direct requests 2')
   expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeDefined()
 
   await ui.press({ key: 'fold-review:auto' })
-  expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeUndefined()
+  expect(await shown(ui, /Gone from the list/)).toBe(false)
   await ui.press({ key: 'fold-review:auto' })
 
   await ui.press({ key: 'auto-check-all' })
-  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].checked).toBe(true)
+  expect(JSON.parse(files.get(AUTO)!).posted).toBeUndefined()
   expect(await ui.find({ key: 'fold-review:auto' })).toBeUndefined()
-  expect(await label('fold-review:direct')).toBe('▾ Direct requests 2')
-  // The stored review stays on its card, to post or discard.
   expect(await ui.find({ key: 'direct-post-changes-o/r#5' })).toBeDefined()
   await ui.unmount()
 })
