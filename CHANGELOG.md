@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.19.0 — 2026-10-28
+
+### Changed
+
+- The auto review wait counts from the time of the PR's latest commit, so a PR whose last commit is older than `autoReviewSettleMinutes` starts as soon as it is seen. Without a readable commit time it counts from when the inbox first saw the head, as before. The shared inbox file holds the commit time, so sessions still on an older release keep to their own file.
+
 ## 0.18.0 — 2026-10-28
 
 ### Added
