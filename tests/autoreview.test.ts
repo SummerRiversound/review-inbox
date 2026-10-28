@@ -13,6 +13,7 @@ import {
   myReview,
   nextJob,
   parseDaily,
+  parseSettle,
   parseReview,
   placeFindings,
   readLock,
@@ -47,7 +48,7 @@ const item = (number: number, more: Partial<InboxItem> = {}): InboxItem => ({
   ...more,
 })
 
-const ON = { isOn: true, daily: 5, large: true, backlog: true }
+const ON = { isOn: true, daily: 5, large: true, backlog: true, settleMs: SETTLE_MS }
 // Turned on at 09:00; the requests above came at 10:00 and their heads were first seen then.
 const tracked = (items: InboxItem[], more: Partial<AutoReviewFile> = {}): AutoReviewFile => ({
   ...trackHeads({ jobs: {} }, items, Date.parse('2026-10-27T10:00:00Z')),
@@ -117,6 +118,23 @@ test('a run asked for by hand skips the wait and the size and goes first, past t
     'o/r#1': { kind: 'settling', startsAt: Date.parse('2026-10-27T10:30:00Z') },
     'o/r#2': { kind: 'queued', ahead: 0 },
   })
+})
+
+test('a head waits as long as autoReviewSettleMinutes says, and 0 queues it as soon as it is seen', () => {
+  const items = [item(1)]
+  const file = tracked(items)
+  const seen = Date.parse('2026-10-27T10:00:00Z')
+  const tenMinutes = { ...ON, settleMs: 10 * 60_000 }
+
+  expect(autoStates(file, items, tenMinutes, seen + 10 * 60_000 - 1)).toEqual({ 'o/r#1': { kind: 'settling', startsAt: seen + 10 * 60_000 } })
+  expect(autoStates(file, items, tenMinutes, seen + 10 * 60_000)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
+  expect(autoStates(file, items, { ...ON, settleMs: 0 }, seen)).toEqual({ 'o/r#1': { kind: 'queued', ahead: 0 } })
+})
+
+test('autoReviewSettleMinutes reads whole minutes from 0, and anything else falls back to 30', () => {
+  expect([parseSettle('0'), parseSettle('10'), parseSettle('120'), parseSettle(undefined), parseSettle('-5'), parseSettle('x'), parseSettle('1.5')]).toEqual(
+    [0, 10, 120, 30, 30, 30, 30].map(m => m * 60_000),
+  )
 })
 
 test('the daily limit holds settled heads in the queue until the next day, and unlimited never does', () => {
@@ -255,7 +273,7 @@ test('my own instructions go into the task when I wrote some, and nothing is add
 test('the setup list names every auto review setting but on and off, which the switch keeps, with what it does, what it takes, its default and its value now, an unset one as its default', () => {
   const list = setupList({ autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewLarge', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)
