@@ -72,7 +72,7 @@ import {
 import type { AutoSettings, GhComment, GhReview, PrFile } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
-import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
+import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
 import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
 import type { RawThread } from './activity'
 import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
@@ -212,6 +212,7 @@ type Options = {
   directActions?: string
   autoReview?: string
   autoReviewModel?: string
+  autoReviewPost?: string
   autoReviewDaily?: string
   autoReviewSkills?: string
   autoReviewInstructions?: string
@@ -222,7 +223,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[], autoInstructions: '' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true } as AutoSettings, autoModel: 'sonnet', autoSkills: [] as string[], autoInstructions: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -964,8 +965,20 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
       )
     }
     await removeRun($, job)
+    // Posted by itself as autoReviewPost says; a post GitHub refuses leaves it my pending review, to post from the card.
+    const post = reviewId > 0 ? autoPost(config.autoPost, result.verdict) : undefined
+    const refused = post
+      ? await gh($, writeArgs(post, { repo: pr.repo, number: pr.number, title: '', reviewId }, ''), env).then(
+          () => undefined,
+          (error: unknown) => (error instanceof Error && error.message) || String(error),
+        )
+      : undefined
+    if (post && refused === undefined) {
+      await setJob($, key, { ...IDLE, status: 'closed', reviewId: undefined, result: undefined }, job.headSha)
+      return toast($, `${m.auto.posted(m.auto.verdicts[post === 'post-comment' ? 'comment' : result.verdict])} · ${pr.repo} #${pr.number}`)
+    }
     await setJob($, key, { ...IDLE, status: 'done', result, ...(reviewId > 0 ? { reviewId } : {}), ...(tokens ? { tokens } : {}) }, job.headSha)
-    toast($, `${m.auto.finished(m.auto.verdicts[result.verdict])} · ${pr.repo} #${pr.number}`)
+    toast($, `${refused === undefined ? m.auto.finished(m.auto.verdicts[result.verdict]) : m.auto.postFailed(refused)} · ${pr.repo} #${pr.number}`)
   } catch (error) {
     await failRun($, key, error instanceof Error ? error.message : String(error))
   }
@@ -1448,6 +1461,7 @@ export const register: Register = (on, options) => {
     directActions: opts.directActions === 'on',
     auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off' },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
+    autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',
     autoSkills: parseSkills(opts.autoReviewSkills),
     autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
   }

@@ -224,6 +224,8 @@ export const fr: Messages = {
     stopped: 'la revue a été interrompue',
     reviewed: 'Revue automatique : vous avez déjà relu ce commit',
     finished: (verdict: string) => `Revue automatique terminée, proposition : ${verdict}`,
+    posted: verdict => `Revue automatique publiée comme ${verdict}`,
+    postFailed: error => `La revue automatique reste votre revue en attente ; la publication a échoué : ${error}`,
   },
   prompt: {
     addButton: (path, names) => `Ajoute un bouton à ma boîte de réception de revues en modifiant ${path} ; crée-le sous la forme {"buttons": []} s'il n'existe pas. Chaque entrée est {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, et le prompt peut utiliser ${names} sous la forme {{.Name}}. Demande-moi d'abord ce que le bouton doit faire.`,

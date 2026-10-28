@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { InboxItem, MyPr } from '../types'
-import { canMerge, issueActions, prActions, reviewActions, writeArgs } from '../hooks/direct'
+import { autoPost, canMerge, issueActions, prActions, reviewActions, writeArgs } from '../hooks/direct'
 
 const pr = (more: Partial<MyPr>): MyPr =>
   ({ repo: 'o/r', number: 1, title: 't', url: 'u', createdAt: '2026-10-01T00:00:00Z', state: 'waiting', ciPending: false, newReviews: [], headSha: 'abc', ...more })
@@ -25,4 +25,13 @@ test('an approve is pinned to the commit I looked at, and Update branch merges r
   expect(writeArgs('approve', target, 'me')).toEqual(['api', '-X', 'POST', 'repos/o/r/pulls/7/reviews', '-f', 'event=APPROVE', '-f', 'commit_id=abc'])
   expect(writeArgs('update-branch', target, 'me')).toEqual(['api', '-X', 'PUT', 'repos/o/r/pulls/7/update-branch', '-f', 'expected_head_sha=abc'])
   expect(writeArgs('assign', target, 'me', true)).toEqual(['api', '-X', 'DELETE', 'repos/o/r/issues/7/assignees', '-f', 'assignees[]=me'])
+})
+
+test('autoReviewPost decides what a stored auto review is posted as: nothing when pending, a comment, or the verdict it suggests', () => {
+  expect(autoPost('pending', 'approve')).toBeUndefined()
+  expect(autoPost(undefined, 'approve')).toBeUndefined()
+  expect(autoPost('comment', 'request-changes')).toBe('post-comment')
+  expect(autoPost('verdict', 'comment')).toBe('post-comment')
+  expect(autoPost('verdict', 'approve')).toBe('post-approve')
+  expect(autoPost('verdict', 'request-changes')).toBe('post-changes')
 })

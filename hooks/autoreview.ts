@@ -151,6 +151,7 @@ export type RunFacts = { folder: string; hasCheckout: boolean; style?: string; i
 // The settings the setup request walks through, with what each takes and its default as the manifest has them.
 export const AUTO_SETTINGS = [
   { key: 'autoReview', does: 'whether PRs that ask for my review are reviewed in the background', takes: 'on | off', fallback: 'off' },
+  { key: 'autoReviewPost', does: 'what a finished review becomes: my pending review to post myself, posted as a comment, or posted with the verdict it suggests, approve and request changes included', takes: 'pending | comment | verdict', fallback: 'pending' },
   { key: 'autoReviewModel', does: 'the model the reviewer runs on; opus reviews deeper and costs more', takes: 'sonnet | opus', fallback: 'sonnet' },
   { key: 'autoReviewDaily', does: 'the most reviews started in a day; Try again on a card is not counted', takes: '3 | 5 | 10 | 20 | unlimited', fallback: '5' },
   { key: 'autoReviewSkills', does: 'skills loaded into the reviewer, such as a review playbook', takes: 'skill names, comma-separated', fallback: '' },

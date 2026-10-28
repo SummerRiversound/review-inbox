@@ -232,6 +232,8 @@ const en = {
     stopped: 'the review was stopped',
     reviewed: 'Auto review: you already reviewed this commit',
     finished: (verdict: string) => `Auto review done, suggests ${verdict}`,
+    posted: (verdict: string) => `Auto review posted as ${verdict}`,
+    postFailed: (error: string) => `Auto review kept as your pending review; posting it failed: ${error}`,
   },
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,

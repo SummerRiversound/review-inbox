@@ -221,6 +221,8 @@ export const zhTW: Messages = {
     stopped: '審查已中斷',
     reviewed: '自動審查：這個提交你已經審查過',
     finished: (verdict: string) => `自動審查完成，建議：${verdict}`,
+    posted: verdict => `自動審查已以「${verdict}」送出`,
+    postFailed: error => `自動審查已保留為待送出審查；送出失敗：${error}`,
   },
   prompt: {
     addButton: (path, names) => `幫我的審查收件匣新增一個按鈕：編輯 ${path}，如果不存在就建立為 {"buttons": []}。每一項是 {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}，prompt 裡可以用 {{.Name}} 的形式使用 ${names}。先問我這個按鈕要做什麼。`,

@@ -225,6 +225,8 @@ export const de: Messages = {
     stopped: 'das Review wurde abgebrochen',
     reviewed: 'Automatisches Review: Sie haben diesen Commit bereits geprüft',
     finished: (verdict: string) => `Automatisches Review fertig, Vorschlag: ${verdict}`,
+    posted: verdict => `Automatisches Review als ${verdict} veröffentlicht`,
+    postFailed: error => `Automatisches Review bleibt Ihr ausstehendes Review; Veröffentlichen fehlgeschlagen: ${error}`,
   },
   prompt: {
     addButton: (path, names) => `Füge meinem Review-Posteingang eine Schaltfläche hinzu, indem du ${path} bearbeitest; lege die Datei als {"buttons": []} an, falls sie fehlt. Jeder Eintrag ist {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, und der Prompt kann ${names} als {{.Name}} verwenden. Frag mich zuerst, was die Schaltfläche tun soll.`,

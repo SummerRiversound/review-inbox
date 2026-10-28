@@ -224,6 +224,8 @@ export const es: Messages = {
     stopped: 'la revisión se detuvo',
     reviewed: 'Revisión automática: ya revisaste este commit',
     finished: (verdict: string) => `Revisión automática lista, sugiere: ${verdict}`,
+    posted: verdict => `Revisión automática publicada como ${verdict}`,
+    postFailed: error => `La revisión automática queda como tu revisión pendiente; no se pudo publicar: ${error}`,
   },
   prompt: {
     addButton: (path: string, names: string) => `Añade un botón a mi bandeja de revisión editando ${path}; créalo como {"buttons": []} si no existe. Cada entrada es {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, y el prompt puede usar ${names} como {{.Name}}. Primero pregúntame qué debe hacer el botón.`,

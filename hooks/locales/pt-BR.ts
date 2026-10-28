@@ -225,6 +225,8 @@ export const ptBR: Messages = {
     stopped: 'a revisão foi interrompida',
     reviewed: 'Revisão automática: você já revisou este commit',
     finished: (verdict: string) => `Revisão automática pronta, sugere: ${verdict}`,
+    posted: verdict => `Revisão automática publicada como ${verdict}`,
+    postFailed: error => `A revisão automática ficou como sua revisão pendente; a publicação falhou: ${error}`,
   },
   prompt: {
     addButton: (path: string, names: string) => `Adicione um botão à minha caixa de revisões editando ${path}; crie como {"buttons": []} se não existir. Cada entrada é {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, e o prompt pode usar ${names} como {{.Name}}. Primeiro me pergunte o que o botão deve fazer.`,

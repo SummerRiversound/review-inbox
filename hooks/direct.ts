@@ -1,4 +1,4 @@
-import type { DirectAction, DirectTarget, InboxItem, IssueItem, MyPr } from '../types'
+import type { DirectAction, DirectTarget, InboxItem, IssueItem, MyPr, Verdict } from '../types'
 
 // A confirm row left alone goes back to the card's buttons.
 export const CONFIRM_MS = 10_000
@@ -20,6 +20,11 @@ export const needsConfirm = (action: DirectAction): action is AskedAction =>
 export const checksHead = (action: DirectAction) => action === 'approve' || action === 'update-branch' || (isAutoAction(action) && action !== 'discard' && action !== 'review-again')
 
 const EVENTS = { 'post-comment': 'COMMENT', 'post-approve': 'APPROVE', 'post-changes': 'REQUEST_CHANGES' } as const
+const VERDICT_POSTS = { comment: 'post-comment', approve: 'post-approve', 'request-changes': 'post-changes' } as const
+
+// What a stored auto review posts itself as under autoReviewPost: nothing while pending, a comment, or the verdict it suggests.
+export const autoPost = (mode: string | undefined, verdict: Verdict): AutoAction | undefined =>
+  mode === 'comment' ? 'post-comment' : mode === 'verdict' ? VERDICT_POSTS[verdict] : undefined
 
 // Only what the card's state makes useful: an approve on a draft or a rerun on a green PR would only fail.
 export const reviewActions = (item: InboxItem): DirectAction[] => (item.isDraft ? [] : ['approve'])
