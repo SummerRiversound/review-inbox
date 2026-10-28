@@ -2,6 +2,14 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.23.0 — 2026-10-28
+
+### Changed
+
+- The auto reviewer gets the mod's own rules for reviewing and writing, whatever skills and instructions are set: every finding is checked against the code again, findings are graded by what merging would cost, the verdict opens the summary, each finding is a short paragraph that gives the direction rather than new code, and nothing is said about how it was checked. The second reviewer also rewrites what breaks these rules.
+- A review approves when nothing blocks merging, minor and nit findings included. With `autoReviewPost` at `verdict`, such a review is now posted as an approval.
+- `autoReviewInstructions` wins over the built-in rules, and the learned review style is used for tone only.
+
 ## 0.22.0 — 2026-10-28
 
 ### Changed
