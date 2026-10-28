@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.17.1 — 2026-10-28
+
+### Fixed
+
+- Once pressed, the `Auto review` switch alone turns auto review on and off; `autoReview` is only where it starts. A later change in the settings no longer wins over the switch, and the setup request leaves `autoReview` out.
+
 ## 0.17.0 — 2026-10-28
 
 ### Added
