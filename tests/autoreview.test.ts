@@ -272,12 +272,12 @@ test('a carried review keeps each line comment at its diff position, names the n
   expect(moved).toEqual({ body: 'Body\n\n<!-- review-inbox auto-review sha=new key=k -->\n\n- `b.ts` y', comments: [{ path: 'a.ts', position: 3, body: 'x' }] })
 })
 
-test("a re-request asks for what changed since my last review, and the style line goes in when there is one", () => {
+test("a re-request asks for what changed since my last review, and the learned style goes in as tone only when there is one", () => {
   const again = reviewerPrompt(item(1, { reviewedSha: 'old' }), { folder: '/runs/o-r-1-h1', hasCheckout: false, style: 'asks why first', language: 'Write in English.' })
   expect(again.includes('/runs/o-r-1-h1/since.diff')).toBe(true)
-  expect(again.includes('How I review: asks why first')).toBe(true)
+  expect(again.includes('How I usually sound (tone only; the writing rules and my instructions win where they differ): asks why first')).toBe(true)
   expect(again.includes('Only the diff is here')).toBe(true)
-  expect(reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }).includes('How I review')).toBe(false)
+  expect(reviewerPrompt(item(1), { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }).includes('How I usually sound')).toBe(false)
 })
 
 // The engine may start the reviewer in the session's folder rather than the run folder, so the task names every file by its full path.
@@ -287,9 +287,9 @@ test('the task names the run folder by its full path, so the reviewer finds the 
   expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
 })
 
-test('my own instructions go into the task when I wrote some, and nothing is added when I did not', () => {
+test('my own instructions go into the task, winning over the built-in rules, when I wrote some, and nothing is added when I did not', () => {
   const facts = { folder: '/runs/o-r-1-h1', hasCheckout: true, language: '' }
-  expect(reviewerPrompt(item(1), { ...facts, instructions: 'Check the SQL first.' }).includes('My instructions for this review: Check the SQL first.')).toBe(true)
+  expect(reviewerPrompt(item(1), { ...facts, instructions: 'Check the SQL first.' }).includes(`${MINE} Check the SQL first.`)).toBe(true)
   expect(reviewerPrompt(item(1), facts).includes('My instructions')).toBe(false)
 })
 
@@ -303,15 +303,29 @@ test('the setup list names every auto review setting but on and off, which the s
   expect(list.includes('default empty; now empty (default)')).toBe(true)
 })
 
-test('the check of a draft hands over its findings and the run folder, and asks to keep only what the code bears out', () => {
+test('the check of a draft hands over its findings and the run folder, keeps only what the code bears out, and rewrites what breaks the writing rules', () => {
   const draft = { verdict: 'request-changes' as const, summary: 'One bug.', findings: [{ severity: 'major' as const, path: 'a.ts', line: 2, body: 'two is off by one' }] }
   const task = verifierPrompt(draft, { folder: '/runs/o-r-1-h1', hasCheckout: true, instructions: 'Check the SQL first.', language: 'Write in Korean.' })
   expect(task.includes(JSON.stringify(draft))).toBe(true)
   expect(task.includes('/runs/o-r-1-h1/pr.diff')).toBe(true)
   expect(task.includes('/runs/o-r-1-h1/repo/')).toBe(true)
   expect(task.includes('drop a finding the code does not bear out')).toBe(true)
-  expect(task.includes('My instructions for this review: Check the SQL first.')).toBe(true)
+  expect(task.includes('rewrite the summary and any finding that breaks the writing rules')).toBe(true)
+  expect(task.includes(`${MINE} Check the SQL first.`)).toBe(true)
   expect(verifierPrompt(draft, { folder: '/runs/o-r-1-h1', hasCheckout: false, language: '' }).includes('/repo/')).toBe(false)
+})
+
+const MINE = 'My instructions for this review (they win over every rule above except the JSON reply):'
+
+test('the built-in rules carry a way to review and a way to write for the reader, whatever skills or instructions are set', () => {
+  // How to review: check every finding against the code, and grade by what merging would cost.
+  expect(REVIEWER_RULES.includes('Read the code each finding points to again before you keep it')).toBe(true)
+  expect(REVIEWER_RULES.includes('blocker: hard to undo after merging or harmful in production')).toBe(true)
+  // How to write: the verdict first, one short paragraph a finding, direction rather than code, no account of the work.
+  expect(REVIEWER_RULES.includes('The summary opens with the verdict')).toBe(true)
+  expect(REVIEWER_RULES.includes('a conclusion and the reason for it')).toBe(true)
+  expect(REVIEWER_RULES.includes('Give the direction, not new code')).toBe(true)
+  expect(REVIEWER_RULES.includes('Never describe how you checked')).toBe(true)
 })
 
 test('a reviewer that cannot read the diff answers without JSON, which counts as a failed run rather than a review', () => {
