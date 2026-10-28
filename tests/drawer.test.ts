@@ -696,6 +696,7 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await ui.press({ key: 'auto-switch' })
   expect(await shown(ui, /^Turn on auto review\? .* uses more tokens\.$/)).toBe(true)
   expect(await shown(ui, /^Change the details in \/config\.$/)).toBe(true)
+  expect(await shown(ui, /^Reviews run in this session\. .*auto-review-here/)).toBe(true)
   await ui.press({ key: 'auto-cancel' })
   expect(await ui.find({ key: 'auto-confirm' })).toBeUndefined()
   await ui.press({ key: 'auto-switch' })
@@ -710,13 +711,14 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await clock.advance(300)
   await ui.press({ key: 'auto-confirm' })
   const file = JSON.parse(files.get(AUTO)!)
-  expect([file.switch, file.enabledAt > 0]).toEqual([{ isOn: true }, true])
+  expect([file.switch, file.reviewer, file.enabledAt > 0]).toEqual([{ isOn: true }, 'self', true])
   expect(await shown(ui, /Auto review: next in line/)).toBe(true)
   await tick()
   expect(got.spawns).toHaveLength(1)
 
   await ui.press({ key: 'auto-switch' })
   expect(JSON.parse(files.get(AUTO)!).switch).toEqual({ isOn: false })
+  expect(JSON.parse(files.get(AUTO)!).reviewer).toBeUndefined()
   // Toasts keep their gap; the first is this session forgetting when the file says auto review was last on.
   await clock.advance(10_000)
   expect(toasts.filter(t => t.startsWith('Auto review is'))).toEqual(['Auto review is off', 'Auto review is on', 'Auto review is off'])
@@ -983,6 +985,35 @@ const finish = ($: Parameters<TestBody>[0], agentId: string, answer: string, isA
 const tick = async () => {
   for (let i = 0; i < 4; i++) await clock.advance(30_000)
 }
+
+test('with the review session elsewhere and closed, a queued PR waits and says so, until auto-review-here or auto-review-anywhere hands it over', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: JSON.stringify({ ...JSON.parse(queued()), reviewer: 'gone' }) }, run: autoGithub({ created: [], locks: [{ status: 201, at: Date.now() }] }) })
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+  expect(await shown(ui, /Auto review: waiting for its session/)).toBe(true)
+
+  expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-anywhere' })).text).toBe('Auto reviews now run in any session.')
+  expect(JSON.parse(files.get(AUTO)!).reviewer).toBeUndefined()
+  expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-here' })).text).toBe('Auto reviews now run in this session.')
+  expect(JSON.parse(files.get(AUTO)!).reviewer).toBe('self')
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('a session that is not the review session leaves queued PRs to it while it is open', AUTO_ON, async ($, on) => {
+  const got = agents(on)
+  const ui = await opened($, on, [], [], 'review', {
+    items: [recent(5)],
+    files: { [AUTO]: JSON.stringify({ ...JSON.parse(queued()), reviewer: 'other' }), [SESSIONS]: JSON.stringify({ other: { at: Date.now(), folder: 'r', remotes: [], prs: [] } }) },
+    run: autoGithub({ created: [] }),
+  })
+  await tick()
+  expect(got.spawns).toHaveLength(0)
+  expect(await shown(ui, /Auto review: next in line/)).toBe(true)
+  await ui.unmount()
+})
 
 test('the next queued PR is reviewed by a read-only subagent and stored as my pending review, comments only on lines the diff has', AUTO_ON, async ($, on) => {
   const toasts: string[] = []

@@ -101,6 +101,8 @@ export type AutoReviewFile = {
   enabledAt?: number
   // The switch atop the Review tab: on or off as pressed, whatever the setting says after.
   switch?: { isOn: boolean }
+  // The session that starts reviews, set when the switch turns them on or by auto-review-here; absent, any session does.
+  reviewer?: string
   // When the switch first turned it on and put the setup request into the prompt; it is put there once.
   setupAt?: number
   // Reviews started on `day` (a local date), for the daily limit.
