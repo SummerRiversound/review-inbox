@@ -20,7 +20,7 @@
 
 最后一行打开抽屉。选项和更新方法见[安装](#安装)。
 
-- **输入框上方的横条**：只用一行统计需要你处理的内容，包括等待你审查的 PR、你的 PR 中有待处理事项的，以及分配给你或提及你的议题。横条的颜色表示最早的审查请求已经等了多久（满 3 天变黄，满 14 天变红）。点击 `打开` 可打开抽屉。 数字减少时会短暂变成绿色。
+- **输入框上方的横条**：只用一行统计需要你处理的内容，包括等待你审查的 PR、你的 PR 中有待处理事项的，以及分配给你或提及你的议题。横条的颜色表示最早的审查请求已经等了多久（满 3 天变黄，满 14 天变红）。点击 `打开` 可打开抽屉。 数字减少时会短暂变成绿色。 开启自动审查后，代你发布的审查留在抽屉里期间，数字后面会显示 `已自动审查 N`。
 - **抽屉**：使用 `/review-inbox` 打开，有五个标签页：待审查、我的 PR 和分配与提及用来处理，已保存的搜索和 GitHub 通知用来浏览。抽屉获得焦点时按 1 到 5，即可从左往右切换到对应的标签页。标签页上的数字是卡片数；已保存的搜索没有数字，GitHub 通知的数字只统计未读。
 - **通知**：工作时有新内容到达，会弹出一条简短的提示。
 
@@ -178,7 +178,7 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 ### 通知
 
-以下情况会弹出通知：新的审查请求；你的某个 PR 收到新审查；你的某个 PR 变为请求更改、CI 失败或合并冲突；新的分配、提及或引用。新会话不会逐条通知，而是用一条通知汇总上次有会话查看之后的变化，例如 `你离开期间 · CI 失败 2`；没有变化时不提示。多条通知同时到达时会依次显示，间隔 4.5 秒。
+以下情况会弹出通知：新的审查请求；你的某个 PR 收到新审查；你的某个 PR 变为请求更改、CI 失败或合并冲突；新的分配、提及或引用。新会话不会逐条通知，而是用一条通知汇总上次有会话查看之后的变化，例如 `你离开期间 · CI 失败 2`；没有变化时不提示。开启自动审查后，审查完成或代你发布时也会弹出通知。多条通知同时到达时会依次显示，间隔 4.5 秒。
 
 你的 PR 获得批准且没有正在运行的 CI 时，会提示一次 `可以合并`。
 
@@ -218,7 +218,7 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 > **会明显多用 token。** 每次审查都会运行一个子代理，它带着你的 CLAUDE.md、你的 hooks 和 `autoReviewSkills` 中的技能，阅读 diff 和代码：每个 PR 要用几万个 token，用 `opus` 更多。卡片上会显示每次审查的花费，`autoReviewDaily` 限制每天最多开始多少次。
 
-- **什么会触发。** 直接向你发出（不是向团队）的请求，PR 不是草稿、也不是机器人创建的，并且从最后一次提交的时间起已过了 `autoReviewSettleMinutes`（默认 30 分钟）。你的所有会话中同一时间只运行一次审查。你的其他机器看到这个 👀 就会跳过该 PR；审查中途停下的机器留下的 👀，一小时后由其他机器接手。在你开启之前提出的请求，以及超过 50 个文件或 2,000 行改动的 PR，也会审查；把 `autoReviewBacklog` 或 `autoReviewLarge` 设为 `off` 则跳过。待审查标签页顶部的 `自动审查` 按钮会在所有会话中开关自动审查；之后在 `/config` 中修改 `autoReview` 时以设置为准。没有到期的审查时什么都不运行：不请求模型，也不启动代理。
+- **什么会触发。** 直接向你发出（不是向团队）的请求，PR 不是草稿、也不是机器人创建的，并且从最后一次提交的时间起已过了 `autoReviewSettleMinutes`（默认 30 分钟）。你的所有会话中同一时间只运行一次审查。你的其他机器看到这个 👀 就会跳过该 PR；审查中途停下的机器留下的 👀，一小时后由其他机器接手。在你开启之前提出的请求，以及超过 50 个文件或 2,000 行改动的 PR，也会审查；把 `autoReviewBacklog` 或 `autoReviewLarge` 设为 `off` 则跳过。待审查标签页顶部的 `自动审查` 按钮会在所有会话中开关自动审查；按过一次之后，再修改 `/config` 中的 `autoReview` 不再有任何作用。没有到期的审查时什么都不运行：不请求模型，也不启动代理。
 - **设置向导。** 第一次用待审查标签页的 `自动审查` 按钮开启时，提示框里会放入一条设置请求，列出除开关（由按钮决定）以外每项自动审查设置的作用、可填的值、默认值和当前值。按 Enter 后，Claude 会和你逐项设置，并把你选的值写到 `/config` 保存它们的位置；改动从下一个会话起生效。随时可以用 `/review-inbox auto-review-config` 放入同样的请求。
 - **由哪个会话运行。** 你打开 `自动审查` 按钮的那个会话负责在本机启动审查，开启前的确认也会说明这一点。在别的会话中运行 `/review-inbox auto-review-here` 可把审查移过去，运行 `/review-inbox auto-review-anywhere` 则任何会话都可启动。该会话关闭期间，排队的 PR 会等待，卡片上会标明。
 - **读取什么。** 审查者只有只读工具（`Read`、`Grep`、`Glob`），没有 shell。mod 把 PR 的 diff 写入一个运行文件夹；如果是重新请求，还会写入自你上次审查以来的 diff。当它知道仓库的文件夹（下一步按钮使用的那个）时，还会在那里把 head 提交检出为分离的 worktree，审查保存后删除。
@@ -230,7 +230,7 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 ## 语言
 
-横条、抽屉、通知、放入输入框的审查请求，以及模型生成的摘要和审查风格描述，都使用同一种语言。
+横条、抽屉、通知、放入输入框的审查请求，以及模型生成的摘要、审查风格描述和自动审查，都使用同一种语言。
 
 | 代码 | 语言 |
 | --- | --- |
@@ -253,14 +253,14 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 ## 读取和运行的内容
 
-mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以生成摘要，并每周一次把你本人的审查评论发给 Claude 以描述你的风格；它只写入自己的缓存文件夹。下面逐项列出它涉及的内容及原因，与 `claude plugin validate .` 为该 mod 列出的内容一致。开启 `autoReview` 后，它还会请 Claude 审查 PR，把每份审查作为你的待提交审查保存在 GitHub 上，并在审查运行期间向仓库的文件夹添加一个 worktree。
+mod 只通过你自己的 `gh` 访问 GitHub；它把 PR 文本发给 Claude 以生成摘要，并每周一次把你本人的审查评论发给 Claude 以描述你的风格；它只写入自己的缓存文件夹。下面逐项列出它涉及的内容及原因，与 `claude plugin validate .` 为该 mod 列出的内容一致。开启 `autoReview` 后，它还会请 Claude 审查 PR，把每份审查作为你的待提交审查保存在 GitHub 上或按 `autoReviewPost` 发布，并在审查运行期间向仓库的文件夹添加一个 worktree。
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。GitHub 通知标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。`directActions` 为 `on` 时，按下按钮会先运行 `gh api user` 取得账号名、`gh api repos/<owner>/<repo>/pulls/<n>` 读取最新提交，再运行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。开启 `autoReview` 后，它会在每次审查前后运行 `gh api …/pulls/<n>/reviews` 和 `…/pulls/<n>/files`，运行 `gh pr diff`，并运行 `gh api -X POST …/pulls/<n>/reviews`（审查内容通过 stdin 传入）把审查保存为你的待提交审查；把它移到新提交时，会读取 `…/reviews/<id>` 和 `…/reviews/<id>/comments`，并在重新创建之前运行 `gh api -X DELETE …/reviews/<id>`。每次审查前后，它用 `gh api -i -X POST …/issues/<n>/reactions`（`content=eyes`）和 `gh api -X DELETE …/issues/<n>/reactions/<id>` 添加和移除这个 👀。卡片上的按钮会在读取 head 提交之后，运行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）或 `gh api -X DELETE …/reviews/<id>`。除此之外，mod 自身不发起任何网络调用。 `autoReviewPost` 为 `comment` 或 `verdict` 时，会接着对保存的审查运行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）。
+- **运行 `gh`**：用 `gh api graphql` 获取列表，并每周一次获取你最近的审查评论；对已重新请求的 PR 运行 `gh api repos/<owner>/<repo>/compare/<from>...<to>`；设置了 `githubUser` 时运行 `gh auth token -u <githubUser>`。GitHub 通知标签页运行 `gh api notifications`；按下 `完成` 或 `取消订阅` 时运行 `gh api -X DELETE notifications/threads/<id>`（取消订阅时先加上 `/subscription`）。`directActions` 为 `on` 时，按下按钮会先运行 `gh api user` 取得账号名、`gh api repos/<owner>/<repo>/pulls/<n>` 读取最新提交，再运行 `gh api -X POST …/pulls/<n>/reviews`（`event=APPROVE`、`commit_id`）、`gh pr ready`、`gh api -X PUT …/pulls/<n>/update-branch`、`gh api …/actions/runs?head_sha=<sha>&status=failure` 加 `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`，或 `gh api -X POST`/`-X DELETE …/issues/<n>/assignees` 之一。开启 `autoReview` 后，它会在每次审查前后运行 `gh api …/pulls/<n>/reviews` 和 `…/pulls/<n>/files`，运行 `gh pr diff`，并运行 `gh api -X POST …/pulls/<n>/reviews`（审查内容通过 stdin 传入）把审查保存为你的待提交审查；把它移到新提交时，会读取 `…/reviews/<id>` 和 `…/reviews/<id>/comments`，并在重新创建之前运行 `gh api -X DELETE …/reviews/<id>`。每次审查前后，它用 `gh api -i -X POST …/issues/<n>/reactions`（`content=eyes`）和 `gh api -X DELETE …/issues/<n>/reactions/<id>` 添加和移除这个 👀。卡片上的按钮会在读取 head 提交之后，运行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）或 `gh api -X DELETE …/reviews/<id>`。`autoReviewPost` 为 `comment` 或 `verdict` 时，会接着对保存的审查运行 `gh api -X POST …/reviews/<id>/events`（`event=COMMENT`、`APPROVE` 或 `REQUEST_CHANGES`）。 除此之外，mod 自身不发起任何网络调用。
 - **运行 `git`**：每 30 秒在会话文件夹中运行 `git branch --show-current` 和 `git remote -v`，以找到位于你的 PR 分支上的会话；并运行 `git rev-parse --path-format=absolute --git-common-dir`，以记住该仓库的主文件夹。开启 `autoReview` 且知道仓库的文件夹时，每次审查都会在那里运行 `git fetch origin pull/<n>/head` 和 `git worktree add --detach`，审查结束时运行 `git worktree remove --force`。
 - **请求 Claude**（`sonnet` 模型）生成每条摘要，发送的内容包括 PR 的仓库名、标题、描述（前 12,000 个字符）、变更的文件路径（最多 80 个）和规模；对于已重新请求的 PR，还会发送你上次审查以来每条提交信息的第一行，以及这期间最多 60 个文件路径。这会计入你的 Claude Code 用量。每个 PR 在每个 head 提交、每种语言下只生成一次摘要；生成失败的摘要，每个提交最多尝试三次。此外，mod 每周一次发送你最近审查过的最多 30 个 PR 上你本人的审查评论，每条截取前 500 个字符，最多 60 条、合计不超过 12,000 个字符，用于描述你的审查风格；少于五条时不发送任何内容。
-- **启动子代理**，仅在开启 `autoReview` 时：同一时间一个 `auto-reviewer`，使用 `autoReviewModel`，带只读工具、你的 CLAUDE.md、hooks 和 `autoReviewSkills`。这会计入你的 Claude Code 用量。它的代理类型不会出现在你自己的 Claude 可选的列表中。停止它使用 `TaskStop`。
+- **启动子代理**，仅在开启 `autoReview` 时：同一时间一个 `auto-reviewer`，使用 `autoReviewModel`（开启 `autoReviewVerify` 时还有第二个代理核对其发现），带只读工具、你的 CLAUDE.md、hooks 和 `autoReviewSkills`。这会计入你的 Claude Code 用量。它的代理类型不会出现在你自己的 Claude 可选的列表中。停止它使用 `TaskStop`。
 - **写入文件**：只写入其缓存文件夹 `~/.claude/plugins/data/review-inbox`（设置了 `CLAUDE_CONFIG_DIR` 时，用它代替 `~/.claude`）。`inbox-<hash>-f<n>.json` 保存列表和摘要；`hidden-<hash>.json` 保存已隐藏的 PR；`notes-<hash>.json` 保存备注和推迟（与语言无关，每个账户和范围一个文件）；`sessions.json` 保存每个活动会话的文件夹名、mod 版本、分支、GitHub 远程仓库和提示中出现的 PR 链接（与账户无关，一个文件）； `repos.json` 保存会话运行过的每个 GitHub 仓库的主文件夹（供下一步按钮使用）； `style-<hash>.json` 保存你的审查风格描述。每个文件先写入旁边的临时文件，再用 `mv` 替换，因此其他会话不会读到写了一半的文件；在没有 `mv` 的环境（如 Windows）中则直接写入。如果你创建了 `actions.json`，只会从那里读取，从不写入。`autoreview-<hash>.json` 保存每个 PR 在自动审查中的状态和最近一次结果，`runs/` 保存运行文件夹，审查结束时用 `rm -rf` 删除。
 - **读取环境变量**：读取 `CLAUDE_CONFIG_DIR`、`HOME` 和 `USERPROFILE` 来找到该文件夹；像 `gh` 一样读取 `GH_REPO` 来确定当前会话的仓库；只有 `language` 为 `auto` 时才读取 `LC_ALL`、`LC_MESSAGES` 和 `LANG`。不设置任何环境变量。
 - **读取 Claude Code 设置**：只有 `language` 为 `auto` 时才读取 `language` 键，只有 `motion` 为 `auto` 时才读取 `prefersReducedMotion` 键。
