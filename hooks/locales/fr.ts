@@ -220,6 +220,7 @@ export const fr: Messages = {
     pending: 'Revue automatique : votre revue en attente est sur GitHub',
     failed: (reason: string) => `Échec de la revue automatique : ${reason}`,
     unreadable: "la réponse du relecteur n'a pas pu être lue",
+    turnLimit: (turns: number) => `le relecteur a épuisé ses ${turns} tours avant de répondre ; autoReviewMaxTurns dans /config en permet plus`,
     carried: (sha: string) => `Reprise de ${sha}, même contenu`,
     stale: (sha: string) => `Nouveaux commits depuis votre revue en attente sur ${sha} : la publier relirait du code disparu`,
     refine: "Affiner en session",

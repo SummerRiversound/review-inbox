@@ -217,6 +217,7 @@ export const zhTW: Messages = {
     pending: '自動審查：你的待送出審查已在 GitHub 上',
     failed: (reason: string) => `自動審查失敗：${reason}`,
     unreadable: '無法讀取審查者的回答',
+    turnLimit: (turns: number) => `審查者在回答前用完了 ${turns} 輪；可在 /config 中調高 autoReviewMaxTurns`,
     carried: (sha: string) => `從 ${sha} 移來，內容相同`,
     stale: (sha: string) => `${sha} 上的待送出審查之後有新提交：現在發布會審查已不存在的程式碼`,
     refine: "在工作階段中完善",

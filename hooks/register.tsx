@@ -60,6 +60,9 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseTurns,
+  ranOutOfTurns,
+  TURNS_DEFAULT,
   parseSeverityNames,
   parseReview,
   parseSkills,
@@ -231,12 +234,13 @@ type Options = {
   autoReviewSeverityNames?: string
   autoReviewLarge?: string
   autoReviewBacklog?: string
+  autoReviewMaxTurns?: string
 }
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoTurns: TURNS_DEFAULT, autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -843,13 +847,13 @@ async function removeRun($: EngineInterface, job: AutoJob) {
 }
 
 // A run that failed: once more while attempts remain, else the card says why and offers Try again.
-async function failRun($: EngineInterface, key: string, error: string) {
+async function failRun($: EngineInterface, key: string, error: string, isFinal = false) {
   const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
   const job = file?.jobs[key]
   if (!job) return
   await removeRun($, job)
   const attempts = (job.attempts ?? 0) + 1
-  await setJob($, key, attempts < MAX_ATTEMPTS ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error }, job.headSha)
+  await setJob($, key, attempts < MAX_ATTEMPTS && !isFinal ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error }, job.headSha)
 }
 
 // My pending review moved from an older commit with the same content: read as it is now (my edits on GitHub kept), deleted, made again on the head.
@@ -930,7 +934,7 @@ async function startRun($: EngineInterface, key: string) {
     await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() }, item.headSha)
     const checkout = await addCheckout($, item, folder)
     if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
-    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills))
+    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills, config.autoTurns))
     const name = agentName('auto-review', key, item.headSha)
     const spawned = await $.agent.spawn({
       name,
@@ -967,7 +971,10 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
     return void (await setJob($, key, { ...IDLE, status: 'failed', error: m.auto.stopped }, job.headSha))
   }
   const result = parseReview(answer)
-  if (!result) return failRun($, key, m.auto.unreadable)
+  if (!result) {
+    const rows = await $.session.messages({ agentId }).catch(() => undefined)
+    return Array.isArray(rows) && ranOutOfTurns(rows) ? failRun($, key, m.auto.turnLimit(config.autoTurns), true) : failRun($, key, m.auto.unreadable)
+  }
   // With autoReviewVerify a draft with findings goes to a second reviewer first; its answer is the one stored.
   if (config.autoVerify && !job.draft && result.findings.length > 0) return verifyRun($, key, job, result, tokens)
   const spent = job.draft ? (job.draft.tokens ?? 0) + (tokens ?? 0) || undefined : tokens
@@ -1518,6 +1525,7 @@ export const register: Register = (on, options) => {
     autoVerify: opts.autoReviewVerify === 'on',
     autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',
     autoSkills: parseSkills(opts.autoReviewSkills),
+    autoTurns: parseTurns(opts.autoReviewMaxTurns),
     autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
     autoSeverityNames: opts.autoReviewSeverityNames ?? '',
   }

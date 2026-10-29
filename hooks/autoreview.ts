@@ -28,6 +28,13 @@ export function parseDaily(option: string | undefined): number | undefined {
   return Number.isInteger(n) && n > 0 ? n : DAILY_DEFAULT
 }
 
+// The reviewer's turn budget; anything but a whole number from 1 falls back to the default.
+export const TURNS_DEFAULT = 40
+export function parseTurns(option: string | undefined): number {
+  const n = Number(option)
+  return Number.isInteger(n) && n > 0 ? n : TURNS_DEFAULT
+}
+
 // Whole minutes from 0; anything unreadable falls back to the default.
 export function parseSettle(option: string | undefined): number {
   const n = Number(option)
@@ -120,7 +127,7 @@ export function nextJob(states: Record<string, AutoState>): string | undefined {
   return Object.entries(states).find(([, s]) => s.kind === 'queued' && s.ahead === 0)?.[0]
 }
 
-// A reply that does not parse, or a run that failed to start, is tried once more.
+// A reply that does not parse, or a run that failed to start, is tried once more; one out of turns is not, as the same budget runs out again.
 export const MAX_ATTEMPTS = 2
 // A run whose session has not renewed it for this long has lost that session: its job goes back to the queue.
 export const RUN_STALE_MS = 2 * 60_000
@@ -165,18 +172,22 @@ Reply with one JSON object and nothing else:
 
 // The reviewer's agent type: it reads and searches, nothing else, so a pull request's text cannot run a command through it.
 // CLAUDE.md is kept (no omitClaudeMd) and the person's settings hooks apply, so their harness reviews with it.
-export function reviewerSpec(model: string, skills: string[]) {
+export function reviewerSpec(model: string, skills: string[], maxTurns = TURNS_DEFAULT) {
   return {
     name: AGENT_NAME,
     description: 'Reviews one pull request for review-inbox; started by the mod only.',
     prompt: REVIEWER_RULES,
     tools: ['Read', 'Grep', 'Glob'],
     model,
-    maxTurns: 40,
+    maxTurns,
     background: true as const,
     ...(skills.length > 0 ? { skills } : {}),
   }
 }
+
+// A run that ends while its last message still asks for tools was cut off by the turn budget, not answered badly.
+export const ranOutOfTurns = (rows: readonly { role: string; toolUses: readonly unknown[] }[]) =>
+  (rows.filter(r => r.role === 'assistant').at(-1)?.toolUses.length ?? 0) > 0
 
 // Four names, blocker to nit; anything else keeps the language's own.
 export function parseSeverityNames(option: string | undefined, fallback: SeverityNames): SeverityNames {
@@ -208,6 +219,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewInstructions', does: 'my own words to the reviewer, such as what to check first or how to word comments', takes: 'free text', fallback: '' },
   { key: 'autoReviewSeverityNames', does: 'what the four severities are called on the review, blocker to nit', takes: 'four names, comma-separated', fallback: '' },
   { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },
+  { key: 'autoReviewMaxTurns', does: 'how many turns the reviewer may take before it must answer; a large PR can need more, and a review that runs out fails without one', takes: '40 | 60 | 80 | 120', fallback: '40' },
   { key: 'autoReviewBacklog', does: 'whether requests from before auto review was on are reviewed too, a few a day', takes: 'on | off', fallback: 'on' },
 ] as const
 

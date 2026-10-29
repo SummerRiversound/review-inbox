@@ -221,6 +221,7 @@ export const ptBR: Messages = {
     pending: 'Revisão automática: sua revisão pendente está no GitHub',
     failed: (reason: string) => `A revisão automática falhou: ${reason}`,
     unreadable: 'não deu para ler a resposta do revisor',
+    turnLimit: (turns: number) => `o revisor gastou os ${turns} turnos antes de responder; autoReviewMaxTurns em /config permite mais`,
     carried: (sha: string) => `Trazida de ${sha}, mesmo conteúdo`,
     stale: (sha: string) => `Commits novos desde sua revisão pendente em ${sha}: publicá-la revisaria código que não existe mais`,
     refine: "Refinar na sessão",

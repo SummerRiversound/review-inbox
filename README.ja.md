@@ -76,6 +76,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `autoReviewInstructions` | 空 | レビュアーへの自分の指示を自由に書きます（何を先に見るか、コメントの書き方など）。空の場合は何も加えません。 |
 | `autoReviewSeverityNames` | 空 | レビューで使う4つの重大度の名前です。blocker から nit の順にカンマ区切りで書きます（例: `ブロッカー, 要判断, 改善, nit`）。空なら言語の既定の名前を使います。 |
 | `autoReviewLarge` | `on` | `on` にすると、50ファイルまたは変更2,000行を超える PR もレビューします。トークンをかなり多く使います。`off` にすると対象外です。 |
+| `autoReviewMaxTurns` | `40` | レビュアーが回答するまでに使えるターン数です。`40`、`60`、`80`、`120` から選びます。大きな PR ではもっと必要なことがあり、使い切ったレビューは失敗し、カードにターンを使い切ったと表示されます。 |
 | `autoReviewBacklog` | `on` | `on` にすると、自動レビューをオンにする前のリクエストも、`autoReviewDaily` の範囲で1日に数件ずつレビューします。`off` にすると対象外です。 |
 
 `scope` には、GitHub の [Issue と PR の検索](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) で使えるものなら何でも指定できます。

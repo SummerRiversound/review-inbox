@@ -221,6 +221,7 @@ export const de: Messages = {
     pending: 'Automatisches Review: Ihr ausstehendes Review liegt auf GitHub',
     failed: (reason: string) => `Automatisches Review fehlgeschlagen: ${reason}`,
     unreadable: 'die Antwort des Reviewers war nicht lesbar',
+    turnLimit: (turns: number) => `der Reviewer hat alle ${turns} Runden verbraucht, bevor er antwortete; autoReviewMaxTurns in /config erlaubt mehr`,
     carried: (sha: string) => `Von ${sha} übernommen, gleicher Inhalt`,
     stale: (sha: string) => `Neue Commits seit Ihrem ausstehenden Review auf ${sha}: Posten würde Code reviewen, den es nicht mehr gibt`,
     refine: "In der Sitzung überarbeiten",

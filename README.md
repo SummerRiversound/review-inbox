@@ -76,6 +76,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `autoReviewInstructions` | empty | Your own words to the reviewer, such as what to check first or how to word comments. Empty adds none. |
 | `autoReviewSeverityNames` | empty | What the four severities are called on a review, blocker to nit, comma-separated, such as `Blocker, Decision needed, Follow-up, nit`. Empty uses the language's own. |
 | `autoReviewLarge` | `on` | `on` also reviews PRs over 50 files or 2,000 changed lines, which take many more tokens. `off` leaves them alone. |
+| `autoReviewMaxTurns` | `40` | How many turns the reviewer may take before it must answer: `40`, `60`, `80` or `120`. A large PR can need more; a review that runs out fails, and its card says it ran out of turns. |
 | `autoReviewBacklog` | `on` | `on` also reviews requests made before auto review was turned on, a few a day as `autoReviewDaily` allows. `off` leaves them alone. |
 
 `scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:

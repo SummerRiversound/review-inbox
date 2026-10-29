@@ -76,6 +76,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `autoReviewInstructions` | 비어 있음 | 리뷰어에게 전할 내 지침을 자유롭게 적습니다. 예: 무엇부터 볼지, 코멘트를 어떤 말투로 쓸지. 비워 두면 아무것도 더하지 않습니다. |
 | `autoReviewSeverityNames` | 비어 있음 | 리뷰에 쓰는 네 심각도 이름입니다. blocker부터 nit까지 순서대로 쉼표로 구분합니다(예: `블로커, 결정 필요, 보완, nit`). 비워 두면 언어 기본 이름을 씁니다. |
 | `autoReviewLarge` | `on` | `on`이면 파일이 50개를 넘거나 변경이 2,000줄을 넘는 PR도 리뷰합니다. 토큰이 훨씬 많이 듭니다. `off`면 건너뜁니다. |
+| `autoReviewMaxTurns` | `40` | 리뷰어가 답하기 전까지 쓸 수 있는 턴 수입니다. `40`, `60`, `80`, `120` 중에서 고릅니다. 큰 PR은 더 필요할 수 있고, 턴을 다 쓴 리뷰는 실패하며 카드에 턴을 다 썼다고 표시됩니다. |
 | `autoReviewBacklog` | `on` | `on`이면 자동 리뷰를 켜기 전에 온 요청도 `autoReviewDaily`가 허용하는 만큼 하루에 몇 개씩 리뷰합니다. `off`면 건너뜁니다. |
 
 `scope`에는 GitHub [이슈·PR 검색](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)이 받는 조건을 그대로 씁니다.

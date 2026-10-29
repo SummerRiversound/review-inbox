@@ -15,6 +15,8 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseTurns,
+  ranOutOfTurns,
   parseSeverityNames,
   parseReview,
   placeFindings,
@@ -249,6 +251,18 @@ test('the reviewer reads and searches only, keeps CLAUDE.md, and preloads the li
   expect('omitClaudeMd' in spec).toBe(false)
   expect(spec.skills).toEqual(['review-playbook'])
   expect('skills' in reviewerSpec('opus', [])).toBe(false)
+  expect([spec.maxTurns, reviewerSpec('opus', [], 80).maxTurns]).toEqual([40, 80])
+})
+
+test('the turn limit setting reads a whole number from 1, anything else as the default', () => {
+  expect([parseTurns('80'), parseTurns(undefined), parseTurns('0'), parseTurns('x'), parseTurns('1.5')]).toEqual([80, 40, 40, 40, 40])
+})
+
+test('a run whose last message still asks for tools ran out of turns; one that ended in text did not', () => {
+  const asks = { role: 'assistant', text: 'Let me check.', toolUses: [{}] }
+  const says = { role: 'assistant', text: 'no JSON', toolUses: [] }
+  const results = { role: 'user', text: '', toolUses: [] }
+  expect([ranOutOfTurns([asks, results]), ranOutOfTurns([asks, says]), ranOutOfTurns([])]).toEqual([true, false, false])
 })
 
 test('a new head keeps my pending review of the old one for carrying, and a PR gone from the list drops its job, a running one too', () => {
@@ -309,7 +323,7 @@ test('my own instructions go into the task, winning over the built-in rules, whe
 test('the setup list names every auto review setting but on and off, which the switch keeps, with what it does, what it takes, its default and its value now, an unset one as its default', () => {
   const list = setupList({ autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewSeverityNames', 'autoReviewLarge', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewSeverityNames', 'autoReviewLarge', 'autoReviewMaxTurns', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)

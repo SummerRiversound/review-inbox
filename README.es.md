@@ -76,6 +76,7 @@ Se definen en la pantalla de instalación; puedes cambiarlas después en `/confi
 | `autoReviewInstructions` | vacío | Tus propias indicaciones al revisor, como qué revisar primero o cómo redactar los comentarios. Vacío no añade nada. |
 | `autoReviewSeverityNames` | vacío | Cómo se llaman las cuatro gravedades en una revisión, de blocker a nit, separadas por comas, por ejemplo `Bloqueante, Por decidir, Mejora, nit`. Vacío usa los nombres del idioma. |
 | `autoReviewLarge` | `on` | `on` también revisa los PR de más de 50 archivos o 2.000 líneas cambiadas, que gastan muchos más tokens. `off` los deja fuera. |
+| `autoReviewMaxTurns` | `40` | Cuántos turnos puede usar el revisor antes de responder: `40`, `60`, `80` o `120`. Un PR grande puede necesitar más; una revisión que los agota falla y su tarjeta lo indica. |
 | `autoReviewBacklog` | `on` | `on` también revisa las solicitudes hechas antes de activar la revisión automática, unas pocas al día según `autoReviewDaily`. `off` las deja fuera. |
 
 `scope` admite todo lo que acepte la [búsqueda de incidencias y PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub:

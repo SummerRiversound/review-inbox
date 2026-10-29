@@ -217,6 +217,7 @@ export const ja: Messages = {
     pending: '自動レビュー: 保留中のレビューが GitHub にあります',
     failed: (reason: string) => `自動レビュー失敗: ${reason}`,
     unreadable: 'レビュアーの回答を読み取れませんでした',
+    turnLimit: (turns: number) => `レビュアーが回答する前に ${turns} ターンを使い切りました。/config の autoReviewMaxTurns で増やせます`,
     carried: (sha: string) => `${sha} から移動、内容は同じ`,
     stale: (sha: string) => `${sha} の保留中レビュー以降に新しいコミットあり: 今投稿すると消えたコードのレビューになる`,
     refine: "セッションで仕上げる",

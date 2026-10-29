@@ -217,6 +217,7 @@ export const zhCN: Messages = {
     pending: '自动审查：你的待提交审查已在 GitHub 上',
     failed: (reason: string) => `自动审查失败：${reason}`,
     unreadable: '无法读取审查者的回答',
+    turnLimit: (turns: number) => `审查者在回答前用完了 ${turns} 轮；可在 /config 中调高 autoReviewMaxTurns`,
     carried: (sha: string) => `从 ${sha} 移来，内容相同`,
     stale: (sha: string) => `${sha} 上的待提交审查之后有新提交：现在发布会审查已不存在的代码`,
     refine: "在会话中完善",

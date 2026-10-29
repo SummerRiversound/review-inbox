@@ -217,6 +217,7 @@ export const ko: Messages = {
     pending: '자동 리뷰: GitHub에 내 임시 리뷰가 있음',
     failed: (reason: string) => `자동 리뷰 실패: ${reason}`,
     unreadable: '리뷰어의 답을 읽지 못함',
+    turnLimit: (turns: number) => `리뷰어가 답하기 전에 턴 ${turns}개를 다 씀 · /config의 autoReviewMaxTurns로 늘릴 수 있음`,
     carried: (sha: string) => `${sha}에서 옮겨 옴, 내용 같음`,
     stale: (sha: string) => `${sha}에 있는 임시 리뷰 이후 새 커밋 있음: 지금 게시하면 사라진 코드를 리뷰하게 됨`,
     refine: "세션에서 다듬기",
