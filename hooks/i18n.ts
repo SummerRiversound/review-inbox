@@ -228,6 +228,7 @@ const en = {
     pending: 'Auto review: your pending review is on GitHub',
     failed: (reason: string) => `Auto review failed: ${reason}`,
     unreadable: "the reviewer's answer could not be read",
+    turnLimit: (turns: number) => `the reviewer used all ${turns} turns before it answered; autoReviewMaxTurns in /config allows more`,
     carried: (sha: string) => `Carried from ${sha}, same content`,
     stale: (sha: string) => `New commits since your pending review on ${sha}: posting it would review code that is gone`,
     refine: "Refine in session",

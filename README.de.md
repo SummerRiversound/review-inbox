@@ -76,6 +76,7 @@ Die Optionen werden auf dem Installationsbildschirm gesetzt und lassen sich spä
 | `autoReviewInstructions` | leer | Ihre eigenen Worte an den Reviewer, etwa was er zuerst prüfen oder wie er Kommentare formulieren soll. Leer fügt nichts hinzu. |
 | `autoReviewSeverityNames` | leer | Wie die vier Schweregrade in einem Review heißen, von blocker bis nit, durch Kommas getrennt, etwa `Blocker, Zu entscheiden, Nachbesserung, nit`. Leer nimmt die Namen der Sprache. |
 | `autoReviewLarge` | `on` | `on` reviewt auch PRs mit mehr als 50 Dateien oder 2.000 geänderten Zeilen, die deutlich mehr Tokens kosten. `off` lässt sie aus. |
+| `autoReviewMaxTurns` | `40` | Wie viele Runden der Reviewer nehmen darf, bevor er antworten muss: `40`, `60`, `80` oder `120`. Ein großer PR kann mehr brauchen; ein Review, dem die Runden ausgehen, schlägt fehl, und seine Karte sagt das. |
 | `autoReviewBacklog` | `on` | `on` reviewt auch Anfragen von vor dem Einschalten, einige pro Tag, soweit `autoReviewDaily` es erlaubt. `off` lässt sie aus. |
 
 `scope` akzeptiert alles, was die [Issue- und PR-Suche](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) von GitHub akzeptiert:

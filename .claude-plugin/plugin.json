@@ -137,6 +137,13 @@
       "options": ["on", "off"],
       "default": "on"
     },
+    "autoReviewMaxTurns": {
+      "type": "string",
+      "title": "Auto review turn limit",
+      "description": "How many turns the reviewer may take before it must answer; a large PR can need more, and a review that runs out fails without one, saying so on its card",
+      "options": ["40", "60", "80", "120"],
+      "default": "40"
+    },
     "autoReviewBacklog": {
       "type": "string",
       "title": "Auto review older requests",

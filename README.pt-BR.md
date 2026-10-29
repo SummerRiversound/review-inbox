@@ -76,6 +76,7 @@ As opções são definidas na tela de instalação e podem ser alteradas depois 
 | `autoReviewInstructions` | vazio | Suas próprias instruções ao revisor, como o que olhar primeiro ou como escrever os comentários. Vazio não acrescenta nada. |
 | `autoReviewSeverityNames` | vazio | Como as quatro gravidades se chamam numa revisão, de blocker a nit, separadas por vírgula, por exemplo `Bloqueante, A decidir, Melhoria, nit`. Vazio usa os nomes do idioma. |
 | `autoReviewLarge` | `on` | `on` também revisa PRs com mais de 50 arquivos ou 2.000 linhas alteradas, que gastam muito mais tokens. `off` os deixa de fora. |
+| `autoReviewMaxTurns` | `40` | Quantos turnos o revisor pode usar antes de responder: `40`, `60`, `80` ou `120`. Um PR grande pode precisar de mais; uma revisão que os esgota falha, e o cartão diz isso. |
 | `autoReviewBacklog` | `on` | `on` também revisa solicitações feitas antes de a revisão automática ser ligada, algumas por dia conforme `autoReviewDaily`. `off` as deixa de fora. |
 
 `scope` aceita tudo o que a [busca de issues e PRs](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) do GitHub aceita:

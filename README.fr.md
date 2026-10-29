@@ -76,6 +76,7 @@ Les options se définissent sur l'écran d'installation et se modifient ensuite 
 | `autoReviewInstructions` | vide | Vos propres consignes au relecteur, comme ce qu'il doit vérifier d'abord ou comment formuler les commentaires. Vide : rien n'est ajouté. |
 | `autoReviewSeverityNames` | vide | Le nom des quatre gravités sur une revue, de blocker à nit, séparés par des virgules, par exemple `Bloquant, À décider, Amélioration, nit`. Vide prend les noms de la langue. |
 | `autoReviewLarge` | `on` | `on` relit aussi les PR de plus de 50 fichiers ou de 2 000 lignes modifiées, qui consomment beaucoup plus de tokens. `off` les laisse de côté. |
+| `autoReviewMaxTurns` | `40` | Combien de tours le relecteur peut prendre avant de répondre : `40`, `60`, `80` ou `120`. Une grosse PR peut en demander plus ; une relecture qui les épuise échoue, et sa carte le dit. |
 | `autoReviewBacklog` | `on` | `on` relit aussi les demandes faites avant l'activation, quelques-unes par jour selon `autoReviewDaily`. `off` les laisse de côté. |
 
 `scope` accepte tout ce qu'accepte la [recherche d'issues et de PR](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) de GitHub :

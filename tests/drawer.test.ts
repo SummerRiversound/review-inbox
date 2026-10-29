@@ -1231,6 +1231,20 @@ test('an answer that does not parse is tried once more, then the card says so an
   await ui.unmount()
 })
 
+test('a reviewer that runs out of turns fails at once, the card naming the turn limit, which the setting raises', { options: { autoReview: 'on', autoReviewMaxTurns: '80' } }, async ($, on) => {
+  const got = agents(on, () => [`a${got.spawns.length}`])
+  on('session.messages', async () => ({ value: [{ role: 'assistant' as const, text: 'Let me read one more file.', toolUses: [{ id: 'u1', name: 'Read', input: {} }] }] }))
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({}) })
+  await tick()
+  expect((got.specs[0] as { maxTurns?: number }).maxTurns).toBe(80)
+  await finish($, 'a1', 'Let me read one more file.')
+  await tick()
+
+  expect(got.spawns).toHaveLength(1)
+  expect(await shown(ui, /Auto review failed: the reviewer used all 80 turns before it answered/)).toBe(true)
+  await ui.unmount()
+})
+
 test('a create GitHub refuses because my pending review appeared meanwhile adopts that review', AUTO_ON, async ($, on) => {
   const g: Github = { created: [], createFails: true }
   const run = autoGithub(g)

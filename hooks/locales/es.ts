@@ -220,6 +220,7 @@ export const es: Messages = {
     pending: 'Revisión automática: tu revisión pendiente está en GitHub',
     failed: (reason: string) => `Falló la revisión automática: ${reason}`,
     unreadable: 'no se pudo leer la respuesta del revisor',
+    turnLimit: (turns: number) => `el revisor agotó sus ${turns} turnos antes de responder; autoReviewMaxTurns en /config permite más`,
     carried: (sha: string) => `Traída de ${sha}, mismo contenido`,
     stale: (sha: string) => `Commits nuevos desde tu revisión pendiente en ${sha}: publicarla revisaría código que ya no está`,
     refine: "Pulir en la sesión",

@@ -76,6 +76,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `autoReviewInstructions` | 空白 | 用自己的話寫給審查者的指示，例如先看什麼、評論怎麼寫。空白表示不加入。 |
 | `autoReviewSeverityNames` | 空 | 審查中四個嚴重程度的名稱，從 blocker 到 nit 依序以逗號分隔，例如 `阻擋, 需決定, 待改進, nit`。留空時使用該語言的預設名稱。 |
 | `autoReviewLarge` | `on` | 設為 `on` 時，超過 50 個檔案或 2,000 行變更的 PR 也會審查，會多用很多 token。設為 `off` 則略過。 |
+| `autoReviewMaxTurns` | `40` | 審查者在回答前可用的輪數：`40`、`60`、`80` 或 `120`。大型 PR 可能需要更多；用完輪數的審查會失敗，卡片上會說明輪數已用完。 |
 | `autoReviewBacklog` | `on` | 設為 `on` 時，開啟自動審查之前提出的請求也會審查，依 `autoReviewDaily` 允許的數量每天審查幾個。設為 `off` 則略過。 |
 
 `scope` 可以填入 GitHub [議題與 PR 搜尋](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests)接受的任何條件：
