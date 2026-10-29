@@ -2,6 +2,16 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.26.0 — 2026-10-29
+
+### Added
+
+- `autoReviewMaxTurns` sets how many turns the reviewer may take before it must answer: `40` (the default, as before), `60`, `80` or `120`. A large PR can need more.
+
+### Changed
+
+- A review that runs out of turns before it answers fails at once, and its card says it used all its turns and names the setting that allows more. Before, it was tried again with the same limit and the card only said the answer could not be read.
+
 ## 0.25.0 — 2026-10-28
 
 ### Changed
