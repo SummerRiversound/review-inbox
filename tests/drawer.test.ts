@@ -755,7 +755,7 @@ test('the first time the switch turns auto review on, its settings open under it
   await ui.unmount()
 })
 
-test('the settings under the auto review switch change a setting the way /config does', { options: { autoReviewModel: 'sonnet' } }, async ($, on) => {
+test('the settings under the auto review switch say what each does and change a setting the way /config does', { options: { autoReviewModel: 'sonnet' } }, async ($, on) => {
   const sets: { key: string; value: unknown }[] = []
   on('config.set', async ($, e) => {
     sets.push({ key: e.key, value: e.value })
@@ -765,6 +765,7 @@ test('the settings under the auto review switch change a setting the way /config
 
   expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
   await ui.press({ key: 'auto-settings' })
+  expect(await shown(ui, /read lets the reviewer read the diff and the code only/)).toBe(true)
   await ui.select({ key: 'auto-set-autoReviewModel', value: 'opus' })
   expect(sets).toEqual([{ key: 'review-inbox.autoReviewModel', value: 'opus' }])
   await ui.press({ key: 'auto-settings' })
