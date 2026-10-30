@@ -2332,47 +2332,31 @@ export const register: Register = (on, options) => {
           ),
         }
       : undefined
-    const resultRow = (key: string, item: { repo: string; number: number; title: string; url: string }, isAway: boolean) => (
-      <Box key={`found-${key}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
-        <Box flexShrink={1}>
-          <Text wrap="truncate-end">
-            <Text bold>
+    // The repository and number share a line with what sits beside them, which keeps its room; the title has the next line to itself.
+    const listRow = (key: string, item: { repo: string; number: number; title: string; url: string }, side: RenderChildren) => (
+      <Box key={key} flexDirection="column" marginBottom={1}>
+        <Box flexDirection="row" justifyContent="space-between" gap={1}>
+          <Box flexShrink={1}>
+            <Text bold wrap="truncate-end">
               {item.repo} #{item.number}
-            </Text>{' '}
-            <Link href={item.url}>{item.title} ↗</Link>
-          </Text>
+            </Text>
+          </Box>
+          <Box flexShrink={0}>{side}</Box>
         </Box>
-        {isAway && <Text dimColor>{m.search.hidden}</Text>}
+        {titleRow(item.url, item.title, null)}
       </Box>
     )
-    const hitRow = (groupId: string, hit: GroupHit) => (
-      <Box key={`hit-${groupId}-${hit.url}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
-        <Box flexShrink={1}>
-          <Text wrap="truncate-end">
-            <Text bold>
-              {hit.repo} #{hit.number}
-            </Text>{' '}
-            <Link href={hit.url}>{hit.title} ↗</Link>
-          </Text>
-        </Box>
+    const resultRow = (key: string, item: { repo: string; number: number; title: string; url: string }, isAway: boolean) =>
+      listRow(`found-${key}`, item, isAway && <Text dimColor>{m.search.hidden}</Text>)
+    const hitRow = (groupId: string, hit: GroupHit) =>
+      listRow(
+        `hit-${groupId}-${hit.url}`,
+        hit,
         <Text dimColor>
           {hit.author} · {m.card.ago(waitingDays(hit.updatedAt, now))}
-        </Text>
-      </Box>
-    )
-    const postedRow = (p: PostedReview) => (
-      <Box key={`posted-${p.repo}#${p.number}-${p.at}`} flexDirection="row" justifyContent="space-between" gap={1} marginBottom={1}>
-        <Box flexShrink={1}>
-          <Text wrap="truncate-end">
-            <Text bold>
-              {p.repo} #{p.number}
-            </Text>{' '}
-            <Link href={p.url}>{p.title} ↗</Link>
-          </Text>
-        </Box>
-        <Text dimColor>{m.auto.verdicts[p.verdict]}</Text>
-      </Box>
-    )
+        </Text>,
+      )
+    const postedRow = (p: PostedReview) => listRow(`posted-${p.repo}#${p.number}-${p.at}`, p, <Text dimColor>{m.auto.verdicts[p.verdict]}</Text>)
     const reasonText = (reason: string) => (m.activity.reasons as Record<string, string>)[reason] ?? reason.replace(/_/g, ' ')
     // A thread sent off shows its Undo in its place until the call goes.
     const threadRow = (t: Thread) => {
@@ -2578,7 +2562,7 @@ export const register: Register = (on, options) => {
                         const save = (next: string) =>
                           void setAutoSetting($, s.key, next).then(refused => refused && toast($, m.auto.settingRefused(refused)))
                         const choices = choicesOf(s)
-                        return choices ? (
+                        const field = choices ? (
                           <Select
                             key={`auto-set-${s.key}`}
                             label={m.auto.settingNames[s.key]}
@@ -2588,6 +2572,12 @@ export const register: Register = (on, options) => {
                           />
                         ) : (
                           <Input key={`auto-set-${s.key}`} label={m.auto.settingNames[s.key]} value={value} placeholder={m.auto.empty} onSubmit={next => next.trim() !== value && save(next.trim())} />
+                        )
+                        return (
+                          <Box key={`auto-setting-${s.key}`} flexDirection="column" marginBottom={1}>
+                            {field}
+                            <Text dimColor>{m.auto.settingHelp[s.key]}</Text>
+                          </Box>
                         )
                       })}
                     <Box flexDirection="row" gap={1}>
