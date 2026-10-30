@@ -1798,7 +1798,7 @@ export const register: Register = (on, options) => {
       const isAdded = addedKeys.includes(key)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
-          <Box flexShrink={1}>
+          <Box flexShrink={1} minWidth={0}>
             <Text dimColor wrap="truncate-end">
               {hint}
             </Text>
@@ -1853,7 +1853,7 @@ export const register: Register = (on, options) => {
       if (!result && shownActions.length === 0 && !extra) return undefined
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
-          <Box flexShrink={1}>
+          <Box flexShrink={1} minWidth={0}>
             {result?.phase === 'sending' && <Text dimColor>{m.direct.sending}</Text>}
             {result?.phase === 'done' && <Text color="success">✓ {m.direct.done[result.action]}</Text>}
             {result?.phase === 'failed' && <Text color="warning">{result.message}</Text>}
@@ -1937,7 +1937,7 @@ export const register: Register = (on, options) => {
       if (parts.length === 0) return undefined
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
-          <Box flexShrink={1}>
+          <Box flexShrink={1} minWidth={0}>
             <Text color="suggestion" wrap="truncate-end">
               {parts.join(' · ')}
             </Text>
@@ -2047,7 +2047,7 @@ export const register: Register = (on, options) => {
                         : m.auto.queued(s.ahead)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
-          <Box flexShrink={1}>
+          <Box flexShrink={1} minWidth={0}>
             <Text color={s.kind === 'failed' || s.kind === 'stale' ? 'warning' : 'suggestion'}>{text}</Text>
           </Box>
           {s.kind === 'failed' && <Button key={`auto-run-${key}`} label={m.auto.retry} onPress={() => void runAuto($, key)} />}
@@ -2074,7 +2074,7 @@ export const register: Register = (on, options) => {
       return (
         <Box key={`card-${item.repo}-${item.number}`} flexDirection="row" marginBottom={1}>
           <Box width={1} flexShrink={0} backgroundColor={item.isDraft ? 'inactive' : ageColor(days)} />
-          <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
+          <Box flexDirection="column" paddingLeft={1} flexGrow={1} minWidth={0}>
             <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
               <Text bold>
                 {newDot(item.updatedAt)}
@@ -2158,9 +2158,10 @@ export const register: Register = (on, options) => {
       )
     }
 
+    // Each Box that shrinks or grows has minWidth 0: the desktop lays boxes out with CSS, where a box never narrows below its text unless told, so one long title pushed the whole card past the edge.
     const titleRow = (url: string, title: string, actions: RenderChildren) => (
       <Box flexDirection="row" justifyContent="space-between" gap={1}>
-        <Box flexShrink={1}>
+        <Box flexShrink={1} minWidth={0}>
           <Text dimColor wrap="truncate-end">
             <Link href={url}>{title} ↗</Link>
           </Text>
@@ -2174,7 +2175,7 @@ export const register: Register = (on, options) => {
     const prCard = (pr: MyPr) => (
       <Box key={`pr-${pr.url}`} flexDirection="row" marginBottom={1}>
         <Box width={1} flexShrink={0} backgroundColor={stateColor(pr.state)} />
-        <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
+        <Box flexDirection="column" paddingLeft={1} flexGrow={1} minWidth={0}>
           <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
             <Text bold>
               {newDot(pr.updatedAt)}
@@ -2224,7 +2225,7 @@ export const register: Register = (on, options) => {
     const issueCard = (issue: IssueItem) => (
       <Box key={`issue-${issueKey(issue)}`} flexDirection="row" marginBottom={1}>
         <Box width={1} flexShrink={0} backgroundColor={issue.kind === 'reference' ? 'inactive' : 'suggestion'} />
-        <Box flexDirection="column" paddingLeft={1} flexGrow={1}>
+        <Box flexDirection="column" paddingLeft={1} flexGrow={1} minWidth={0}>
           <Box flexDirection="row" justifyContent="space-between" flexWrap="wrap" columnGap={1}>
             <Text bold>
               {newDot(issue.at)}
@@ -2336,7 +2337,7 @@ export const register: Register = (on, options) => {
     const listRow = (key: string, item: { repo: string; number: number; title: string; url: string }, side: RenderChildren) => (
       <Box key={key} flexDirection="column" marginBottom={1}>
         <Box flexDirection="row" justifyContent="space-between" gap={1}>
-          <Box flexShrink={1}>
+          <Box flexShrink={1} minWidth={0}>
             <Text bold wrap="truncate-end">
               {item.repo} #{item.number}
             </Text>
