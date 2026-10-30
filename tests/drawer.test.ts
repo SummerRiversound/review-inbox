@@ -1253,6 +1253,20 @@ test('the tools setting at all registers the reviewer with every tool my session
   await ui.unmount()
 })
 
+test('a run saves what GitHub has on the pull request beside the diff and names it to the reviewer, leaving out what GitHub would not give', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => [`a${got.spawns.length}`])
+  const base = autoGithub({})
+  const run = (args: string, stdin?: string) => (args === 'gh pr view 5 --repo o/r --json body --jq .body' ? { exitCode: 0, stdout: 'Fixes the import.' } : base(args, stdin))
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run })
+  await tick()
+  const folder = [...files.keys()].find(k => k.endsWith('/description.md'))!.replace('/description.md', '')
+  expect(files.get(`${folder}/description.md`)).toBe('Fixes the import.')
+  expect(files.has(`${folder}/checks.json`)).toBe(false)
+  expect(got.spawns[0]!.prompt!.includes(`${folder}/description.md`)).toBe(true)
+  expect(got.spawns[0]!.prompt!.includes('checks.json')).toBe(false)
+  await ui.unmount()
+})
+
 test('a create GitHub refuses because my pending review appeared meanwhile adopts that review', AUTO_ON, async ($, on) => {
   const g: Github = { created: [], createFails: true }
   const run = autoGithub(g)

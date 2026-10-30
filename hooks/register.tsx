@@ -75,6 +75,9 @@ import {
   reviewsArgs,
   runName,
   agentName,
+  CONTEXT_FILES,
+  contextArgs,
+  siblingRepos,
   setupList,
   severityCounts,
   sinceArgs,
@@ -906,9 +909,19 @@ async function takeLock($: EngineInterface, pr: InboxItem, env: Record<string, s
 // What the severities are called on a review: my names when I set all four, else the language's.
 const severityNames = () => parseSeverityNames(config.autoSeverityNames, m.auto.severities)
 
-async function runFacts($: EngineInterface, folder: string, hasCheckout: boolean): Promise<RunFacts> {
+async function runFacts($: EngineInterface, folder: string, hasCheckout: boolean, repo: string): Promise<RunFacts> {
   const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
-  return { folder, hasCheckout, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language, severities: severityNames() }
+  const context = (await Promise.all(CONTEXT_FILES.map(async f => ((await $.fs.exists(`${folder}/${f.name}`)) ? [f.name] : [])))).flat()
+  const siblings = (
+    await Promise.all(
+      siblingRepos(repo, await read($, repos), config.repoPaths).map(async r => {
+        const place = await placeFor($, r)
+        const path = place.kind === 'folder' ? place.path : place.kind === 'here' ? await $.session.cwd() : undefined
+        return path ? [{ repo: r, path }] : []
+      }),
+    )
+  ).flat()
+  return { folder, hasCheckout, context, repos: siblings, ...(config.autoInstructions ? { instructions: config.autoInstructions } : {}), ...(style ? { style } : {}), language: m.model.language, severities: severityNames() }
 }
 
 // Started by the session that won the runner claim. GitHub is asked first: another machine may have reviewed this head already.
@@ -933,6 +946,9 @@ async function startRun($: EngineInterface, key: string) {
     const folder = `${await cacheDir($)}/runs/${runName(key, item.headSha)}`
     await $.fs.write(`${folder}/pr.diff`, await gh($, diffArgs(item), env))
     if (item.reviewedSha && item.reviewedSha !== item.headSha) await $.fs.write(`${folder}/since.diff`, await gh($, sinceArgs(item, item.reviewedSha, item.headSha), env))
+    // What GitHub will not give is left out; the review goes ahead on the rest.
+    const context = contextArgs(item, item.headSha)
+    await Promise.all(CONTEXT_FILES.map(({ name }) => gh($, context[name], env).then(text => $.fs.write(`${folder}/${name}`, text)).catch(() => undefined)))
     await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() }, item.headSha)
     const checkout = await addCheckout($, item, folder)
     if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
@@ -942,7 +958,7 @@ async function startRun($: EngineInterface, key: string) {
       name,
       subagentType: AGENT_TYPE,
       description: `Auto review ${item.repo} #${item.number}`,
-      prompt: reviewerPrompt(item, await runFacts($, folder, checkout !== undefined)),
+      prompt: reviewerPrompt(item, await runFacts($, folder, checkout !== undefined, item.repo)),
       model: config.autoModel,
       cwd: folder,
     })
@@ -1033,7 +1049,7 @@ async function verifyRun($: EngineInterface, key: string, job: AutoJob, draft: A
       name,
       subagentType: AGENT_TYPE,
       description: `Check auto review ${key}`,
-      prompt: verifierPrompt(draft, await runFacts($, job.folder ?? '', job.checkout !== undefined)),
+      prompt: verifierPrompt(draft, await runFacts($, job.folder ?? '', job.checkout !== undefined, key.slice(0, key.lastIndexOf('#')))),
       model: config.autoModel,
       ...(job.folder ? { cwd: job.folder } : {}),
     })
