@@ -4,13 +4,25 @@
 
 **English** | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Deutsch](README.de.md) | [Français](README.fr.md)
 
-A [Claude Code](https://claude.com/claude-code) mod that keeps your GitHub work in view while you code: the pull requests waiting for your review, each summarized in plain language before you open it, your own open PRs and the reviews they get, and the issues that pull you in.
+Your GitHub inbox inside [Claude Code](https://claude.com/claude-code): PRs waiting for your review, summarized in plain language, your own PRs and the reviews they get, and the issues that need you, without leaving the session.
 
-![The band above the prompt, then the drawer's three tabs: To review, My PRs and My issues](docs/images/en/overview.gif)
+![The band above the prompt, then the drawer's tabs: To review, My PRs and My issues](docs/images/en/overview.gif)
+
+## Features
+
+| | |
+| --- | --- |
+| **Band above the prompt** | One line that counts only what needs you. Its colour shows how long the oldest review request has waited: yellow from 3 days, red from 14. |
+| **Plain-language summaries** | Each PR waiting for you gets one sentence on what it does, why, what it touches, and a ⚠️ on risks such as a schema change. |
+| **One-key hand-off to Claude** | `Review with Claude`, `Fix CI`, `Address comments` and other buttons put a ready-made request into your prompt. Nothing runs until you press Enter. |
+| **Auto review** (optional) | Claude reviews PRs in the background and leaves each review as your pending review on GitHub, for you to post. |
+| **Notifications and saved searches** | GitHub notifications no other tab shows, and searches you name, in their own tabs. |
+| **Toasts** | A short notice when a review request, a review or a CI failure arrives while you work. |
+| **Nine languages** | The interface, the summaries and the reviews. |
 
 ## Quick start
 
-With [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`), at the prompt of a Claude Code session:
+You need Claude Code 2.1.287 or later and the [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`). Then, at the prompt of a Claude Code session:
 
 ```text
 /plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
@@ -18,32 +30,13 @@ With [GitHub CLI](https://cli.github.com/) logged in (`gh auth login`), at the p
 /review-inbox
 ```
 
-The last line opens the drawer. Options and updates are under [Install](#install).
+The last line opens the drawer. Every option can stay at its default; see [Configuration](#configuration).
 
-- **Band above the prompt** — one line counting only what needs you: PRs waiting for your review, your PRs with something to do, and issues assigned to you or mentioning you. Its colour is how long the oldest review request has waited (yellow from 3 days, red from 14). `Open` opens the drawer. A count that goes down shows in green for a moment. With auto review on, `auto-reviewed N` follows the counts while reviews it posted for you wait in the drawer.
-- **Drawer** — `/review-inbox`, with five tabs: To review, My PRs and Assigned & mentioned hold what to act on, then Saved searches and Notifications are there to browse. Press 1 to 5 while the drawer has focus to switch to that tab, counting from the left. The number on a tab counts its cards; Saved searches has none, and Notifications counts the unread.
-- **Toasts** — a short notice when something new arrives while you work.
-
-The interface and the summaries come in nine languages; see [Language](#language).
-
-## Requirements
+<details>
+<summary>Requirements, update and uninstall</summary>
 
 - Claude Code 2.1.287 or later, the first builds with mods (function-hook plugins). Tested on 2.1.292. Mods are in early access, and their API may change between releases.
-- [GitHub CLI](https://cli.github.com/) (`gh`) on your `PATH`, logged in (`gh auth login`) with access to the repositories you review.
-- GitHub Enterprise Server: set `GH_HOST` in the environment Claude Code starts in; every `gh` call goes to that host.
-
-## Install
-
-At the prompt of a Claude Code session:
-
-```text
-/plugin marketplace add https://github.com/SummerRiversound/review-inbox.git
-/plugin install review-inbox@review-inbox
-```
-
-The install screen asks for the options below; all of them can stay empty or at their default.
-
-### Update and uninstall
+- `gh` on your `PATH`, with access to the repositories you review. For GitHub Enterprise Server, set `GH_HOST` in the environment Claude Code starts in.
 
 ```sh
 claude plugin marketplace update review-inbox
@@ -51,117 +44,146 @@ claude plugin update review-inbox@review-inbox
 claude plugin uninstall review-inbox@review-inbox
 ```
 
-An update applies after a restart. Uninstalling leaves the mod's cache folder, `~/.claude/plugins/data/review-inbox`, in place; delete it yourself to remove the cached lists and summaries. See the [changelog](CHANGELOG.md) for what each version changed.
+An update applies after a restart. Uninstalling leaves the cache folder, `~/.claude/plugins/data/review-inbox`; delete it yourself to remove the cached lists and summaries. The [changelog](CHANGELOG.md) lists what each version changed.
+
+</details>
+
+## Usage
+
+`/review-inbox` opens the drawer. Press `1` to `5` to switch tabs, type in the search field to look through every tab at once (titles, descriptions, summaries and your notes), and press a group's header to fold it.
+
+| Tab | What it holds | Buttons |
+| --- | --- | --- |
+| **To review** | PRs waiting for your review, each with a summary, its size and how long it has waited. `re-requested` marks one that asks for you again, with what changed since your last review. | `Review with Claude`, `Hide` until a new commit |
+| **My PRs** | Your open PRs in the order you have to act: changes requested, CI failing, conflict, waiting, approved, merge queue, draft. `New review` marks one reviewed since your last commit. | `Address comments`, `Fix CI`, `Resolve conflict`, `Merge` |
+| **Assigned & mentioned** | Issues assigned to you, issues and PRs that mention you, and recent references to your work. | `Work on this` |
+| **Saved searches** | `Involves me`, `Reviewed by me, still open`, `My open issues`, and your own searches. | Open on GitHub |
+| **Notifications** | GitHub notifications no other tab shows, by reason, unread marked `●`. | `Done`, `Unsubscribe` |
+
+![Review on two cards marks them Added, Hide hides a third, and Esc puts both review requests into the prompt](docs/images/en/review.gif)
+
+On every card, `▸ Actions` holds `Note` (one line above the title), `Save`, `Snooze until tomorrow` or `next week`, and buttons that hand the card to Claude: `Summarize risks`, `Explain this diff`, `Draft approval comment`, `Draft reply to reviewer` and `Investigate CI failure`. Buttons that hand a card to Claude mark it `Added`; when you close the drawer, the requests go into your prompt, and nothing runs until you press Enter.
+
+| My PRs | Assigned & mentioned |
+| --- | --- |
+| ![My PRs: six PRs from changes requested to draft, two with a new review](docs/images/en/my-prs.png) | ![My issues: assigned issues, mentions, and references to your work](docs/images/en/my-issues.png) |
+
+<details>
+<summary>More on cards, sessions and toasts</summary>
+
+- **Next-step buttons.** On your PR stuck on you, or an issue assigned to you, the button names the folder Claude would work in: `this folder`, the last session's folder for that repository, or `no local clone`. Claude works in a new worktree and leaves that folder's branch alone. With no known folder, it asks where your clone is or offers `gh repo clone`.
+- **Your review style.** A review request carries one line on how you usually review. Once a week the mod reads your own comments on up to 30 PRs you recently reviewed and asks Claude to describe your language, tone and what you look at first. Auto reviews posted under your name are left out.
+- **In progress in a session.** Cards a session works on gather at the top of To review and My PRs, with the session's folder name: your PR when a session is on its branch, any card once a prompt in that session links to it. A session closed, or silent for 10 minutes, lets them go.
+- **This repo first.** Cards from this session's repository come first, tagged `this repo`. `This repo N` and `All N` above the tabs narrow or widen the view; the band always counts everything.
+- **Hidden and snoozed cards** come back when they have news: a new commit on a review request, a new state or review on your PR, new activity on an issue. `N hidden · show all` brings them back by hand.
+- **Updated since you last looked.** A `●` before a card's repository marks one updated since you last closed the drawer.
+- **Toasts** arrive for a new review request, a new review on your PR, your PR turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A new session sums up what changed while you were away in one toast. Your PR turning approved with no CI running shows `Ready to merge` once.
+- **Older sessions.** A session still on an older release is named under the drawer's title. `Reload them all` asks those sessions to run `/reload-plugins` once they are idle (0.13.0 or later).
+- **Notifications** need gh's own sign-in or a classic token (`gh auth refresh -s notifications`). `Done` and `Unsubscribe` wait 10 seconds with `Undo`. Finished Actions runs show as `CI run` only while Actions notifications are on in your GitHub settings.
+
+![Three toasts in turn below the prompt: a new review request, changes requested on your PR, and a new mention](docs/images/en/toasts.gif)
+
+</details>
+
+## Auto review
+
+Turn it on with the `Auto review` button atop the To review tab, which says what it costs and asks first. Each PR that asks for your review directly is then reviewed by Claude in the background, and the review waits on its card as your **pending review**, which only you can see until you post it.
+
+```mermaid
+flowchart LR
+  A[Review requested] --> B[Waits until no new commit<br/>for 30 minutes]
+  B --> C[Claude reviews<br/>the diff and the code]
+  C --> D[Pending review on GitHub<br/>and on the card]
+  D --> E{You decide}
+  E --> F[Post as comment,<br/>approve or request changes]
+  E --> G[Refine in session]
+  E --> H[Discard]
+```
+
+> **It uses noticeably more tokens:** tens of thousands a PR, more on `opus`. The card shows each review's cost, and `autoReviewDaily` caps how many start in a day (5 by default).
+
+- **What it reviews.** Direct requests on PRs that are not drafts and not opened by bots. While it runs, the author sees only a 👀 reaction of yours.
+- **What the reviewer gets.** The diff, the code at the head commit when the repository's folder is known, the PR's description, comments and checks, the risks its card flagged, and where your folders of the same owner's other repositories are. By default it can only read; `autoReviewTools` set to `all` gives it every tool of your session, so it can also run tests and commands.
+- **How it writes.** The verdict first, then findings graded blocker, major, minor and nit, each a bold conclusion with its reason below, placed on the lines they are about. Your learned style sets only the tone; `autoReviewInstructions` wins over the built-in rules.
+- **On the card.** The suggested verdict, findings by severity and the cost, with `Post as comment`, `Post and approve`, `Post and request changes`, `Open on GitHub`, `Refine in session` and `Discard`.
+
+<details>
+<summary>Setup, sessions, new commits and failures</summary>
+
+- **Setup.** `Settings ▸` beside the `Auto review` button opens each auto review setting under it: pick or type a value and it applies at once, as a change in `/config` does. The first time the button turns auto review on, they open by themselves. `Set up with Claude` there, or `/review-inbox auto-review-config` at any time, puts one line into your prompt; press Enter and Claude goes through the settings with you one at a time. Once pressed, the button alone turns auto review on and off for every session; `autoReview` in `/config` is only where it starts.
+- **Which session runs it.** The session where you turned it on starts the reviews on this machine. `/review-inbox auto-review-here` moves them to another session, `/review-inbox auto-review-anywhere` lets any session start them. One review runs at a time across your sessions and machines; the 👀 tells other machines the PR is taken, and one left by a machine that stopped mid-review is taken over after an hour.
+- **The run folder.** The mod writes the diff (and, for a re-request, the diff since your last review), the PR's description, conversation, line comments and checks into a run folder, and checks out the head commit there as a detached worktree when it knows the repository's folder. Both go when the review is stored.
+- **Built-in rules.** The reviewer checks each finding against the code again before keeping it, turns what it cannot confirm into a question, approves when nothing blocks merging, and leaves out how it checked. With `autoReviewVerify` on, a second reviewer checks each finding before the review is stored.
+- **Posting for you.** With `autoReviewPost` at `comment` or `verdict`, a review is posted as soon as it is stored and shows in an `Auto review done` group under the button; `Check all` clears it. If GitHub refuses, it stays your pending review.
+- **New commits.** A running review stops when the PR gets a new commit, closes or stops asking for you. A rebase that changes no content moves your pending review, edits included, to the new commit; other new commits leave it with `Review again`.
+- **Failures.** A reply that cannot be read is tried once more, then the card shows why with `Try again`. A reviewer that runs out of turns fails at once and says so; raise `autoReviewMaxTurns`.
+
+</details>
 
 ## Configuration
 
-Set on the install screen; change them later in `/config`. A change applies right away.
+Set options on the install screen, or later in `/config`. A change applies right away.
+
+**General**
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `scope` | empty | GitHub search qualifiers added to every search (`review-requested:@me`, `author:@me`, `assignee:@me`, `mentions:@me`). Empty means all of GitHub. |
-| `githubUser` | empty | The `gh` account to use when several are logged in (`gh auth token -u <user>`). Empty uses the active account. |
-| `language` | `auto` | `auto`, or one of the codes in [Language](#language). |
-| `refreshMinutes` | `10` | Minutes between fetches from GitHub: 5, 10, 15, 30 or 60. All sessions share one fetch. |
-| `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
-| `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. |
-| `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions below. |
-| `autoReview` | `off` | `on` reviews PRs that ask for you in the background and keeps each review as your pending review until you post it. **It uses noticeably more tokens.** This is only where it starts: once you press the `Auto review` button atop the To review tab, which asks first before it turns on, the button alone turns it on and off. See Auto review below. |
-| `autoReviewPost` | `pending` | What a finished review becomes: `pending` keeps it as your pending review to post from the card, `comment` posts it as a comment, `verdict` posts it with the verdict it suggests, approve and request changes included. Anything but `pending` posts under your name without asking. |
-| `autoReviewModel` | `sonnet` | The model the reviewer runs on: `sonnet` or `opus`, which reviews deeper and costs more. |
-| `autoReviewVerify` | `off` | `on` has a second reviewer check each finding of a draft against the code before it is stored, dropping what does not hold and lowering what is overstated. A review with findings then costs about twice the tokens. |
-| `autoReviewDaily` | `5` | Most auto reviews started in a day: 3, 5, 10, 20 or `unlimited`. `Try again` on a card is not counted. |
-| `autoReviewSettleMinutes` | `30` | Minutes after a PR's latest commit before auto review starts on it, since authors often push again right after asking: 0, 10, 30, 60 or 120. `0` starts at once. |
-| `autoReviewSkills` | empty | Skills loaded into the reviewer, comma-separated, such as your review playbook. Empty loads none. |
-| `autoReviewInstructions` | empty | Your own words to the reviewer, such as what to check first or how to word comments. Empty adds none. |
-| `autoReviewSeverityNames` | empty | What the four severities are called on a review, blocker to nit, comma-separated, such as `Blocker, Decision needed, Follow-up, nit`. Empty uses the language's own. |
-| `autoReviewLarge` | `on` | `on` also reviews PRs over 50 files or 2,000 changed lines, which take many more tokens. `off` leaves them alone. |
-| `autoReviewMaxTurns` | `40` | How many turns the reviewer may take before it must answer: `40`, `60`, `80` or `120`. A large PR can need more; a review that runs out fails, and its card says it ran out of turns. |
-| `autoReviewTools` | `read` | What the reviewer may use. `read` keeps it to reading the diff and the code. `all` gives it every tool of your session under its permissions, as when you ask for a review yourself: it can run tests and commands, read the PR's description, comments and checks, and open other repositories, but a PR's text can then try to steer those commands. |
-| `autoReviewBacklog` | `on` | `on` also reviews requests made before auto review was turned on, a few a day as `autoReviewDaily` allows. `off` leaves them alone. |
+| `scope` | empty | GitHub search qualifiers added to every search, such as `org:my-org`. Empty means all of GitHub. |
+| `githubUser` | empty | The `gh` account to use when several are logged in. |
+| `language` | `auto` | `auto`, or a code from [Language](#language). |
+| `refreshMinutes` | `10` | Minutes between fetches: 5, 10, 15, 30 or 60. All sessions share one fetch. |
+| `repoPaths` | empty | Where each repository lives on disk, for the next-step buttons and auto review. |
+| `motion` | `auto` | `off` stops the band's count flash; `auto` follows Claude Code's reduced motion setting. |
+| `directActions` | `off` | `on` adds buttons that write to GitHub themselves. See [Direct GitHub actions](#direct-github-actions). |
 
-`scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts:
+**Auto review**
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `autoReview` | `off` | Where auto review starts; the `Auto review` button takes over once pressed. |
+| `autoReviewPost` | `pending` | `pending` keeps it for you to post; `comment` or `verdict` posts it under your name without asking. |
+| `autoReviewModel` | `sonnet` | `sonnet`, or `opus` for deeper reviews that cost more. |
+| `autoReviewTools` | `read` | `read` lets the reviewer only read. `all` gives it every tool of your session, as when you ask for a review yourself, but a PR's text can then try to steer the commands it runs. |
+| `autoReviewVerify` | `off` | `on` has a second reviewer check each finding; about twice the tokens. |
+| `autoReviewDaily` | `5` | Most reviews started a day: 3, 5, 10, 20 or `unlimited`. |
+| `autoReviewSettleMinutes` | `30` | Minutes without a new commit before a review starts: 0, 10, 30, 60 or 120. |
+| `autoReviewMaxTurns` | `40` | Turns the reviewer may take: 40, 60, 80 or 120. |
+| `autoReviewSkills` | empty | Skills loaded into the reviewer, comma-separated, such as your review playbook. |
+| `autoReviewInstructions` | empty | Your own words to the reviewer, such as what to check first. |
+| `autoReviewSeverityNames` | empty | Four names for blocker to nit, comma-separated, such as `Blocker, Decision needed, Follow-up, nit`. |
+| `autoReviewLarge` | `on` | `off` skips PRs over 50 files or 2,000 changed lines. |
+| `autoReviewBacklog` | `on` | `off` skips requests made before auto review was on. |
+
+<details>
+<summary><code>scope</code> and <code>repoPaths</code> examples</summary>
+
+`scope` takes anything GitHub's [issue and PR search](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) accepts. Repeated `org:`, `repo:` and `user:` match any of them, and a team review request counts as a request for you.
 
 ```text
 org:my-org
 org:my-org org:other-org
 repo:owner/name repo:owner/other
 org:my-org -repo:my-org/noisy-repo
-user:my-username
 ```
 
-Repeated `org:`, `repo:` and `user:` qualifiers match any of them. A team review request counts as a request for you, as GitHub's `review-requested:@me` defines it.
-
-`repoPaths` takes comma-separated `owner/repo=path` entries. `owner/*=path/*` covers every repository of an owner, with `*` in the path standing for the repository's name; an exact name wins over a wildcard, and `~` is your home folder. A folder named here wins over the session's own folder and the ones the mod remembers.
+`repoPaths` takes comma-separated `owner/repo=path` entries. `owner/*=path/*` covers every repository of an owner, an exact name wins over a wildcard, and `~` is your home folder. A folder named here wins over the session's own folder and the ones the mod remembers.
 
 ```text
-my-org/*=~/code/*
-my-org/legacy=~/old/legacy-app
+my-org/*=~/code/*,my-org/legacy=~/old/legacy-app
 ```
 
-## Tabs
+</details>
 
-Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the top of a tab brings back that tab's hidden cards.
+## Customize
 
-`Note`, under a card's `▸ Actions`, writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
-
-The search field at the top looks through every tab at once: repository, number, title, author, the first 2,000 characters of the description, the summary and your notes. Hidden and snoozed cards are found too, marked `hidden`. Empty the field to go back to the tabs. The Claude mobile app draws no text fields yet, so there it shows notes but has no search and no `Note`.
-
-Cards a session is working on gather under `In progress in a session` at the top of To review and My PRs, with the session's folder name, or `this session`. My PR counts when a session's folder is checked out on its branch in its repository; any card counts once a prompt in that session links to it, as `Review with Claude` does. A session that is closed, or has not checked in for 10 minutes, lets its cards go back to their groups.
-
-A session still running an older release of the mod, as one opened before an update and never reloaded, is named under the drawer's title, such as `2 sessions on an older version (dhub2): run /reload-plugins there`. Such a session keeps its own lists in a file of its own, so it never shows its lists or errors in an up-to-date session. `Reload them all` beside it asks those sessions to run `/reload-plugins` themselves, through `reload.json` in the cache folder: each does once it is idle, and its other plugins reload with it. Only sessions on 0.13.0 or later can answer; an older one still needs `/reload-plugins` typed there once.
-
-Cards from this session's repository come first in every group, tagged `this repo`. When the tabs also hold other repositories, `This repo N` and `All N` above the tabs narrow them to this repository or show everything again; the band always counts everything. This session's repository is the one `GH_REPO` names, as `gh` reads it, else the folder's GitHub remotes.
-
-Under its title a card shows up to two labels and how many more, its comment count and, for a PR, `→ base` when it targets a branch other than the repository's default.
-
-A `●` before a card's repository marks one updated since you last closed the drawer, as GitHub's own inbox marks what changed since your last visit. Before the first close nothing is marked.
-
-When nothing needs you (no review request, none of your PRs to act on, no issue assigned to you or mentioning you), the drawer says `✓ Nothing needs you` above the tabs, and the band stays hidden.
-
-### To review
-
-One card per PR waiting for your review: a one-sentence summary, why the PR exists, what it touches, its size and author, and how long your review has been pending. Risky items, such as a schema change or a required deploy order, are marked ⚠️.
-
-- `Review with Claude` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
-- `Hide`, under `▸ Actions` beside `Note`, hides the card until the PR gets a new commit.
-- `re-requested` marks a PR you already reviewed that asks for you again, with a short summary of what changed since your last review.
-- Cards are grouped into direct requests, team requests and drafts.
-
-![Review on two cards marks them Added, Hide hides a third, and Esc puts both review requests into the prompt](docs/images/en/review.gif)
-
-The request also carries one line describing how you usually review, so Claude reviews the way you would. Once a week the mod reads your own comments on up to 30 PRs you recently reviewed, and asks Claude to describe your language and tone, what you look at first and how you phrase requests. With fewer than five comments to learn from, the request goes without that line; if learning fails, the last description stays and the mod tries again a day later. Auto reviews posted under your name are left out, so it learns only from what you wrote yourself.
-
-### My PRs
-
-Your open PRs with their state instead of a summary, in the order you have to act on them: changes requested, CI failing, merge conflict, waiting for review (oldest first), approved, in merge queue, draft. Running CI is shown next to the state. A PR in a merge queue shows `In merge queue`: GitHub merges it once the queue's checks pass, so it is not counted in the band and never shows `Ready to merge`.
-
-`Hide` hides a PR until it turns to another state or someone reviews it; your own push alone does not bring it back.
-
-![My PRs: six PRs from changes requested to draft, two with a new review](docs/images/en/my-prs.png)
-
-A review submitted after your latest commit shows as `New review` with who left it, until you commit again. That covers approvals, change requests and comment-only reviews, thread replies included, from people or bots; a dismissed review does not count. Such a PR counts as something to do and moves ahead of quiet ones in the same state. No model calls.
-
-A PR stuck on you (changes requested, CI failing or a merge conflict) has a button for its next step: `Address comments`, `Fix CI` or `Resolve conflict`. Beside it is the folder Claude would work in: `this folder` when this session holds a clone of the repository, the folder of the last session that ran in it, or `no local clone`. The button adds the card the way `Review with Claude` does. When you close the drawer, the request names the step and the `gh` commands that read the comments or the failing logs, and asks Claude to work in a new worktree, leaving that folder's branch alone. With no known folder, Claude asks where your clone is, or offers `gh repo clone` and waits for your yes. No extra GitHub calls and no model calls.
-
-### Assigned & mentioned
-
-Open issues assigned to you, and open issues and PRs that mention you; an item that is both shows once, as assigned. Below them, other issues and PRs from the last 30 days that referenced one of yours, with who did it. References you made yourself are left out, and only the newest 20 are shown. No model calls.
-
-Items are grouped into assigned, mentions and references. `Hide` hides an item until it has new activity.
-
-![My issues: assigned issues, mentions, and references to your work from elsewhere](docs/images/en/my-issues.png)
-
-An issue assigned to you has a `Work on this` button that works the same way: Claude reads the issue, plans the change and starts on a new branch in a new worktree.
-
-### Saved searches
-
-GitHub searches you name and save, each a section with its count and the 20 most recently updated matches. A title opens that PR or issue on GitHub, and `N more on GitHub` opens the whole search there. Three come built in, as in GitHub's own pull request inbox: `Involves me` (open PRs you take part in but did not open), `Reviewed by me, still open` and `My open issues`. Press a section's header to fold it. The searches run with every refresh, three at a time; one that fails shows why and leaves the others alone. No model calls.
-
-Add your own under `groups` in the same `actions.json` as the card buttons; `/review-inbox add-search` asks Claude to write one with you.
+Add your own card buttons and saved searches in `actions.json` in the cache folder. `/review-inbox buttons` shows its path and anything it left out; `/review-inbox add-button` and `/review-inbox add-search` ask Claude to write one with you.
 
 ```json
 {
+  "buttons": [
+    { "id": "test-plan", "name": "Test plan", "scope": "review", "prompt": "Write a test plan for {{.PrUrl}} in {{.RepoPath}}." },
+    { "id": "draft-approval", "scope": "review", "hidden": true }
+  ],
   "groups": [
     { "id": "team", "name": "Team PRs", "query": "org:acme is:open label:urgent", "scope": "prs", "countInBand": true },
     { "id": "reviewed-by-me", "hidden": true }
@@ -169,100 +191,43 @@ Add your own under `groups` in the same `actions.json` as the card buttons; `/re
 }
 ```
 
-`query` is GitHub search syntax. `scope` is `prs` or `issues`: it adds `is:pr` or `is:issue` unless the query already says which, and `sort:updated-desc` is added unless the query has its own `sort:`. The `scope` setting and `This repo` do not narrow these searches, so write `org:` or `repo:` into the query when you want that. `"countInBand": true` adds the search's count to the band as `Saved searches N`. A saved search with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field or an unknown scope is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. Only the first 15 saved searches run.
+<details>
+<summary>Fields</summary>
 
-### Notifications
+- **Buttons.** `scope` is `review`, `pr` or `issue`. A prompt can use `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle` and `IssueUrl`, written `{{.Name}}` as in gh-dash. `PrTitle` and `Author` are someone else's text passed to Claude.
+- **Saved searches.** `query` is GitHub search syntax; `scope` (`prs` or `issues`) adds `is:pr` or `is:issue`, and `sort:updated-desc` is added unless the query sorts. The `scope` option does not narrow them. `"countInBand": true` adds the count to the band. Only the first 15 run, each showing its 20 newest matches.
+- **Both.** A built-in id replaces that entry, `"hidden": true` removes it, and an entry with a missing field or an unknown scope or variable is left out with a warning at the bottom of the drawer.
 
-Your GitHub notifications that no other tab already shows, in a section per reason (`Comment`, `State changed`, `CI run` and so on), newest first in each; press a section's header to fold it. They are comments, state changes and new activity on threads you opened or take part in, team mentions and security alerts. Finished GitHub Actions runs you started show too, as `CI run`, linked to the repository's Actions page; GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings. Review requests, assignments and mentions are left out, as are threads whose PR or issue is already a card. An unread thread is marked `●`, and the tab's number counts them. Up to 100 notifications from the last 30 days are read.
-
-`Done` and `Unsubscribe` take the row away at once and leave `Done · Undo` or `Unsubscribed · Undo` in its place for 10 seconds; closing the drawer before then sends them right away. Then `Done` marks the thread done on GitHub, as GitHub's own inbox does, and `Unsubscribe` also stops its notifications until someone mentions you or you comment. A thread marked done comes back when it has new activity. If either fails, the row comes back with the reason. No model calls.
-
-GitHub gives notifications only to gh's own sign-in and to classic tokens. Without access, the tab says so and how to get it (`gh auth login`, or `gh auth refresh -s notifications`).
-
-### Toasts
-
-A new review request, a new review on one of your PRs, one of your PRs turning to changes requested, CI failing or conflicting, and a new assignment, mention or reference. A new session does not announce these one by one: one toast sums up what changed since a session last looked, such as `While you were away · CI failing 2`, and stays quiet when nothing did. With auto review on, a finished review, or one posted for you, gets a toast too. When several arrive at once, they show one after another, 4.5 seconds apart.
-
-Your PR turning approved with no CI running shows `Ready to merge` once.
-
-![Three toasts in turn below the prompt: a new review request, changes requested on your PR, and a new mention](docs/images/en/toasts.gif)
-
-### Card buttons
-
-`▸ Actions` on a card opens `Note` and `Hide`, then buttons that each hand the card to Claude with a ready-made request: `Summarize risks`, `Explain this diff` and `Draft approval comment` on a review request, `Draft reply to reviewer` and `Investigate CI failure` on your PR. A button adds the card the way `Review with Claude` does, and the request goes into your prompt when you close the drawer. Nothing runs and nothing is posted until you press Enter.
-
-Add your own in `actions.json` in the cache folder. `/review-inbox buttons` shows its path, what it holds and any entry left out, and `/review-inbox add-button` asks Claude to write one with you.
-
-```json
-{
-  "buttons": [
-    { "id": "test-plan", "name": "Test plan", "scope": "review", "prompt": "Write a test plan for {{.PrUrl}} in {{.RepoPath}}." },
-    { "id": "draft-approval", "scope": "review", "hidden": true }
-  ]
-}
-```
-
-`scope` is `review`, `pr` or `issue`. The prompt can use `RepoName`, `RepoPath`, `PrNumber`, `PrUrl`, `PrTitle`, `Author`, `HeadRefName`, `BaseRefName`, `IssueNumber`, `IssueTitle`, `IssueUrl`, written `{{.Name}}`, `{{Name}}`, `{{ .Name }}` as in gh-dash; one the card has no value for is left empty. A button with a built-in id replaces it, and `"hidden": true` removes it. An entry with a missing field, an unknown scope or an unknown variable is left out; the drawer warns about it at the bottom, and `/review-inbox buttons` lists it with the reason. The rest keep working. `PrTitle` and `Author` come from GitHub as written, so a prompt that uses them passes someone else's text to Claude.
+</details>
 
 ### Direct GitHub actions
 
-With `directActions` set to `on`, cards also get buttons that write to GitHub themselves, as your `gh` account.
+With `directActions` on, cards also get buttons that write to GitHub as your `gh` account: `Approve` on a review request, `Ready for review` and `Update branch` on your PR, `Rerun failed CI`, and `Assign me` on an issue that mentions you.
 
-- `Approve` on a review request, `Ready for review` on your draft PR, and `Update branch` on your PR when its base branch has moved ahead. Others see these and they cannot be taken back, so the first press turns the row into a line naming what will be sent and as whom, such as `Approve o/r#5 "Fix login" as kim — (no comment)`. `Confirm approve` sends it, as does `y` while the drawer has the keys; `Cancel`, or ten seconds, brings the buttons back. The focus moves to `Cancel`, and a confirm within 300 ms of the first press is ignored, so a held Enter sends nothing.
-- An approval has no comment and names the commit you looked at. If new commits arrived since, it is not sent and the card says so. `Update branch` merges the base branch in and never rebases.
-- `Rerun failed CI` on your PR with failing checks reruns the failed jobs of the GitHub Actions runs on its latest commit. `Assign me` on an issue that mentions you is sent at once, with `Undo` for ten seconds.
-- A write that fails stays on the card with GitHub's message, and its button comes back.
-
-Nothing merges directly. Your approved PR with no checks running gets a `Merge` button, with `directActions` off too: it adds a request to your prompt to check the repository's merge methods and run `gh pr merge`, which you send with Enter and Claude Code asks permission to run.
-
-### Auto review
-
-With `autoReview` set to `on`, a PR that asks for your review directly is read by Claude in the background, so the review is waiting on the card when you get to it. Until you press a button, the author sees only a 👀 reaction of yours on the PR while the review runs. That holds while `autoReviewPost` is `pending`, its default.
-
-> **It uses noticeably more tokens.** Each review runs a subagent that reads the diff and the code, with your CLAUDE.md, your hooks and the skills in `autoReviewSkills`: tens of thousands of tokens a PR, more on `opus`. The card shows what each review cost, and `autoReviewDaily` caps how many start in a day.
-
-- **What starts one.** A request made directly to you (not to a team), on a PR that is not a draft and was not opened by a bot, once `autoReviewSettleMinutes` (30 minutes by default) have passed since its latest commit, counted from the commit's own time. One review runs at a time across your sessions. That 👀 tells your other machines the PR is taken, so they leave it alone; one left by a machine that stopped mid-review is taken over after an hour. Requests made before you turned it on and PRs over 50 files or 2,000 changed lines are reviewed too, unless `autoReviewBacklog` or `autoReviewLarge` is `off`. The `Auto review` button atop the To review tab turns it on and off for every session; once it has been pressed, `autoReview` in `/config` no longer changes anything. Nothing runs while nothing is due: no model is asked and no agent started.
-- **Setup.** `Settings ▸` beside the `Auto review` button opens each auto review setting under it: pick or type a value and it applies at once, as a change in `/config` does. The first time the button turns auto review on, they open by themselves. `Set up with Claude` there, or `/review-inbox auto-review-config` at any time, puts one line into your prompt; press Enter and Claude goes through the settings with you one at a time.
-- **Which session runs them.** The session where you turn on the `Auto review` button starts the reviews on this machine, and the warning before it turns on says so. Run `/review-inbox auto-review-here` in another session to move them there, or `/review-inbox auto-review-anywhere` to let any session start them. While that session is closed, queued PRs wait and their cards say so.
-- **What it reads.** By default the reviewer gets read-only tools (`Read`, `Grep`, `Glob`) and no shell; with `autoReviewTools` on `all` it gets every tool of your session instead, under your session's permissions, and is told to check for itself before it asks the author and never to post, push or change anything others see. The mod writes the PR's diff, and for a re-request the diff since your last review, into a run folder; when it knows the repository's folder (the one the next-step buttons use) it also checks out the head commit there as a detached worktree, removed when the review is stored. It also saves the PR's description, comments and reviews, line comments and checks there when GitHub gives them, and tells the reviewer where your folders of the same owner's other repositories are, so it can read the code on the other side of a change.
-- **How it reviews.** The reviewer gets the mod's own rules for reviewing and writing, whatever skills and instructions you set. It checks each finding against the code again before keeping it, turns what it cannot confirm into a question, and grades findings by what merging would cost: blocker, major, minor, nit. It writes for someone reading the code for the first time: the verdict first, with no greeting, and a word on what the change does well only when something stands out; each finding a short paragraph on what goes wrong and what must be decided or hold, leaving how the code works inside and how to fix it to the author; no file or line in a comment that already sits on that code; and nothing about how it checked. It approves when nothing blocks merging, minor and nit findings included. `autoReviewInstructions` wins over these rules, and your learned review style sets only the tone.
-- **What it writes.** The result goes to GitHub as your **pending review**, which only you can see: comments on the lines they are about, and anything outside the diff in the review body, grouped by severity. Each finding opens with its severity and conclusion in bold, with the reason on the line below. Severities are named in the mod's language, or as `autoReviewSeverityNames` sets them. The card shows the suggested verdict, the findings by severity, the top three and the cost. These cards stay with their requests, to post or discard. With `autoReviewPost` at `comment` or `verdict` it is posted as soon as it is stored and leaves the To review tab. It then shows, with its verdict, in an `Auto review done` group right below the `Auto review` button, so a review posted for you is not missed; `Check all` on its row clears the group. If GitHub refuses the post, it stays your pending review on the card.
-- **Posting.** `Post as comment`, `Post and approve` and `Post and request changes`, the suggested one in color, ask on the card the way Direct GitHub actions do, then submit the pending review. `Open on GitHub` opens the PR's files, where you can edit it first. `Refine in session` takes the place of `Review with Claude` and asks Claude to work on that review with you, submitting it only once you say which verdict. `Discard` deletes it. These show without `directActions`.
-- **New commits.** A running review stops when the PR gets a new commit, is closed or merged, or stops asking for you. A rebase that changes no content moves your pending review, with your edits, to the new commit without asking Claude. Other new commits leave it where it is: the card says posting it would review code that is gone and offers `Review again`. A post is refused when the PR moved since the card was drawn.
-- **Failures.** A reply that cannot be read, or a reviewer that could not read the diff, is tried once more, then the card shows why with `Try again`. A review you stopped from the task list waits for `Try again`. One whose session closed starts again from the front of the queue.
+- Others see these and they cannot be taken back, so the first press shows what will be sent and as whom; `Confirm` (or `y`) sends it, and `Cancel` or ten seconds brings the buttons back. A confirm within 300 ms of the first press is ignored.
+- An approval names the commit you looked at and is not sent if new commits arrived. `Update branch` merges and never rebases. `Assign me` is sent at once with `Undo`.
+- Nothing merges directly: `Merge` puts a request into your prompt for Claude to check the repository's merge methods and run `gh pr merge`.
 
 ## Language
 
-The band, the drawer, the toasts, the review request put into your prompt, and the summaries, review-style description and auto reviews the model writes all use one language.
+Everything the mod shows or writes uses one language: `en`, `ko`, `ja`, `zh-CN`, `zh-TW`, `es`, `pt-BR`, `de` or `fr`.
 
-| Code | Language |
-| --- | --- |
-| `en` | English |
-| `ko` | Korean (한국어) |
-| `ja` | Japanese (日本語) |
-| `zh-CN` | Simplified Chinese (简体中文) |
-| `zh-TW` | Traditional Chinese (繁體中文) |
-| `es` | Spanish (Español) |
-| `pt-BR` | Brazilian Portuguese (Português do Brasil) |
-| `de` | German (Deutsch) |
-| `fr` | French (Français) |
+`auto` (the default) follows Claude Code's own `language` setting, then the system locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), then English. Switching writes each summary once more in the new language. Languages other than English and Korean were translated with Claude; corrections are welcome in [`hooks/locales/`](hooks/locales/).
 
-- A code picks that language.
-- `auto` (the default) follows Claude Code's own `language` setting when it names one of these, by code, English name or its own name (`ja-JP`, `Japanese`, `日本語`). Otherwise it follows the system locale (`LC_ALL`, `LC_MESSAGES`, then `LANG`), and otherwise English. Chinese is read as Simplified unless it is marked as Taiwan, Hong Kong, Macau or Traditional (`zh-TW`, `zh-Hant`, `繁體中文`), and Portuguese as Brazilian.
+## Privacy and permissions
 
-Summaries and the description of your review style are kept per language, so switching writes each summary, and that description, once more in the new language. Any other language falls back to English.
-
-Languages other than English and Korean were translated with Claude and have not been checked by native speakers yet. Corrections are welcome as an issue or a pull request: each language is one file in [`hooks/locales/`](hooks/locales/), and the English table, which every other table follows, is in [`hooks/i18n.ts`](hooks/i18n.ts).
-
-## What it reads and runs
-
-The mod reaches GitHub only through your own `gh`, sends PR text to Claude to write the summaries and, once a week, your own review comments to describe your style, and writes only to its own cache folder. Below is each thing it touches and why; it matches what `claude plugin validate .` lists for the mod. With `autoReview` on it also asks Claude to review PRs, stores each review on GitHub as your pending review or posts it as `autoReviewPost` says, and adds a worktree to the repository's folder while a review runs.
+The mod reaches GitHub only through your own `gh`, sends PR text to Claude for summaries, and writes only to its own cache folder. Auto review, when on, also starts a subagent and stores reviews on GitHub.
 
 [![reach](https://raw.githubusercontent.com/karanb192/awesome-claude-code-mods/main/badges/SummerRiversound--review-inbox--review-inbox-reach.svg)](https://mods.aidojo.si/#SummerRiversound--review-inbox--review-inbox)
 
-- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Notifications tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. With `directActions` on, a button you press runs `gh api user` for your account name and `gh api repos/<owner>/<repo>/pulls/<n>` to read the head commit, then one of `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` with `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, or `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. With `autoReview` on, it runs `gh api …/pulls/<n>/reviews` and `…/pulls/<n>/files` before and after each review, `gh pr diff`, and `gh api -X POST …/pulls/<n>/reviews` with the review on its stdin to store it as your pending review; carrying it to a new commit reads `…/reviews/<id>` and `…/reviews/<id>/comments` and runs `gh api -X DELETE …/reviews/<id>` before creating it again. Around each review it adds and removes that 👀 with `gh api -i -X POST …/issues/<n>/reactions` (`content=eyes`) and `gh api -X DELETE …/issues/<n>/reactions/<id>`. The card's buttons run `gh api -X POST …/reviews/<id>/events` (`event=COMMENT`, `APPROVE` or `REQUEST_CHANGES`) or `gh api -X DELETE …/reviews/<id>`, after reading the head commit. With `autoReviewPost` at `comment` or `verdict`, it runs the same call on the review it stored, right after storing it. The mod makes no other network calls of its own.
+<details>
+<summary>Everything it reads and runs</summary>
+
+This matches what `claude plugin validate .` lists for the mod.
+
+- **Runs `gh`**: `gh api graphql` for the lists and, once a week, for your recent review comments; `gh api repos/<owner>/<repo>/compare/<from>...<to>` for a re-requested PR, and `gh auth token -u <githubUser>` when `githubUser` is set. For the Notifications tab it runs `gh api notifications`, and `gh api -X DELETE notifications/threads/<id>` (with `/subscription` first for Unsubscribe) when you press `Done` or `Unsubscribe`. With `directActions` on, a button you press runs `gh api user` for your account name and `gh api repos/<owner>/<repo>/pulls/<n>` to read the head commit, then one of `gh api -X POST …/pulls/<n>/reviews` (`event=APPROVE`, `commit_id`), `gh pr ready`, `gh api -X PUT …/pulls/<n>/update-branch`, `gh api …/actions/runs?head_sha=<sha>&status=failure` with `gh api -X POST …/actions/runs/<id>/rerun-failed-jobs`, or `gh api -X POST`/`-X DELETE …/issues/<n>/assignees`. With `autoReview` on, it runs `gh api …/pulls/<n>/reviews` and `…/pulls/<n>/files` before and after each review, `gh pr diff`, `gh pr view` for the description and conversation, `gh api …/pulls/<n>/comments` and `gh api …/commits/<sha>/check-runs`, and `gh api -X POST …/pulls/<n>/reviews` with the review on its stdin to store it as your pending review; carrying it to a new commit reads `…/reviews/<id>` and `…/reviews/<id>/comments` and runs `gh api -X DELETE …/reviews/<id>` before creating it again. Around each review it adds and removes the 👀 with `gh api -i -X POST …/issues/<n>/reactions` (`content=eyes`) and `gh api -X DELETE …/issues/<n>/reactions/<id>`. The card's buttons run `gh api -X POST …/reviews/<id>/events` (`event=COMMENT`, `APPROVE` or `REQUEST_CHANGES`) or `gh api -X DELETE …/reviews/<id>`, after reading the head commit. With `autoReviewPost` at `comment` or `verdict`, it runs the same call on the review it stored, right after storing it. The mod makes no other network calls of its own.
 - **Runs `git`** in the session's folder every 30 seconds: `git branch --show-current` and `git remote -v`, to find a session on your PR's branch, and `git rev-parse --path-format=absolute --git-common-dir`, to remember the main folder of that repository. With `autoReview` on and the repository's folder known, it runs `git fetch origin pull/<n>/head` and `git worktree add --detach` there for each review, and `git worktree remove --force` when the review ends.
-- **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. This counts against your Claude Code usage. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent.
+- **Asks Claude** (the `sonnet` model) for each summary, sending a PR's repository name, title, description (first 12,000 characters), changed file paths (up to 80) and size; for a re-requested PR, also the first line of each commit message and up to 60 file paths since your last review. Each PR is summarized once per head commit and language; a summary that fails is tried at most three times per commit. Once a week it also sends your own review comments on up to 30 PRs you recently reviewed, each cut to 500 characters, at most 60 of them and 12,000 characters in all, to describe your review style; with fewer than five, nothing is sent. This counts against your Claude Code usage.
 - **Starts a subagent** only with `autoReview` on: one `auto-reviewer` at a time, on `autoReviewModel`, and with `autoReviewVerify` on a second one that checks its findings, with read-only tools (every tool of your session with `autoReviewTools` on `all`), your CLAUDE.md, hooks and `autoReviewSkills`. It counts against your Claude Code usage. Its agent type is kept out of the list your own Claude chooses from. Stopping it uses `TaskStop`.
 - **Writes files** only in its cache folder, `~/.claude/plugins/data/review-inbox` (`CLAUDE_CONFIG_DIR` takes the place of `~/.claude` when set). `inbox-<hash>-f<n>.json` holds the lists and summaries; `hidden-<hash>.json` holds hidden PRs; `notes-<hash>.json` holds your notes and snoozes, one file per account and scope whatever the language; `sessions.json` holds each live session's folder name, release of the mod, branch, GitHub remotes and the PR links its prompts held, for every account; `repos.json` holds the main folder of each GitHub repository a session has run in, for the next-step buttons; `style-<hash>.json` holds the description of your review style. `autoreview-<hash>.json` holds each PR's place in auto review and its last result, and `runs/` the run folders, removed with `rm -rf` when a review ends. Each file is written beside itself and moved into place with `mv`, so a session never reads half of one; where there is no `mv`, as on Windows, it is written in place. It reads `actions.json` there if you made one, and never writes it.
 - **Reads environment variables**: `CLAUDE_CONFIG_DIR`, `HOME` and `USERPROFILE` to find that folder; `GH_REPO` to know this session's repository, as `gh` does; `LC_ALL`, `LC_MESSAGES` and `LANG` only when `language` is `auto`. It sets none.
@@ -270,35 +235,30 @@ The mod reaches GitHub only through your own `gh`, sends PR text to Claude to wr
 - **Reads and fills your prompt** only around the drawer: it reads the draft when the drawer opens, to mark the PRs it already asks for, and when the drawer closes it adds the requests for the PRs you added, on new lines after the draft.
 - **Changes its own settings** only when you ask: a value you pick under `Settings ▸` is written with `$.config.set`, as `/config` writes it. It adds two tools Claude can call, `auto_review_settings` to read the auto review settings and `set_auto_review_setting` to change one, which refuses a setting or value the list does not have.
 
-## How it works
+</details>
 
-All your open sessions share one fetch: one session asks GitHub at most every 10 minutes, and the others read what it saved.
+<details>
+<summary>How it works and limits</summary>
 
-Every open Claude Code session runs the mod, but they share one cache file per account, scope and language, and so do hidden PRs. Each session reads it every 30 seconds. Only the session that finds it older than 10 minutes and wins a short claim calls GitHub, so ten open sessions make one request. The fetching session renews its claim while it works; a claim not renewed for 3 minutes is taken over. A failed fetch keeps the last good lists and is retried after a minute. `↻` in the drawer fetches right away.
+All open sessions share one fetch: every 30 seconds each session reads a shared cache file, and only one that finds it older than `refreshMinutes` and wins a short claim asks GitHub, so ten sessions make one request. A claim not renewed for 3 minutes is taken over, a failed fetch keeps the last good lists and retries after a minute, and `↻` in the drawer fetches at once. One GraphQL search fills To review, and one more request with three searches fills My PRs and Assigned & mentioned; references come from cross-reference events on items touched in the last 60 days.
 
-One GraphQL search returns every PR waiting for your review with what the cards need, and one more request with three searches fills My PRs and Assigned & mentioned. References come from the cross-reference events on the PRs and issues you authored. GitHub does not update an item's `updatedAt` when something references it, so items touched in the last 60 days are checked for references made in the last 30, 50 items per request. If GitHub refuses the reference search (it has a per-query resource limit), the last references are kept and the other tabs still update.
-
-`refreshMinutes` changes those 10 minutes.
-
-## Limits
-
-- At most 100 PRs waiting for your review, in GitHub's best-match order. The other tabs read up to 100 of your open PRs, 100 assigned and 100 mentioning issues, and references from up to 500 recently touched items, each newest activity first. When a list has more than that, its count reads `100+`. Each list is read 25 at a time (references 100, as their items are small), each list shows as soon as it arrives, and a page GitHub times out on is asked again at half the size, so a busy account stays inside GitHub's time limit.
-- A saved search shows its 20 most recently updated matches; its count is GitHub's total for the search.
-- The Notifications tab reads up to 100 notifications from the last 30 days, and asks no more often than GitHub's poll interval allows.
+- At most 100 PRs waiting for your review, and up to 100 items in each other list; a longer list reads `100+`. Lists are read 25 at a time, and a page GitHub times out on is asked again at half the size.
 - A reference to an item you have not touched in 60 days is missed.
-- `New review` clears on any new commit to the PR, including one made by GitHub's "Update branch" button or by a bot.
-- After a force-push that rewrote the commit you reviewed, a re-requested PR shows no "since my last review" line.
-- Your review style is learned from the PRs GitHub's search returns for `reviewed-by:@me -author:@me`, within `scope`, so comments on PRs you wrote yourself are left out. Comments in a PR's conversation, outside a review, are not part of it.
-- `Rerun failed CI` reruns GitHub Actions only; checks from other CI services are rerun on their own site. Approving several PRs at once and approving with a comment are not offered.
-- Auto review reviews the PR as it is on GitHub; it does not run tests or builds. A carried review moves only when every file's patch is the same, so a rebase onto a base that changed the same files is reviewed again.
-- A review held back by `autoReviewDaily` also holds back a carry to a new commit. `rm -rf` is POSIX only, so on Windows without WSL a run folder stays in the cache folder.
+- `New review` clears on any new commit, including one from GitHub's "Update branch" button or a bot. After a force-push that rewrote the commit you reviewed, a re-request shows no "since my last review" line.
+- Your review style is learned from `reviewed-by:@me -author:@me` within `scope`; comments outside a review are not part of it.
+- `Rerun failed CI` reruns GitHub Actions only. Approving several PRs at once, or with a comment, is not offered.
+- Auto review runs tests or builds only with `autoReviewTools` on `all`. A carried review moves only when every file's patch is the same. A review held back by `autoReviewDaily` also holds back a carry. On Windows without WSL, run folders stay in the cache folder.
+
+</details>
 
 ## Troubleshooting
 
-- **The drawer shows a `gh` error.** Run `gh auth status`. With several accounts logged in, set `githubUser`. The mod retries every minute.
-- **The band does not appear.** It shows only when something needs you; zeros are left out.
-- **The language is not the one you expected.** Set `language` to a language code in `/config` instead of `auto`.
-- **Something else.** Start Claude Code with `claude --debug`; lines from this mod begin with `review-inbox:`.
+| Symptom | What to do |
+| --- | --- |
+| The drawer shows a `gh` error | Run `gh auth status`; with several accounts, set `githubUser`. The mod retries every minute. |
+| The band does not appear | It shows only when something needs you. |
+| The language is not the one you expected | Set `language` to a code instead of `auto`. |
+| Something else | Start with `claude --debug`; this mod's lines begin with `review-inbox:`. |
 
 ## Development
 
@@ -308,11 +268,11 @@ claude plugin test .
 claude --plugin-dir .
 ```
 
-`claude plugin validate` and `claude plugin test` need no login, and CI runs both on the tested Claude Code build. `tsconfig.json` extends `.claude-plugin/types/tsconfig.json`, which Claude Code writes (and `.gitignore` excludes) the first time it loads the mod from this folder, so run `claude --plugin-dir .` once before type-checking with `tsc -p .`.
+Neither `validate` nor `test` needs a login, and CI runs both on the tested Claude Code build. `tsconfig.json` extends `.claude-plugin/types/tsconfig.json`, which Claude Code writes the first time it loads the mod from this folder, so run `claude --plugin-dir .` once before `tsc -p .`.
 
 ## Support
 
-If Review Inbox saves you time, you can [buy me a coffee](https://ko-fi.com/riversound) ☕ — it helps keep the project going. Thank you!
+If Review Inbox saves you time, you can [buy me a coffee](https://ko-fi.com/riversound). Thank you!
 
 <a href="https://ko-fi.com/riversound"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="36"></a>
 
