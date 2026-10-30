@@ -2,6 +2,19 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.27.0 — 2026-10-30
+
+### Added
+
+- `autoReviewTools` gives the auto reviewer every tool of your session when set to `all`, under that session's permissions, so it can run tests, read the PR on GitHub and open other repositories, and checks for itself before asking the author. `read` (the default) keeps the read-only tools as before. A command your session would ask before running may not run while the review works in the background.
+- The auto reviewer gets the PR's description, comments, reviews, line comments and checks as files in its run folder, the risks the card's summary flagged, and your folders of the same owner's other repositories from `repoPaths`. This works with the read-only tools too. The second reviewer that checks findings gets the same.
+- `Settings ▸` beside the `Auto review` button opens every auto review setting under it, as a picker or a text field; a change applies at once, as one in `/config` does. The first time the button turns auto review on, they open by themselves.
+- Two tools Claude can call, one listing the auto review settings with their values now and one changing a setting. It refuses a setting or value the list does not have.
+
+### Changed
+
+- `Set up with Claude` and `/review-inbox auto-review-config` put one line into the prompt instead of the whole settings list; Claude reads the settings with the new tools.
+
 ## 0.26.0 — 2026-10-29
 
 ### Added
