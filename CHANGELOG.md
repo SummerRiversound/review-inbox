@@ -2,6 +2,16 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.27.1 — 2026-10-30
+
+### Changed
+
+- Each auto review setting under `Settings ▸` says in one line what it does and what each choice means.
+
+### Fixed
+
+- Group search results, search results and finished auto reviews keep the author and date (or the verdict) on the repository's line and the title on the line under it, so the author and date no longer wrap over two lines; a long name or title is cut with an ellipsis.
+
 ## 0.27.0 — 2026-10-30
 
 ### Added
