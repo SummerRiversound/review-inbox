@@ -308,6 +308,8 @@ declare module 'claude-code' {
       autoReview: AutoReviewFile
       // When the switch's warning was asked, while it shows.
       autoAsking: number | null
+      // Whether the settings under the switch are open.
+      autoSettings: boolean
     }
   }
 }
