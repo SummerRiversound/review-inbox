@@ -104,6 +104,7 @@ flowchart LR
 
 - **What it reviews.** Direct requests on PRs that are not drafts and not opened by bots. While it runs, the author sees only a 👀 reaction of yours.
 - **What the reviewer gets.** The diff, the code at the head commit when the repository's folder is known, the PR's description, comments and checks, the risks its card flagged, and where your folders of the same owner's other repositories are. By default it can only read; `autoReviewTools` set to `all` gives it every tool of your session, so it can also run tests and commands.
+- **Permissions with `all`.** The reviewer works under your session's permissions, in the background. A command your session would ask before running may not run while you are away, so run auto review in a session whose permission mode or allow rules let it run what a review needs, such as tests.
 - **How it writes.** The verdict first, then findings graded blocker, major, minor and nit, each a bold conclusion with its reason below, placed on the lines they are about. Your learned style sets only the tone; `autoReviewInstructions` wins over the built-in rules.
 - **On the card.** The suggested verdict, findings by severity and the cost, with `Post as comment`, `Post and approve`, `Post and request changes`, `Open on GitHub`, `Refine in session` and `Discard`.
 
@@ -143,7 +144,7 @@ Set options on the install screen, or later in `/config`. A change applies right
 | `autoReview` | `off` | Where auto review starts; the `Auto review` button takes over once pressed. |
 | `autoReviewPost` | `pending` | `pending` keeps it for you to post; `comment` or `verdict` posts it under your name without asking. |
 | `autoReviewModel` | `sonnet` | `sonnet`, or `opus` for deeper reviews that cost more. |
-| `autoReviewTools` | `read` | `read` lets the reviewer only read. `all` gives it every tool of your session, as when you ask for a review yourself, but a PR's text can then try to steer the commands it runs. |
+| `autoReviewTools` | `read` | `read` lets the reviewer only read. `all` gives it every tool of your session under its permissions, as when you ask for a review yourself, but a PR's text can then try to steer the commands it runs. |
 | `autoReviewVerify` | `off` | `on` has a second reviewer check each finding; about twice the tokens. |
 | `autoReviewDaily` | `5` | Most reviews started a day: 3, 5, 10, 20 or `unlimited`. |
 | `autoReviewSettleMinutes` | `30` | Minutes without a new commit before a review starts: 0, 10, 30, 60 or 120. |

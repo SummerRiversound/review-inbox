@@ -147,7 +147,7 @@
     "autoReviewTools": {
       "type": "string",
       "title": "Auto review tools",
-      "description": "What the reviewer may use: read keeps it to reading the diff and the code; all gives it every tool of your session under its permissions, as when you ask for a review yourself, so it can run tests and commands, but a pull request's text can then try to steer them",
+      "description": "What the reviewer may use: read keeps it to reading the diff and the code; all gives it every tool of your session under its permissions, as when you ask for a review yourself, so it can run tests and commands, but a pull request's text can then try to steer them. A command your session would ask before running may not run while the review works in the background, so run auto review in a session whose permission mode or allow rules let it",
       "options": ["read", "all"],
       "default": "read"
     },

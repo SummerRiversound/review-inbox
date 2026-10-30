@@ -232,7 +232,7 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewSeverityNames', does: 'what the four severities are called on the review, blocker to nit', takes: 'four names, comma-separated', fallback: '' },
   { key: 'autoReviewLarge', does: 'whether PRs over 50 files or 2,000 changed lines are reviewed too; they take many more tokens', takes: 'on | off', fallback: 'on' },
   { key: 'autoReviewMaxTurns', does: 'how many turns the reviewer may take before it must answer; a large PR can need more, and a review that runs out fails without one', takes: '40 | 60 | 80 | 120', fallback: '40' },
-  { key: 'autoReviewTools', does: "what the reviewer may use: read keeps it to reading the diff and the code; all gives it every tool of my session, so it can run tests and commands and read other repositories, and a pull request's text can then try to steer those commands", takes: 'read | all', fallback: 'read' },
+  { key: 'autoReviewTools', does: "what the reviewer may use: read keeps it to reading the diff and the code; all gives it every tool of my session, so it can run tests and commands and read other repositories, and a pull request's text can then try to steer those commands; it works under my session's permissions, so a command my session would ask before running may not run while the review works in the background, and auto review is best run in a session whose permission mode or allow rules let it", takes: 'read | all', fallback: 'read' },
   { key: 'autoReviewBacklog', does: 'whether requests from before auto review was on are reviewed too, a few a day', takes: 'on | off', fallback: 'on' },
 ] as const
 
