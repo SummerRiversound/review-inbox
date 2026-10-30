@@ -79,13 +79,15 @@ import {
   contextArgs,
   siblingRepos,
   setupList,
+  AUTO_SETTINGS,
+  choicesOf,
   severityCounts,
   sinceArgs,
   startedToday,
   tokensOf,
   trackHeads,
 } from './autoreview'
-import type { AutoSettings, GhComment, GhReview, PrFile, ReviewerTools, RunFacts } from './autoreview'
+import type { AutoSettingKey, AutoSettings, GhComment, GhReview, PrFile, ReviewerTools, RunFacts } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -214,10 +216,13 @@ const confirming = atom({ plugin: 'review-inbox', key: 'confirming' } as const, 
 const directs = atom({ plugin: 'review-inbox', key: 'directs' } as const, {} as Record<string, DirectResult>)
 const autoReview = atom({ plugin: 'review-inbox', key: 'autoReview' } as const, { jobs: {} } as AutoReviewFile)
 const autoAsking = atom({ plugin: 'review-inbox', key: 'autoAsking' } as const, null as number | null)
+const autoSettings = atom({ plugin: 'review-inbox', key: 'autoSettings' } as const, false)
 // The autoReview setting itself: where auto review starts until the switch atop the Review tab is first pressed.
 let autoOption = false
 // The settings as set, for the setup request to show their values now.
 let optionValues: Options = {}
+// The tools Claude reads and changes the auto review settings with, as the engine names them.
+const SETTING_TOOLS = { list: 'mcp__review-inbox__auto_review_settings', set: 'mcp__review-inbox__set_auto_review_setting' } as const
 
 type Options = {
   scope?: string
@@ -786,15 +791,29 @@ async function confirmSwitch($: EngineInterface) {
   if (at === null || (await $.clock.now()) - at < CONFIRM_GUARD_MS) return
   await update($, autoAsking, () => null)
   await switchAuto($)
-  // The first time on, Claude can go through the settings with me; Enter sends the request.
+  // The first time on, the settings open under the switch.
   if (!config.auto.isOn || !(await editAuto($, file => (file.setupAt === undefined ? { ...file, setupAt: Date.now() } : undefined)))) return
-  const filled = await $.prompt.fill({ text: await setupPrompt($), mode: 'append' })
-  toast($, filled.isFilled ? m.auto.setupFilled : m.toast.promptBusy)
+  await update($, autoSettings, () => true)
 }
 
-// Each auto review setting with its value now.
-async function setupPrompt($: EngineInterface) {
-  return m.prompt.autoSetup(`${await configDir($)}/settings.json`, setupList(optionValues))
+// One line asking Claude to go through the settings; the tools carry the list and the writes.
+async function fillSetup($: EngineInterface) {
+  return $.prompt.fill({ text: m.prompt.autoSetup(SETTING_TOOLS.list, SETTING_TOOLS.set), mode: 'append' })
+}
+
+// Writes one auto review setting as /config does; the engine then loads the mod again with it.
+async function setAutoSetting($: EngineInterface, key: AutoSettingKey, value: string): Promise<string | undefined> {
+  const answer = await $.config.set({ key: `review-inbox.${key}`, value }).catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }))
+  return answer.deny
+}
+
+// Refuses a setting the list does not have, or a value outside its choices.
+function checkSetting(key: string, value: string): string | undefined {
+  const setting = AUTO_SETTINGS.find(s => s.key === key)
+  if (!setting) return `no auto review setting is called ${key}; the settings are ${AUTO_SETTINGS.map(s => s.key).join(', ')}`
+  const choices = choicesOf(setting)
+  if (choices && !choices.includes(value)) return `${key} takes ${setting.takes}`
+  return undefined
 }
 
 // Check all: the posted reviews shown leave their group; one posted since the press stays.
@@ -1568,6 +1587,14 @@ export const register: Register = (on, options) => {
     if (pane && pane.title !== m.title) await $.ui.open({ id: PANE, title: m.title, closeOnEscape: true })
     $.ui.invalidate('ui.render')
     await $.command.register({ name: 'review-inbox', description: m.command.description, argumentHint: '[buttons | add-button | add-search | auto-review-config | auto-review-here | auto-review-anywhere]' })
+    await Promise.all([
+      $.tool.register({ name: 'auto_review_settings', description: "Lists the review inbox's auto review settings: what each does, what it takes, its default and its value now." }),
+      $.tool.register({
+        name: 'set_auto_review_setting',
+        description: "Changes one of the review inbox's auto review settings, as /config does; it applies at once. Only for a value the person chose.",
+        inputSchema: { type: 'object', properties: { setting: { type: 'string', enum: AUTO_SETTINGS.map(s => s.key) }, value: { type: 'string' } }, required: ['setting', 'value'] },
+      }),
+    ]).catch(() => undefined)
     // Spread sessions opened together so they do not all find the file stale in the same second.
     $.clock.after(1_000 + Math.floor(Math.random() * 4_000), () => void sync($))
     $.clock.every(SYNC_MS, () => void sync($))
@@ -1619,11 +1646,22 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
+  on('tool.call', { tool: SETTING_TOOLS.list }, async () => ({
+    result: `On and off is the Auto review switch's alone, so it is not listed.\n${setupList(optionValues)}`,
+  }))
+
+  on('tool.call', { tool: SETTING_TOOLS.set }, async ($, e) => {
+    // The tool's arguments arrive beside its name.
+    const { setting, value } = e as unknown as { setting: string; value?: string }
+    const refused = checkSetting(setting, value ?? '') ?? (await setAutoSetting($, setting as AutoSettingKey, value ?? ''))
+    return refused ? { deny: refused } : { result: `${setting} is now ${value || 'empty'}; it applies at once.` }
+  })
+
   on('command.run', { command: 'review-inbox' }, async ($, e) => {
     const sub = e.args.trim()
     if (sub === 'buttons') return { text: await buttonsReport($) }
     if (sub === 'auto-review-config') {
-      const filled = await $.prompt.fill({ text: await setupPrompt($), mode: 'append' })
+      const filled = await fillSetup($)
       return { text: filled.isFilled ? m.command.filled : m.toast.promptBusy }
     }
     if (sub === 'auto-review-here') {
@@ -1707,6 +1745,7 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button, Link } = elements
     // The mobile app draws no field yet: no search there, and notes are shown but not written.
     const Input = 'Input' in elements ? elements.Input : undefined
+    const Select = 'Select' in elements ? elements.Select : undefined
     const now = Date.now()
     const notesMap = await read($, notes)
     const away = awayTests(await read($, hidden), notesMap, now)
@@ -1792,6 +1831,7 @@ export const register: Register = (on, options) => {
       seen > 0 && updatedAt !== undefined && Date.parse(updatedAt) > seen && <Text color="suggestion">● </Text>
     const asking = await read($, confirming)
     const askingAuto = await read($, autoAsking)
+    const settingsOpen = await read($, autoSettings)
     const directResults = await read($, directs)
     // A card's writes to GitHub, its confirm row in their place while one is asked; `extra` is the Merge button, which the setting does not hide.
     const directRow = (key: string, target: DirectTarget, offered: DirectAction[], extra?: RenderChildren, suggested?: DirectAction) => {
@@ -2520,13 +2560,39 @@ export const register: Register = (on, options) => {
                     </Box>
                   </Box>
                 ) : (
-                  <Box>
+                  <Box flexDirection="row" gap={1}>
                     <Button
                       key="auto-switch"
                       label={config.auto.isOn ? m.auto.switchOn : m.auto.switchOff}
                       {...(config.auto.isOn ? { variant: 'primary' as const } : { dimColor: true })}
                       onPress={() => void pressSwitch($).catch(() => undefined)}
                     />
+                    <Button key="auto-settings" label={settingsOpen ? m.auto.settingsClose : m.auto.settingsOpen} dimColor onPress={() => void update($, autoSettings, open => !open)} />
+                  </Box>
+                )}
+                {settingsOpen && (
+                  <Box flexDirection="column" marginLeft={2}>
+                    {Select && Input &&
+                      AUTO_SETTINGS.map(s => {
+                        const value = optionValues[s.key]?.trim() || s.fallback
+                        const save = (next: string) =>
+                          void setAutoSetting($, s.key, next).then(refused => refused && toast($, m.auto.settingRefused(refused)))
+                        const choices = choicesOf(s)
+                        return choices ? (
+                          <Select
+                            key={`auto-set-${s.key}`}
+                            label={m.auto.settingNames[s.key]}
+                            value={value}
+                            options={choices.map(c => ({ value: c, label: c === s.fallback ? m.auto.byDefault(c) : c }))}
+                            onSelect={next => next !== value && save(next)}
+                          />
+                        ) : (
+                          <Input key={`auto-set-${s.key}`} label={m.auto.settingNames[s.key]} value={value} placeholder={m.auto.empty} onSubmit={next => next.trim() !== value && save(next.trim())} />
+                        )
+                      })}
+                    <Box flexDirection="row" gap={1}>
+                      <Button key="auto-setup" label={m.auto.setupWithClaude} onPress={() => void fillSetup($).then(f => toast($, f.isFilled ? m.auto.setupFilled : m.toast.promptBusy)).catch(() => undefined)} />
+                    </Box>
                   </Box>
                 )}
                 {section('review:auto', m.sections.autoDone(autoDone.length), autoDone, postedRow,

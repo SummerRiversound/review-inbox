@@ -730,16 +730,11 @@ test('the switch atop the Review tab warns before turning auto review on for eve
   await ui.unmount()
 })
 
-test('the first time the switch turns auto review on, a request to set it up with Claude goes into the prompt, and later times it does not', async ($, on) => {
+test('the first time the switch turns auto review on, its settings open under it and nothing goes into the prompt', async ($, on) => {
   const fills: string[] = []
   on('prompt.fill', async ($, e) => {
     fills.push(e.text)
     return { isFilled: true }
-  })
-  const toasts: string[] = []
-  on('ui.toast', async ($, e) => {
-    toasts.push(e.text)
-    return { value: undefined }
   })
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [] }) })
   const turnOn = async () => {
@@ -749,24 +744,35 @@ test('the first time the switch turns auto review on, a request to set it up wit
   }
 
   await turnOn()
-  expect(fills).toHaveLength(1)
-  expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
-  expect(fills[0]!.includes('/home/me/.claude/settings.json')).toBe(true)
-  // On and off is the switch's alone, so the setup neither asks about it nor writes it.
-  expect(fills[0]!.includes('- autoReview:')).toBe(false)
-  expect(fills[0]!.includes('Leave autoReview out')).toBe(true)
-  expect(fills[0]!.includes('- autoReviewInstructions:')).toBe(true)
+  expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeDefined()
+  expect(fills).toHaveLength(0)
   expect(JSON.parse(files.get(AUTO)!).setupAt > 0).toBe(true)
-  await clock.advance(10_000)
-  expect(toasts).toContain('Added a setup request to your prompt; press Enter to go through the settings with Claude.')
+  await ui.press({ key: 'auto-settings' })
 
   await ui.press({ key: 'auto-switch' })
   await turnOn()
-  expect(fills).toHaveLength(1)
+  expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
   await ui.unmount()
 })
 
-test('/review-inbox auto-review-config puts the setup request into the prompt with the values set now', { options: { autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' } }, async ($, on) => {
+test('the settings under the auto review switch change a setting the way /config does', { options: { autoReviewModel: 'sonnet' } }, async ($, on) => {
+  const sets: { key: string; value: unknown }[] = []
+  on('config.set', async ($, e) => {
+    sets.push({ key: e.key, value: e.value })
+    return { value: e.value }
+  })
+  const ui = await opened($, on, [], [], 'review')
+
+  expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
+  await ui.press({ key: 'auto-settings' })
+  await ui.select({ key: 'auto-set-autoReviewModel', value: 'opus' })
+  expect(sets).toEqual([{ key: 'review-inbox.autoReviewModel', value: 'opus' }])
+  await ui.press({ key: 'auto-settings' })
+  expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('Set up with Claude and /review-inbox auto-review-config put one line into the prompt naming the settings tools', async ($, on) => {
   const fills: string[] = []
   on('prompt.fill', async ($, e) => {
     fills.push(e.text)
@@ -775,10 +781,60 @@ test('/review-inbox auto-review-config puts the setup request into the prompt wi
   const ui = await opened($, on, [], [], 'review')
 
   expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-config' })).text).toBe('Added to your prompt; press Enter to send it.')
-  expect(fills[0]).toStartWith('Set up auto review in my review inbox with me.')
-  expect(fills[0]!.includes('- autoReview:')).toBe(false)
-  expect(fills[0]!.includes('default sonnet; now opus')).toBe(true)
-  expect(fills[0]!.includes('now Check the SQL first.')).toBe(true)
+  await ui.press({ key: 'auto-settings' })
+  await ui.press({ key: 'auto-setup' })
+  expect(fills).toHaveLength(2)
+  expect(fills[0]).toBe(fills[1])
+  expect(fills[0]!.split('\n')).toHaveLength(1)
+  expect(fills[0]!.includes('mcp__review-inbox__auto_review_settings')).toBe(true)
+  expect(fills[0]!.includes('mcp__review-inbox__set_auto_review_setting')).toBe(true)
+  await ui.unmount()
+})
+
+test('the settings tool lists each auto review setting with its value now, leaving the switch out', { options: { autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' } }, async ($, on) => {
+  const ui = await opened($, on, [], [], 'review')
+
+  const { text, result } = await $.tool.call({ tool: 'mcp__review-inbox__auto_review_settings' } as never)
+  const listed = String(result ?? text)
+  expect(listed.includes('- autoReview:')).toBe(false)
+  expect(listed.includes('default sonnet; now opus')).toBe(true)
+  expect(listed.includes('now Check the SQL first.')).toBe(true)
+  await ui.unmount()
+})
+
+test('the set tool changes a setting the way /config does and refuses a setting or value the list does not have', async ($, on) => {
+  const sets: { key: string; value: unknown }[] = []
+  on('config.set', async ($, e) => {
+    sets.push({ key: e.key, value: e.value })
+    return { value: e.value }
+  })
+  const ui = await opened($, on, [], [], 'review')
+  const set = (setting: string, value: string) => $.tool.call({ tool: 'mcp__review-inbox__set_auto_review_setting', setting, value } as never)
+
+  expect((await set('autoReviewTools', 'all')).deny).toBeUndefined()
+  expect((await set('autoReviewInstructions', 'Check the SQL first.')).deny).toBeUndefined()
+  expect((await set('autoReviewModel', 'gpt')).deny).toBe('autoReviewModel takes sonnet | opus')
+  expect((await set('autoReview', 'on')).deny?.startsWith('no auto review setting is called autoReview')).toBe(true)
+  expect(sets).toEqual([
+    { key: 'review-inbox.autoReviewTools', value: 'all' },
+    { key: 'review-inbox.autoReviewInstructions', value: 'Check the SQL first.' },
+  ])
+  await ui.unmount()
+})
+
+test('a setting the engine refuses is left as it was, with the reason in a toast', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  on('config.set', async () => ({ deny: 'managed settings own this row' }))
+  const ui = await opened($, on, [], [], 'review')
+
+  await ui.press({ key: 'auto-settings' })
+  await ui.input({ key: 'auto-set-autoReviewSkills', text: 'review-playbook' })
+  await clock.advance(10_000)
+  expect(toasts).toContain('Setting not changed: managed settings own this row')
   await ui.unmount()
 })
 

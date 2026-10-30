@@ -1,4 +1,5 @@
 import type { IssueKind, MyPrState, TaskKind } from '../types'
+import type { AutoSettingKey } from './autoreview'
 import { de } from './locales/de'
 import { es } from './locales/es'
 import { fr } from './locales/fr'
@@ -219,6 +220,26 @@ const en = {
     turnOn: 'Turn on',
     checkAll: 'Check all',
     setupFilled: 'Added a setup request to your prompt; press Enter to go through the settings with Claude.',
+    settingsOpen: 'Settings ▸',
+    settingsClose: 'Settings ▾',
+    setupWithClaude: 'Set up with Claude',
+    byDefault: (value: string) => `${value} (default)`,
+    empty: 'empty',
+    settingRefused: (reason: string) => `Setting not changed: ${reason}`,
+    settingNames: {
+      autoReviewPost: 'When done',
+      autoReviewModel: 'Model',
+      autoReviewVerify: 'Second check',
+      autoReviewDaily: 'Reviews a day',
+      autoReviewSettleMinutes: 'Minutes after last commit',
+      autoReviewSkills: 'Skills',
+      autoReviewInstructions: 'Instructions',
+      autoReviewSeverityNames: 'Severity names',
+      autoReviewLarge: 'Large PRs',
+      autoReviewMaxTurns: 'Turns',
+      autoReviewTools: 'Tools',
+      autoReviewBacklog: 'Earlier requests',
+    } satisfies Record<AutoSettingKey, string>,
     running: (minutes: number) => `Auto review running · ${minutes} min so far`,
     suggests: (verdict: string) => `Auto review suggests ${verdict}`,
     verdicts: { comment: 'Comment', approve: 'Approve', 'request-changes': 'Request changes' },
@@ -243,7 +264,7 @@ const en = {
   prompt: {
     addButton: (path: string, names: string) => `Add a button to my review inbox by editing ${path}; create it as {"buttons": []} if it is missing. Each entry is {"id", "name", "scope": "review" | "pr" | "issue", "prompt"}, and the prompt may use {{.Name}} with ${names}. Ask me what the button should do first.`,
     addGroup: (path: string) => `Add a saved search to my review inbox by editing ${path}; create it as {"groups": []} if it is missing and keep any "buttons" in it. Each entry is {"id", "name", "query", "scope": "prs" | "issues"}, with "countInBand": true to count it in the band; the query is GitHub search syntax. Ask me what it should find first.`,
-    autoSetup: (path: string, list: string) => `Set up auto review in my review inbox with me. Below is each auto review setting: what it does, what it takes, its default and its value now. Go through them one at a time: say in plain words what it does, its default and its value now, and ask whether to change it. Write what I choose into the review-inbox entry of "pluginConfigs" in ${path}, the values /config changes, and leave everything else there as it is. Leave autoReview out: the Auto review switch atop the To review tab turns auto review on and off. Tell me they apply from the next session.\n${list}`,
+    autoSetup: (list: string, set: string) => `Go through my review inbox's auto review settings with me, one at a time: read them with ${list}, say in plain words what each does, its default and its value now, and change what I choose with ${set}.`,
     review: (url: string) => `Review ${url}.`,
     refine: (url: string, sha: string) => `Refine my pending review on ${url} with me; it reviews head ${sha}. Read its body and comments with \`gh api\` and change them there as we agree.`,
     pending: (id: number, repo: string, number: number) =>

@@ -236,8 +236,13 @@ export const AUTO_SETTINGS = [
   { key: 'autoReviewBacklog', does: 'whether requests from before auto review was on are reviewed too, a few a day', takes: 'on | off', fallback: 'on' },
 ] as const
 
+export type AutoSettingKey = (typeof AUTO_SETTINGS)[number]['key']
+
+// The values a setting picks from, as `takes` lists them; free text has none.
+export const choicesOf = (setting: (typeof AUTO_SETTINGS)[number]) => (setting.takes.includes(' | ') ? setting.takes.split(' | ') : undefined)
+
 // One line a setting; the engine hands an unset one over as its default, so a value equal to it is marked as the default.
-export function setupList(now: Partial<Record<(typeof AUTO_SETTINGS)[number]['key'], string>>): string {
+export function setupList(now: Partial<Record<AutoSettingKey, string>>): string {
   const shown = (value: string) => value || 'empty'
   return AUTO_SETTINGS.map(s => {
     const value = now[s.key]?.trim() || s.fallback
