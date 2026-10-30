@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.27.2 — 2026-10-30
+
+### Fixed
+
+- In a narrow drawer on the desktop, cards and list rows stay inside the drawer. A long title or repository name ends with an ellipsis, the date and labels at the top right stay visible (moving under the repository when they do not fit beside it), buttons stay inside, and summaries wrap. Before, one long title pushed the whole card past the right edge.
+
 ## 0.27.1 — 2026-10-30
 
 ### Changed
