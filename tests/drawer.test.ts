@@ -1245,6 +1245,14 @@ test('a reviewer that runs out of turns fails at once, the card naming the turn 
   await ui.unmount()
 })
 
+test('the tools setting at all registers the reviewer with every tool my session has', { options: { autoReview: 'on', autoReviewTools: 'all' } }, async ($, on) => {
+  const got = agents(on, () => [`a${got.spawns.length}`])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({}) })
+  await tick()
+  expect('tools' in (got.specs[0] as object)).toBe(false)
+  await ui.unmount()
+})
+
 test('a create GitHub refuses because my pending review appeared meanwhile adopts that review', AUTO_ON, async ($, on) => {
   const g: Github = { created: [], createFails: true }
   const run = autoGithub(g)

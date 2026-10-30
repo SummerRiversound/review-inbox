@@ -15,7 +15,9 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseTools,
   parseTurns,
+  reviewerRules,
   ranOutOfTurns,
   parseSeverityNames,
   parseReview,
@@ -254,6 +256,22 @@ test('the reviewer reads and searches only, keeps CLAUDE.md, and preloads the li
   expect([spec.maxTurns, reviewerSpec('opus', [], 80).maxTurns]).toEqual([40, 80])
 })
 
+test('with the tools setting at all, the reviewer gets every tool my session has; anything else keeps it to reading', () => {
+  expect('tools' in reviewerSpec('opus', [], 40, 'all')).toBe(false)
+  expect(reviewerSpec('opus', [], 40, 'read').tools).toEqual(['Read', 'Grep', 'Glob'])
+  expect([parseTools('all'), parseTools(undefined), parseTools('bash'), parseTools(' all ')]).toEqual(['all', 'read', 'read', 'all'])
+})
+
+test('a reviewer with every tool is told to check for itself before asking the author, and to change nothing others see', () => {
+  const open = reviewerRules('all')
+  expect(open.includes('You can read files only')).toBe(false)
+  expect(open.includes('before you ask the author')).toBe(true)
+  expect(open.includes('Never post, comment, approve, push')).toBe(true)
+  expect(reviewerSpec('opus', [], 40, 'all').prompt).toBe(open)
+  expect(reviewerSpec('opus', []).prompt).toBe(REVIEWER_RULES)
+  expect(REVIEWER_RULES.includes('You can read files only')).toBe(true)
+})
+
 test('the turn limit setting reads a whole number from 1, anything else as the default', () => {
   expect([parseTurns('80'), parseTurns(undefined), parseTurns('0'), parseTurns('x'), parseTurns('1.5')]).toEqual([80, 40, 40, 40, 40])
 })
@@ -323,7 +341,7 @@ test('my own instructions go into the task, winning over the built-in rules, whe
 test('the setup list names every auto review setting but on and off, which the switch keeps, with what it does, what it takes, its default and its value now, an unset one as its default', () => {
   const list = setupList({ autoReviewModel: 'opus', autoReviewInstructions: 'Check the SQL first.' })
   const keys = list.split('\n').map(line => line.slice(2, line.indexOf(':')))
-  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewSeverityNames', 'autoReviewLarge', 'autoReviewMaxTurns', 'autoReviewBacklog'])
+  expect(keys).toEqual(['autoReviewPost', 'autoReviewModel', 'autoReviewVerify', 'autoReviewDaily', 'autoReviewSettleMinutes', 'autoReviewSkills', 'autoReviewInstructions', 'autoReviewSeverityNames', 'autoReviewLarge', 'autoReviewMaxTurns', 'autoReviewTools', 'autoReviewBacklog'])
   expect(list.includes('- autoReviewModel: the model the reviewer runs on; opus reviews deeper and costs more. Takes sonnet | opus; default sonnet; now opus')).toBe(true)
   expect(list.includes('default empty; now Check the SQL first.')).toBe(true)
   expect(list.includes('default 5; now 5 (default)')).toBe(true)
