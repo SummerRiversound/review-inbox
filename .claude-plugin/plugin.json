@@ -144,6 +144,13 @@
       "options": ["40", "60", "80", "120"],
       "default": "40"
     },
+    "autoReviewTools": {
+      "type": "string",
+      "title": "Auto review tools",
+      "description": "What the reviewer may use: read keeps it to reading the diff and the code; all gives it every tool of your session under its permissions, as when you ask for a review yourself, so it can run tests and commands, but a pull request's text can then try to steer them",
+      "options": ["read", "all"],
+      "default": "read"
+    },
     "autoReviewBacklog": {
       "type": "string",
       "title": "Auto review older requests",

@@ -60,6 +60,7 @@ import {
   nextJob,
   parseDaily,
   parseSettle,
+  parseTools,
   parseTurns,
   ranOutOfTurns,
   TURNS_DEFAULT,
@@ -81,7 +82,7 @@ import {
   tokensOf,
   trackHeads,
 } from './autoreview'
-import type { AutoSettings, GhComment, GhReview, PrFile, RunFacts } from './autoreview'
+import type { AutoSettings, GhComment, GhReview, PrFile, ReviewerTools, RunFacts } from './autoreview'
 import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
 import type { Vars } from './actions'
 import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
@@ -235,12 +236,13 @@ type Options = {
   autoReviewLarge?: string
   autoReviewBacklog?: string
   autoReviewMaxTurns?: string
+  autoReviewTools?: string
 }
 
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoTurns: TURNS_DEFAULT, autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoTurns: TURNS_DEFAULT, autoTools: 'read' as ReviewerTools, autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -934,7 +936,7 @@ async function startRun($: EngineInterface, key: string) {
     await setJob($, key, { folder, contentKey: contentKey(files), heartbeatAt: Date.now() }, item.headSha)
     const checkout = await addCheckout($, item, folder)
     if (checkout) await setJob($, key, { checkout, heartbeatAt: Date.now() }, item.headSha)
-    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills, config.autoTurns))
+    await $.agent.register(reviewerSpec(config.autoModel, config.autoSkills, config.autoTurns, config.autoTools))
     const name = agentName('auto-review', key, item.headSha)
     const spawned = await $.agent.spawn({
       name,
@@ -1526,6 +1528,7 @@ export const register: Register = (on, options) => {
     autoPost: opts.autoReviewPost === 'comment' || opts.autoReviewPost === 'verdict' ? opts.autoReviewPost : 'pending',
     autoSkills: parseSkills(opts.autoReviewSkills),
     autoTurns: parseTurns(opts.autoReviewMaxTurns),
+    autoTools: parseTools(opts.autoReviewTools),
     autoInstructions: (opts.autoReviewInstructions ?? '').trim(),
     autoSeverityNames: opts.autoReviewSeverityNames ?? '',
   }
