@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.28.1 — 2026-11-05
+
+### Changed
+
+- What other plugins draw above the prompt now goes above the review band, so a plan band (plan-flow) stays on top in the terminal and the desktop app.
+
 ## 0.28.0 — 2026-11-04
 
 ### Added
