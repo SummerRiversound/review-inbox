@@ -498,6 +498,24 @@ test('the band keeps what a plugin beneath it draws above the prompt', async ($,
   await band.unmount()
 })
 
+test('the band draws what a plugin beneath it draws above its own rows, so a plan band stays on top', async ($, on) => {
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return h(Text, null, 'next: run the tests')
+  })
+  const pane = await opened($, on, [pr(1, 'changes')], [], 'mine')
+  await pane.unmount()
+
+  const band = await $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface: 'terminal', props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+  const texts = (await band.findAll({ type: 'Text' })).map(t => t.text ?? '')
+  const beneath = texts.findIndex(t => /next: run the tests/.test(t))
+  const own = texts.findIndex(t => /My PRs to act on 1/.test(t))
+
+  expect(beneath).toBeGreaterThanOrEqual(0)
+  expect(own).toBeGreaterThan(beneath)
+  await band.unmount()
+})
+
 const thread = (id: string, over: Partial<Thread> = {}): Thread =>
   ({ id, repo: 'o/n', title: `n${id}`, url: `https://github.com/o/n/issues/${id}`, reason: 'comment', updatedAt: '2026-10-22T00:00:00Z', unread: false, ...over })
 

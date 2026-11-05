@@ -1760,8 +1760,10 @@ export const register: Register = (on, options) => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const oldest = reviews.length > 0 ? Math.max(...reviews.map(i => waitingDays(i.requestedAt, now))) : undefined
 
+    // What the plugins beneath draw goes first, so a plan band stays above this one whichever plugin loads first.
     return (
       <Box flexDirection="column">
+        {below}
         <Box flexDirection="row" justifyContent="space-between">
           <Box flexDirection="row">
             <Text color={oldest === undefined ? 'subtle' : ageColor(oldest)}>▌ </Text>
@@ -1795,7 +1797,6 @@ export const register: Register = (on, options) => {
             </Box>
           </Box>
         )}
-        {below}
       </Box>
     )
   })
