@@ -1188,6 +1188,67 @@ test('while an auto review runs, a line under the band names its PR and how long
   await band.unmount()
 })
 
+// A review another machine of mine runs, with the band mounted on the surface given.
+async function runningBand($: Parameters<TestBody>[0], on: On, surface: 'terminal' | 'desktop') {
+  agents(on)
+  const g: Github = { locks: [{ status: 200, at: Date.now() - 10 * 60_000 }], unlocked: [] }
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await ui.unmount()
+  return $.ui.mount({ plugin: 'review-inbox', component: 'AbovePrompt', surface, props: { hasSurvey: false, isWorking: false, maxRows: 10 } })
+}
+
+// Counts the band's tick writes: every write draws the band again, and on the desktop every other site too (anthropics/claude-code#99211).
+function ticks(on: On) {
+  let count = 0
+  on('state.set', async ($, e, next) => {
+    if ((e as { key?: string }).key === 'spin') count++
+    return next(e)
+  })
+  return () => count
+}
+
+test('on the terminal the auto review spinner turns every tenth of a second', AUTO_ON, async ($, on) => {
+  const written = ticks(on)
+  const band = await runningBand($, on, 'terminal')
+  const before = written()
+  await clock.advance(1_000)
+
+  expect(written() - before).toBe(10)
+  await band.unmount()
+})
+
+test('on the desktop the running auto review turns as a picture, with nothing written every tenth of a second', AUTO_ON, async ($, on) => {
+  const written = ticks(on)
+  const band = await runningBand($, on, 'desktop')
+  const before = written()
+  await clock.advance(1_000)
+
+  expect(await band.find({ type: 'Svg' })).toBeDefined()
+  expect(written()).toBe(before)
+  expect(await shown(band, /^ #5 · Auto review running · 10 min so far/)).toBe(true)
+  await band.unmount()
+})
+
+// Each drawing works the minutes out afresh, so one a minute keeps them going up.
+test('on the desktop the band with a running auto review is drawn again once a minute', AUTO_ON, async ($, on) => {
+  const written = ticks(on)
+  const band = await runningBand($, on, 'desktop')
+  const before = written()
+  await clock.advance(60_000)
+
+  expect(written() - before).toBe(1)
+  await band.unmount()
+})
+
+test('on the desktop with motion off the running auto review shows a still mark, not a turning picture', { options: { autoReview: 'on', motion: 'off' } }, async ($, on) => {
+  const band = await runningBand($, on, 'desktop')
+
+  expect(await band.find({ type: 'Svg' })).toBeUndefined()
+  expect(await shown(band, /^ {2}⠋ $/)).toBe(true)
+  await band.unmount()
+})
+
 test('a 👀 older than the hour, left by a machine that stopped mid-review, is taken over and the review runs here', AUTO_ON, async ($, on) => {
   const got = agents(on, () => ['a1'])
   const g: Github = { locks: [{ status: 200, at: Date.now() - 2 * 60 * 60_000 }, { status: 201, at: Date.now() }], unlocked: [] }

@@ -221,7 +221,13 @@ const autoAsking = atom({ plugin: 'review-inbox', key: 'autoAsking' } as const, 
 const autoSettings = atom({ plugin: 'review-inbox', key: 'autoSettings' } as const, false)
 const spin = atom({ plugin: 'review-inbox', key: 'spin' } as const, 0)
 const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-let spinTimer: ReturnType<EngineInterface['clock']['every']> | undefined
+// The spinner off the terminal: it turns inside the picture, so nothing is drawn again for it. The colours are Claude Code's suggestion colour.
+const SPIN_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><style>circle{stroke:#5769f7}@media (prefers-color-scheme:dark){circle{stroke:#b1b9f9}}</style>' +
+  '<circle cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="24 14">' +
+  '<animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="1s" repeatCount="indefinite"/></circle></svg>'
+// The band's tick while a review runs, and how often it comes.
+let spinTimer: { ms: number; timer: ReturnType<EngineInterface['clock']['every']> } | undefined
 // The autoReview setting itself: where auto review starts until the switch atop the Review tab is first pressed.
 let autoOption = false
 // The settings as set, for the setup request to show their values now.
@@ -1736,12 +1742,13 @@ export const register: Register = (on, options) => {
     const everything = await read($, items)
     const autoNow = await read($, autoReview)
     const focus = bandFocus(autoStates(autoNow, everything, config.auto, now))
-    // The spinner's timer runs only while a review does, and never with motion off.
-    const isSpinning = focus?.state.kind === 'running' && !isStill
-    if (isSpinning && !spinTimer) spinTimer = $.clock.every(100, () => void update($, spin, n => n + 1))
-    if (!isSpinning && spinTimer) {
-      spinTimer.cancel()
-      spinTimer = undefined
+    // While a review runs the band is drawn again for the time it shows: every tenth of a second for the terminal's spinner, else once a minute.
+    // Off the terminal the desktop app draws every site again on any state write (anthropics/claude-code#99211), which drops presses in the drawer.
+    const isRunning = focus?.state.kind === 'running'
+    const tickMs = !isRunning ? undefined : e.surface === 'terminal' && !isStill ? 100 : 60_000
+    if (spinTimer?.ms !== tickMs) {
+      spinTimer?.timer.cancel()
+      spinTimer = tickMs === undefined ? undefined : { ms: tickMs, timer: $.clock.every(tickMs, () => void update($, spin, n => n + 1)) }
     }
     const away = awayTests(await read($, hidden), await read($, notes), now)
     const reviews = everything.filter(i => !i.isDraft && !away.review(i))
@@ -1757,7 +1764,9 @@ export const register: Register = (on, options) => {
     const isAway = reviewerAway(autoNow, await read($, sessions))
     const frame = SPIN[(await read($, spin)) % SPIN.length]
 
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Button } = elements
+    const Svg = 'Svg' in elements && !isStill ? elements.Svg : undefined
     const oldest = reviews.length > 0 ? Math.max(...reviews.map(i => waitingDays(i.requestedAt, now))) : undefined
 
     // What the plugins beneath draw goes first, so a plan band stays above this one whichever plugin loads first.
@@ -1781,7 +1790,15 @@ export const register: Register = (on, options) => {
         </Box>
         {focus && focused && (
           <Box flexDirection="row">
-            <Text color={focus.state.kind === 'running' ? 'suggestion' : 'subtle'}>{`  ${focus.state.kind === 'running' ? frame : '◷'} `}</Text>
+            {focus.state.kind === 'running' && Svg ? (
+              <Box flexDirection="row" alignItems="center">
+                <Text>{'  '}</Text>
+                <Svg source={SPIN_SVG} alt={frame!} width={12} height={12} />
+                <Text> </Text>
+              </Box>
+            ) : (
+              <Text color={focus.state.kind === 'running' ? 'suggestion' : 'subtle'}>{`  ${focus.state.kind === 'running' ? frame : '◷'} `}</Text>
+            )}
             {/* The repository gives way first on a narrow terminal; the number and the time stay. */}
             <Box flexShrink={1} minWidth={0}>
               <Text bold wrap="truncate-end">
