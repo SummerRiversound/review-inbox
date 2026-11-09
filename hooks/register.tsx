@@ -222,10 +222,11 @@ const autoSettings = atom({ plugin: 'review-inbox', key: 'autoSettings' } as con
 const spin = atom({ plugin: 'review-inbox', key: 'spin' } as const, 0)
 const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 // The spinner off the terminal: it turns inside the picture, so nothing is drawn again for it. The colours are Claude Code's suggestion colour.
-const SPIN_SVG =
+// The desktop app makes a new picture whenever any plugin writes state (anthropics/claude-code#99211), so each starts where the wall clock has the turn, not at the top.
+const spinSvg = (now: number) =>
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><style>circle{stroke:#5769f7}@media (prefers-color-scheme:dark){circle{stroke:#b1b9f9}}</style>' +
   '<circle cx="8" cy="8" r="6" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="24 14">' +
-  '<animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="1s" repeatCount="indefinite"/></circle></svg>'
+  `<animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="1s" begin="-${(now % 1000) / 1000}s" repeatCount="indefinite"/></circle></svg>`
 // The band's tick while a review runs, and how often it comes.
 let spinTimer: { ms: number; timer: ReturnType<EngineInterface['clock']['every']> } | undefined
 // The autoReview setting itself: where auto review starts until the switch atop the Review tab is first pressed.
@@ -1793,7 +1794,7 @@ export const register: Register = (on, options) => {
             {focus.state.kind === 'running' && Svg ? (
               <Box flexDirection="row" alignItems="center">
                 <Text>{'  '}</Text>
-                <Svg source={SPIN_SVG} alt={frame!} width={12} height={12} />
+                <Svg source={spinSvg(Date.now())} alt={frame!} width={12} height={12} />
                 <Text> </Text>
               </Box>
             ) : (
