@@ -317,6 +317,78 @@ for (const surface of ['terminal', 'desktop'] as const)
     await ui.unmount()
   })
 
+const manyIssues = Array.from({ length: 150 }, (_, i) => issue(i + 1, 'assigned'))
+// At least what the desktop app counts: every element, string and Select option is a node; every prop name and string value, at any depth, counts its characters.
+const sizeOf = (node: unknown): { nodes: number; chars: number } => {
+  if (typeof node === 'string') return { nodes: 1, chars: node.length }
+  if (Array.isArray(node)) return node.map(sizeOf).reduce((a, b) => ({ nodes: a.nodes + b.nodes, chars: a.chars + b.chars }), { nodes: 0, chars: 0 })
+  if (node === null || typeof node !== 'object') return { nodes: 0, chars: 0 }
+  const { children, ...rest } = node as { children?: unknown }
+  const chars = (value: unknown): number =>
+    typeof value === 'string' ? value.length : value !== null && typeof value === 'object' ? Object.entries(value).reduce((n, [k, v]) => n + k.length + chars(v), 0) : 0
+  const options = (rest as { props?: { options?: unknown[] } }).props?.options?.length ?? 0
+  const inner = sizeOf(children)
+  return { nodes: 1 + options + inner.nodes, chars: chars(rest) + inner.chars }
+}
+const nodeCount = (node: unknown) => sizeOf(node).nodes
+
+test('on the desktop a long section draws under the app’s 2,000 nodes and pages through the rest', async ($, on) => {
+  const ui = await opened($, on, [], manyIssues, 'issues', { surface: 'desktop' })
+
+  expect(nodeCount(await ui.drawn())).toBeLessThan(2_000)
+  expect(nodeCount(await ui.drawn())).toBeGreaterThan(1_900)
+  expect(await shown(ui, /^1–\d+ of 150$/)).toBe(true)
+  expect(await shown(ui, /#150\b/)).toBe(false)
+
+  for (let i = 0; i < 10 && (await ui.find({ key: 'page-next-issues:assigned' })); i++) await ui.press({ key: 'page-next-issues:assigned' })
+  expect(nodeCount(await ui.drawn())).toBeLessThan(2_000)
+  expect(await shown(ui, /#150\b/)).toBe(true)
+  expect(await shown(ui, /^\d+–150 of 150$/)).toBe(true)
+
+  await ui.press({ key: 'page-first-issues:assigned' })
+  expect(await shown(ui, /^1–\d+ of 150$/)).toBe(true)
+  await ui.unmount()
+})
+
+test('on the desktop a section past the budget says to fold one above, and folding makes room', async ($, on) => {
+  const mentions = Array.from({ length: 5 }, (_, i) => issue(i + 201, 'mention'))
+  const ui = await opened($, on, [], [...manyIssues, ...mentions], 'issues', { surface: 'desktop' })
+
+  expect(await shown(ui, /^5 more · fold a section above to see them$/)).toBe(true)
+  await ui.press({ key: 'fold-issues:assigned' })
+  expect(await shown(ui, /#205\b/)).toBe(true)
+  await ui.unmount()
+})
+
+test('on the desktop cards with long titles page before the engine cuts text past 100,000 characters', async ($, on) => {
+  const long = Array.from({ length: 60 }, (_, i) => ({ ...issue(i + 1, 'assigned'), title: `${'x'.repeat(6_000)} ${i + 1}` }))
+  const ui = await opened($, on, [], long, 'issues', { surface: 'desktop' })
+
+  const strings = (node: unknown): string[] =>
+    typeof node === 'string' ? [node] : Array.isArray(node) ? node.flatMap(strings) : node !== null && typeof node === 'object' ? strings((node as { children?: unknown }).children) : []
+  const titles = strings(await ui.drawn()).filter(s => s.startsWith('x'.repeat(100)))
+  expect(titles.length).toBeGreaterThan(10)
+  expect(titles.every(t => /^x{6000} \d+$/.test(t))).toBe(true)
+  expect(await shown(ui, new RegExp(`^1–${titles.length} of 60$`))).toBe(true)
+  await ui.unmount()
+})
+
+test('on the desktop a drawing that fits shows every card, with no pages', async ($, on) => {
+  const ui = await opened($, on, [], manyIssues.slice(0, 20), 'issues', { surface: 'desktop' })
+
+  expect(await shown(ui, /#20\b/)).toBe(true)
+  expect(await ui.find({ key: 'pager-issues:assigned' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('the terminal draws every card of a long section, with no pages', async ($, on) => {
+  const ui = await opened($, on, [], manyIssues, 'issues')
+
+  expect(await shown(ui, /#150\b/)).toBe(true)
+  expect(await ui.find({ key: 'pager-issues:assigned' })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('My work holds my PRs, then the issues assigned to me or mentioning me, each under its name', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [issue(2, 'assigned')], 'mine')
   expect(await shown(ui, /^My PRs 1$/)).toBe(true)

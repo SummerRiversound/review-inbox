@@ -97,6 +97,10 @@ export const ja: Messages = {
     team: (n: number) => `チームへのリクエスト ${n}`,
     drafts: (n: number) => `ドラフト · レビュー準備中 ${n}`,
     references: (days: number, n: number) => `過去${days}日間 · 他の場所で参照された自分の作業 ${n}`,
+    range: (from: number, to: number, total: number) => `${total}件中 ${from}–${to}`,
+    next: '次へ',
+    first: '最初に戻る',
+    foldAbove: (n: number) => `ほか${n}件 · 上のセクションを折りたたむと表示されます`,
   },
   note: {
     edit: 'メモ',

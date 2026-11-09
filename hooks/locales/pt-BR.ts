@@ -101,6 +101,10 @@ export const ptBR: Messages = {
     drafts: (n: number) => `Rascunhos · ainda não prontos para revisão ${n}`,
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'dia')} · meu trabalho referenciado em outros lugares ${n}`,
+    range: (from: number, to: number, total: number) => `${from}–${to} de ${total}`,
+    next: 'Próximos',
+    first: 'Voltar ao início',
+    foldAbove: (n: number) => `Mais ${n} · recolha uma seção acima para vê-los`,
   },
   note: {
     edit: 'Nota',

@@ -100,6 +100,10 @@ export const es: Messages = {
     drafts: (n: number) => `Borradores · aún no listos para revisión ${n}`,
     references: (days: number, n: number) =>
       `${days === 1 ? 'Último' : 'Últimos'} ${count(days, 'día')} · referencias a mi trabajo en otros lugares ${n}`,
+    range: (from: number, to: number, total: number) => `${from}–${to} de ${total}`,
+    next: 'Siguientes',
+    first: 'Volver al principio',
+    foldAbove: (n: number) => `${n} más · pliega una sección de arriba para verlos`,
   },
   note: {
     edit: 'Nota',

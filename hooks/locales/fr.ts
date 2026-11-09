@@ -100,6 +100,10 @@ export const fr: Messages = {
     team: n => `Demandes via l'équipe ${n}`,
     drafts: n => `Brouillons · pas encore prêts pour la revue ${n}`,
     references: (days, n) => `Depuis ${count(days, 'jour')} · mon travail référencé ailleurs ${n}`,
+    range: (from, to, total) => `${from}–${to} sur ${total}`,
+    next: 'Suivants',
+    first: 'Revenir au début',
+    foldAbove: n => `${n} de plus · repliez une section au-dessus pour les voir`,
   },
   note: {
     edit: 'Note',

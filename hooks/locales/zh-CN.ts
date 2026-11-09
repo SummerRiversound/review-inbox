@@ -97,6 +97,10 @@ export const zhCN: Messages = {
     team: n => `团队请求 ${n}`,
     drafts: n => `草稿 · 尚未准备好审查 ${n}`,
     references: (days, n) => `最近 ${days} 天 · 我的工作在别处被引用 ${n}`,
+    range: (from, to, total) => `第 ${from}–${to} 项，共 ${total} 项`,
+    next: '下一页',
+    first: '回到开头',
+    foldAbove: n => `还有 ${n} 项 · 折叠上方的分组即可看到`,
   },
   note: {
     edit: '备注',

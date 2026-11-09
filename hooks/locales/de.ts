@@ -101,6 +101,10 @@ export const de: Messages = {
     drafts: n => `Entwürfe · noch nicht bereit für Review ${n}`,
     references: (days, n) =>
       `${days === 1 ? 'Letzter' : 'Letzte'} ${count(days, 'Tag', 'Tage')} · anderswo auf meine Arbeit verwiesen ${n}`,
+    range: (from, to, total) => `${from}–${to} von ${total}`,
+    next: 'Weiter',
+    first: 'Zurück zum Anfang',
+    foldAbove: n => `${n} weitere · einen Abschnitt darüber einklappen, um sie zu sehen`,
   },
   note: {
     edit: 'Notiz',

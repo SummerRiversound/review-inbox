@@ -109,6 +109,10 @@ const en = {
     team: (n: number) => `Team requests ${n}`,
     drafts: (n: number) => `Drafts · not ready for review ${n}`,
     references: (days: number, n: number) => `Last ${days} days · my work referenced elsewhere ${n}`,
+    range: (from: number, to: number, total: number) => `${from}–${to} of ${total}`,
+    next: 'Next',
+    first: 'Back to the start',
+    foldAbove: (n: number) => `${n} more · fold a section above to see them`,
   },
   note: {
     edit: 'Note',

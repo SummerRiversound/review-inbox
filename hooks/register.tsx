@@ -195,6 +195,7 @@ const issues = atom({ plugin: 'review-inbox', key: 'issues' } as const, [] as Is
 const capped = atom({ plugin: 'review-inbox', key: 'capped' } as const, {} as Capped)
 const tab = atom({ plugin: 'review-inbox', key: 'tab' } as const, 'review' as Tab)
 const collapsed = atom({ plugin: 'review-inbox', key: 'collapsed' } as const, [] as string[])
+const pages = atom({ plugin: 'review-inbox', key: 'pages' } as const, {} as Record<string, number>)
 const notes = atom({ plugin: 'review-inbox', key: 'notes' } as const, {} as Record<string, Note>)
 const query = atom({ plugin: 'review-inbox', key: 'query' } as const, '')
 const editing = atom({ plugin: 'review-inbox', key: 'editing' } as const, '')
@@ -608,6 +609,53 @@ async function fetchActivity($: EngineInterface, env: Record<string, string>, pr
 }
 
 const without = <T,>(record: Record<string, T>, key: string) => Object.fromEntries(Object.entries(record).filter(([k]) => k !== key))
+
+// Off the terminal a drawing has three bounds. The desktop app drops a tree of 2,000 nodes or 262,144 characters (its check on each ui_render answer): the pane says it has not drawn, and presses on what it still shows go unhandled. Before that the engine draws only the first 100,000 characters of text, turning what comes after into cut text and dropped Buttons.
+const SURFACE_LIMIT = { nodes: 1_999, chars: 262_143, text: 100_000 }
+
+type Size = { nodes: number; chars: number; text: number }
+const NO_SIZE: Size = { nodes: 0, chars: 0, text: 0 }
+const plus = (a: Size, b: Size): Size => ({ nodes: a.nodes + b.nodes, chars: a.chars + b.chars, text: a.text + b.text })
+const lengths = (...values: unknown[]) => values.reduce((n: number, v) => n + (typeof v === 'string' ? v.length : 0), 0)
+const propChars = (props: unknown) =>
+  Object.entries(props ?? {}).reduce((n, [k, v]) => n + k.length + (typeof v === 'string' ? v.length : 0), 0)
+// The app counts a press with the plugin name the engine stamps on it.
+const PRESS = 'review-inbox'.length
+
+// A tree's size as the app counts nodes and characters and the engine counts text; where the two differ by element type, this follows each.
+const sizeOf = (node: unknown): Size => {
+  if (typeof node === 'string' || typeof node === 'number') {
+    const n = String(node).length
+    return { nodes: 1, chars: n, text: n }
+  }
+  if (Array.isArray(node)) return node.reduce((size: Size, child) => plus(size, sizeOf(child)), NO_SIZE)
+  if (node === null || typeof node !== 'object' || !('type' in node)) return NO_SIZE
+  const { type, props = {}, children } = node as { type: unknown; props?: Record<string, unknown>; children?: unknown }
+  const { hover, ...p } = props as Record<string, unknown>
+  const options = Array.isArray(p.options) ? (p.options as { value?: unknown; label?: unknown }[]) : []
+  const links = Array.isArray(p.pressableLinks) ? p.pressableLinks : []
+  const own = ((): Size => {
+    switch (type) {
+      case 'Button':
+        return { nodes: 1, chars: lengths(p.key, p.label, p.hotkey, p.action) + PRESS + propChars(hover), text: lengths(p.label) }
+      case 'Input':
+        return { nodes: 1, chars: lengths(p.key, p.label, p.placeholder, p.value, p.submitLabel) + PRESS, text: lengths(p.label, p.placeholder, p.submitLabel, p.value) }
+      case 'Select': {
+        const labels = options.reduce((n, o) => n + lengths(o.label ?? o.value), 0)
+        return { nodes: 1 + options.length, chars: lengths(p.key, p.label, p.value) + PRESS + options.reduce((n, o) => n + lengths(o.value, o.label), 0), text: lengths(p.label) + labels }
+      }
+      case 'Link':
+        return { nodes: 1, chars: lengths(p.href, p.label), text: lengths(p.href, p.label) }
+      case 'Code':
+        return { nodes: 1, chars: lengths(p.source, p.language, p.path), text: lengths(p.source) }
+      case 'Markdown':
+        return { nodes: 1 + links.length, chars: lengths(p.text, p.key, ...links) + PRESS, text: lengths(p.text, ...links) }
+      default:
+        return { nodes: 1, chars: propChars(p) + propChars(hover), text: type === 'Box' ? lengths(p.key) : 0 }
+    }
+  })()
+  return plus(own, sizeOf(children))
+}
 
 // Done or Unsubscribe pressed: the row waits out its Undo, then this sends it.
 async function settleLater($: EngineInterface, thread: Thread, kind: Settling['kind']) {
@@ -1856,6 +1904,23 @@ export const register: Register = (on, options) => {
     const myIssues = scoped(shownIssues)
     const cappedTabs = await read($, capped)
     const shut = await read($, collapsed)
+    const pageStarts = await read($, pages)
+    // What the cards of one drawing may take, and what they took.
+    let budget: Size = { nodes: Infinity, chars: Infinity, text: Infinity }
+    let left = budget
+    let used = NO_SIZE
+    // The cards that fit what is left, in order; the first that does not ends the run.
+    const fit = (cards: RenderChildren[]) => {
+      const shown: RenderChildren[] = []
+      for (const card of cards) {
+        const size = sizeOf(card)
+        if (size.nodes > left.nodes || size.chars > left.chars || size.text > left.text) break
+        left = { nodes: left.nodes - size.nodes, chars: left.chars - size.chars, text: left.text - size.text }
+        used = plus(used, size)
+        shown.push(card)
+      }
+      return shown
+    }
     const addedKeys = [...(await read($, added)), ...(await read($, requested))]
     const where = (pr: { repo: string; url: string; branch?: string }) =>
       workingOn(live, pr).map(id => (id === selfId ? m.session.here : live[id]!.folder))
@@ -2357,6 +2422,10 @@ export const register: Register = (on, options) => {
     const section = <T,>(id: string, label: string, list: T[], render: (item: T) => RenderChildren, action?: RenderChildren) => {
       if (list.length === 0) return undefined
       const isShut = shut.includes(id)
+      // A list that shrank past where Next left it starts over.
+      const from = (pageStarts[id] ?? 0) < list.length ? (pageStarts[id] ?? 0) : 0
+      const shown = isShut ? [] : fit(list.slice(from).map(render))
+      const to = from + shown.length
       return (
         <Box key={`section-${id}`} flexDirection="column">
           <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
@@ -2368,10 +2437,21 @@ export const register: Register = (on, options) => {
             />
             {action}
           </Box>
-          {!isShut && list.map(render)}
+          {shown}
+          {!isShut && (from > 0 || to < list.length) && pager(id, from, to, list.length)}
         </Box>
       )
     }
+    // Under a section whose cards did not all fit: which ones show, and the way to the others.
+    const pager = (id: string, from: number, to: number, total: number) => (
+      <Box key={`pager-${id}`} marginBottom={1} flexDirection="row" flexWrap="wrap" columnGap={1}>
+        <Text dimColor>{to > from ? m.sections.range(from + 1, to, total) : m.sections.foldAbove(total - from)}</Text>
+        {to > from && to < total && (
+          <Button key={`page-next-${id}`} label={m.sections.next} dimColor onPress={() => void update($, pages, p => ({ ...p, [id]: to }))} />
+        )}
+        {from > 0 && <Button key={`page-first-${id}`} label={m.sections.first} dimColor onPress={() => void update($, pages, p => without(p, id))} />}
+      </Box>
+    )
     // Show all brings back only that list's hidden cards.
     const unhide = (list: 'review' | 'pr' | 'issue', keys: string[]) =>
       keys.length > 0 && (
@@ -2458,6 +2538,7 @@ export const register: Register = (on, options) => {
       const id = `searches:${group.id}`
       const isShut = shut.includes(id)
       const result = resultOf(group, results)
+      const hits = !isShut && result?.error === undefined ? fit((result?.hits ?? []).map(hit => hitRow(group.id, hit))) : []
       const note = (text: string, color?: 'warning') => (
         <Box marginBottom={1}>
           <Text dimColor={!color} color={color}>
@@ -2482,7 +2563,8 @@ export const register: Register = (on, options) => {
                 ? note(m.searches.failed(result.error), 'warning')
                 : result.hits.length === 0
                   ? note(m.searches.none)
-                  : result.hits.map(hit => hitRow(group.id, hit)))}
+                  : hits)}
+          {!isShut && result && result.error === undefined && hits.length < result.hits.length && note(m.sections.foldAbove(result.hits.length - hits.length))}
           {!isShut && result && result.count > result.hits.length && (
             <Box marginBottom={1}>
               <Text>
@@ -2504,7 +2586,10 @@ export const register: Register = (on, options) => {
     const idleDrafts = drafts.filter(i => !reviewing.includes(i))
     const working = myPrs.filter(pr => where(pr).length > 0)
 
-    return (
+    const draw = () => {
+      left = budget
+      used = NO_SIZE
+      return (
       <Box flexDirection="column" paddingX={1}>
         <Box flexDirection="row" justifyContent="space-between">
           <Text bold>{m.title}</Text>
@@ -2708,6 +2793,18 @@ export const register: Register = (on, options) => {
           </Box>
         )}
       </Box>
-    )
+      )
+    }
+    let drawn = draw()
+    // The terminal draws every card. Elsewhere the cards give up what the whole drawing is over by and it is drawn again, until it fits; each pass also counts the pagers the last one added.
+    for (let pass = 0; e.surface !== 'terminal' && pass < 5; pass++) {
+      const size = sizeOf(drawn)
+      const over = (k: keyof Size) => Math.max(0, size[k] - SURFACE_LIMIT[k])
+      if (over('nodes') + over('chars') + over('text') === 0) break
+      const less = (k: keyof Size) => Math.max(0, used[k] - over(k))
+      budget = { nodes: less('nodes'), chars: less('chars'), text: less('text') }
+      drawn = draw()
+    }
+    return drawn
   })
 }

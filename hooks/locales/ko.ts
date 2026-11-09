@@ -97,6 +97,10 @@ export const ko: Messages = {
     team: n => `팀 요청 ${n}`,
     drafts: n => `초안 · 아직 리뷰 준비 전 ${n}`,
     references: (days, n) => `최근 ${days}일 · 다른 곳에서 내 작업을 언급 ${n}`,
+    range: (from, to, total) => `${total}개 중 ${from}–${to}`,
+    next: '다음',
+    first: '처음으로',
+    foldAbove: n => `${n}개 더 · 위 섹션을 접으면 보입니다`,
   },
   note: {
     edit: '메모',

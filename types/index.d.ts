@@ -276,6 +276,8 @@ declare module 'claude-code' {
       tab: Tab
       // Section ids folded shut, as `<tab>:<category>`.
       collapsed: string[]
+      // Where each section's cards start, by section id, once Next moved it past the first card.
+      pages: Record<string, number>
       notes: Record<string, Note>
       // What the search field holds; empty shows the tabs.
       query: string

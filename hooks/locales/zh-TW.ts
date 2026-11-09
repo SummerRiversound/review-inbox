@@ -97,6 +97,10 @@ export const zhTW: Messages = {
     team: n => `團隊請求 ${n}`,
     drafts: n => `草稿 · 尚未準備好審查 ${n}`,
     references: (days, n) => `最近 ${days} 天 · 我的工作在別處被引用 ${n}`,
+    range: (from, to, total) => `第 ${from}–${to} 項，共 ${total} 項`,
+    next: '下一頁',
+    first: '回到開頭',
+    foldAbove: n => `還有 ${n} 項 · 收合上方的分組即可看到`,
   },
   note: {
     edit: '備註',
