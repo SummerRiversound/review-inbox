@@ -100,7 +100,7 @@ export const ko: Messages = {
     range: (from, to, total) => `${total}개 중 ${from}–${to}`,
     next: '다음',
     first: '처음으로',
-    foldAbove: n => `${n}개 더 · 위 섹션을 접으면 보입니다`,
+    foldAbove: n => `${n}개 더 · 위 목록을 접으면 보입니다`,
   },
   note: {
     edit: '메모',
