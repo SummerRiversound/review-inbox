@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.30.1 — 2026-11-09
+
+### Fixed
+
+- In the desktop app the drawer's buttons respond again when you have many cards. The app does not draw a drawing of 2,000 elements or more, so it kept an older one whose buttons did nothing. Off the terminal a list that does not fit now shows which cards are on screen, such as `1–60 of 84`, with `Next` and `Back to the start`, and a list past the room says to fold a list above. The terminal draws every card as before.
+- In the desktop app the auto review spinner turns inside a picture, and while a review runs the band is drawn again once a minute instead of ten times a second. Those redraws also dropped presses in the drawer. With `motion` off, the minutes on the auto review line now go up in the terminal too.
+
 ## 0.30.0 — 2026-11-06
 
 ### Changed
