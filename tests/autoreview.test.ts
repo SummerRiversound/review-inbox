@@ -434,7 +434,7 @@ test("GitHub's answer to my 👀 says whether this machine added it, and a PR an
 
 test('a subagent name keeps to letters, digits, _ and - within 64 characters, cutting a long repository name but never the PR number or head', () => {
   const valid = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
-  const long = agentName('auto-review-check', 'dtonic/deview-data-modeling-service#142', '2f2195a1234')
+  const long = agentName('auto-review-check', 'example-org/very-long-data-modeling-service#142', '2f2195a1234')
   expect(valid.test(long)).toBe(true)
   expect(long.endsWith('-142-2f2195a')).toBe(true)
   expect(agentName('auto-review', 'my.org/some.repo#7', 'abcdef0123')).toBe('auto-review-my-org-some-repo-7-abcdef0')

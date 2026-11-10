@@ -87,12 +87,12 @@ test('a mapped folder wins over this session\'s folder and the remembered one', 
 test('a session on an older release, or from before releases were written, is named by its folder; mine and newer ones are not', async () => {
   const sessions = {
     self: presence({ folder: 'me', version: '0.12.0' }),
-    old: presence({ folder: 'dhub2', version: '0.9.0' }),
-    unknown: presence({ folder: 'prevention_system' }),
+    old: presence({ folder: 'my-app', version: '0.9.0' }),
+    unknown: presence({ folder: 'other-app' }),
     same: presence({ folder: 'web', version: '0.12.0' }),
     newer: presence({ folder: 'api', version: '0.12.10' }),
   }
-  expect(olderSessions(sessions, 'self', '0.12.0')).toEqual(['dhub2', 'prevention_system'])
+  expect(olderSessions(sessions, 'self', '0.12.0')).toEqual(['my-app', 'other-app'])
   expect(olderSessions(sessions, 'self', undefined)).toEqual([])
 })
 
