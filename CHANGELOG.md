@@ -256,7 +256,7 @@ All notable changes to this mod. Versions follow `version` in `.claude-plugin/pl
 ### Added
 
 - Finished GitHub Actions runs you started show in the Notifications tab as `CI run`, linked to the repository's Actions page. GitHub sends them only while Actions notifications are on for GitHub, under Notifications → System → Actions in your GitHub settings.
-- The drawer names other live sessions still on an older release, such as `2 sessions on an older version (dhub2): run /reload-plugins there`.
+- The drawer names other live sessions still on an older release, such as `2 sessions on an older version (my-app): run /reload-plugins there`.
 - Number keys 1 to 5 switch tabs while the drawer has focus; each tab's name starts with its key, and a divider separates the lists to act on from the ones to browse.
 
 ### Changed

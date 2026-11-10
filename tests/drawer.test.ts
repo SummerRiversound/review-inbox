@@ -419,12 +419,12 @@ test('a PR to act on keeps the inbox-zero line away', async ($, on) => {
 
 test('the drawer names the other sessions on an older release with how to update them, and writes this session\'s release for others', async ($, on) => {
   const sessions: Record<string, Presence> = {
-    old: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [] },
-    oldToo: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [], version: '0.11.0' },
+    old: { at: Date.now(), folder: 'my-app', remotes: [], prs: [] },
+    oldToo: { at: Date.now(), folder: 'my-app', remotes: [], prs: [], version: '0.11.0' },
     same: { at: Date.now(), folder: 'web', remotes: [], prs: [], version: '0.12.0' },
   }
   const ui = await opened($, on, [], [], 'mine', { sessions, version: '0.12.0' })
-  expect(await shown(ui, /2 sessions on an older version \(dhub2\)/)).toBe(true)
+  expect(await shown(ui, /2 sessions on an older version \(my-app\)/)).toBe(true)
   expect(await shown(ui, /web/)).toBe(false)
   expect(JSON.parse(files.get(SESSIONS)!).self.version).toBe('0.12.0')
   await ui.unmount()
@@ -436,7 +436,7 @@ test('Reload them all leaves a request from this release for the older sessions,
     reloads.push(e.command)
     return { text: '' }
   })
-  const sessions: Record<string, Presence> = { old: { at: Date.now(), folder: 'dhub2', remotes: [], prs: [], version: '0.11.0' } }
+  const sessions: Record<string, Presence> = { old: { at: Date.now(), folder: 'my-app', remotes: [], prs: [], version: '0.11.0' } }
   const ui = await opened($, on, [], [], 'mine', { sessions, version: '0.12.0' })
   expect((await ui.find({ key: 'reload-all' }))?.props.label).toBe('Reload them all')
   await ui.press({ key: 'reload-all' })
