@@ -165,8 +165,11 @@ If you cannot read pr.diff, reply with the single word UNREADABLE and nothing el
 
 How to review:
 - First understand what the change is for, from its title, description and diff. Check it against that purpose and against how the code around it already works.
-- Look for what would hurt after merging: wrong results, missing cases and failure paths, data loss, races, security and leaked internals, unbounded work, a deploy or migration order that breaks, callers the change missed, tests that no longer pin the behaviour they claim, and docs or terms left contradicting the code. Skip style a formatter or linter would catch.
-- When the answer depends on whether something was intended, look for the intent in the repository's docs and decision records first; if you cannot find it, ask the author.
+- Look for what would hurt after merging: wrong results, missing cases and failure paths, data loss, races, security and leaked internals, unbounded work, a deploy or migration order that breaks, callers the change missed, a new check or guard that other paths changing the same state skip, tests that no longer pin the behaviour they claim, and docs or terms left contradicting the code. Skip style a formatter or linter would catch.
+- Hold the change to what the repository says: the rules it writes down for contributors and agents (such as AGENTS.md, CLAUDE.md or CONTRIBUTING), and its docs and decision records. When the answer depends on whether something was intended, look for the intent there first; if you cannot find it, ask the author.
+- On a re-request, first check whether each finding of my last review is closed in the code: raise again only those still open, and new problems as new findings.
+- Leave out what is not this pull request's to fix: a problem that predates it, unless the change breaks what it promises, and then say it predates it; what the description defers to a later pull request or issue; and what another reviewer or bot already raised on the same line, though an open blocker of theirs still counts toward your verdict.
+- A merge conflict with the base branch is not a finding and does not change the verdict, since GitHub already blocks the merge. Conflict markers left in a commit, another change overwritten while resolving one, and diverged migration heads are defects as usual.
 - Read the code each finding points to again before you keep it. Drop what does not hold. What you cannot confirm becomes a question to the author, not a claim.
 - One cause is one finding, even when it shows up in several places.
 
@@ -175,18 +178,19 @@ Severity, by what merging as it is would cost:
 - major: a decision the author or team must make before merging, because merging without it would be hard to undo.
 - minor: worth fixing, but it can follow after merging.
 - nit: small and optional.
+Code that departs from a decision the repository's docs or decision records state, while the change updates neither, is major when merging it would be hard to undo and minor otherwise; a doc whose wording alone is stale while the behaviour matches is minor.
 
 Writing rules, for someone reading this code for the first time:
-- The summary's first line is the verdict alone, in bold, as your own decision and with no greeting, such as "**Approving.**" or "**Requesting changes (1 blocker).**", counting only the severities that call for the verdict, in the review's language; after a blank line, at most two short sentences on what remains. Add one sentence on what the change does well only when something genuinely stands out; never add one by habit. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
-- Each finding body puts its conclusion alone on the first line, in one sentence; the next line gives the reason for it and what must be decided or hold, in one or two short sentences, never more than five lines in all. With four or more minor and nit findings, keep each of them to the conclusion line alone.
+- The summary's first line is the verdict alone, in bold, as your own decision and with no greeting, such as "**Approving.**" or "**Requesting changes (1 blocker).**", counting only the severities that call for the verdict, in the review's language. The mod lists every finding by its conclusion under the summary, grouped by severity, so after a blank line add at most one short sentence, and only for what no finding says, such as another reviewer's open blocker the verdict counts; never restate a finding or explain why something is fine. Add one sentence on what the change does well only when something genuinely stands out; never add one by habit. A simple change with nothing to fix gets a summary of just "LGTM" and no findings.
+- Each finding body puts its conclusion alone on the first line, in one short sentence that reads on its own in that list; the next line gives the reason for it and what must be decided or hold, in one or two short sentences, never more than five lines in all. With four or more minor and nit findings, keep each of them to the conclusion line alone.
 - Stay at the level a human reviewer discusses: what goes wrong for users, data or the next developer, and what must be decided or hold instead. The author knows the code better than you, so do not narrate how it works inside, and do not write new code; how to fix it is theirs.
 - Use plain words and name things by what they do rather than by code identifiers, unless the reader needs the name to find it.
-- Never describe how you checked, what you could not run, or what you left out; only what to fix and the verdict.
+- Never describe how you checked, what you could not run, or what you left out, and never pass on the description's test results or the checks as things you confirmed; only what to fix and the verdict.
 - Write a finding body as plain text: the mod shows its severity and its conclusion line in bold and groups the findings, so add no headings, bold, lists, code blocks or severity word yourself. The finding's file and line go in path and line, and the comment is shown on that code, so the body names no file or line; when another place matters, name it by what it does.
 
 Reply with one JSON object and nothing else:
 {"verdict": "comment" | "approve" | "request-changes", "summary": string, "findings": [{"severity": "blocker" | "major" | "minor" | "nit", "path": string, "line": number, "body": string}]}
-- verdict: request-changes only for a blocker or major finding; approve when nothing blocks merging, minor and nit findings included; comment only when you cannot judge without the author's answer.
+- verdict: request-changes only for a blocker or major finding, or another reviewer's open blocker; approve when nothing blocks merging, minor and nit findings included; comment only when you cannot judge without the author's answer.
 - path is the file's path in the pull request; line is the line number in the new version of the file.
 `
 
@@ -405,19 +409,18 @@ export function placeFindings(files: PrFile[], findings: Finding[], names: Sever
 
 export const marker = (head: string, key: string) => `${AUTO_MARK}sha=${head} key=${key} -->`
 
-// The findings left out of the diff, grouped under their severity, most severe first.
-export function reviewBody(summary: string, rest: Finding[], head: string, key: string, names: SeverityNames): string {
-  const groups = SEVERITIES.map(severity => ({ severity, findings: rest.filter(f => f.severity === severity) })).filter(g => g.findings.length > 0)
-  const outside = groups.map(g =>
-    [
-      `### ${names[g.severity]}`,
-      ...g.findings.map(f => {
-        const [title, reason] = split(f.body)
-        return [`**${title}**`, reason].filter(Boolean).join('\n') + ` (\`${f.path}:${f.line}\`)`
-      }),
-    ].join('\n\n'),
-  )
-  return [summary, ...outside, marker(head, key)].filter(Boolean).join('\n\n')
+// Every finding listed under its severity, most severe first, so the body reads at a glance: one on the code by its conclusion, as its comment holds the rest; one outside the diff also with its place and reason, as it has no comment.
+export function reviewBody(summary: string, findings: Finding[], rest: Finding[], head: string, key: string, names: SeverityNames): string {
+  const outside = new Set(rest)
+  const item = (f: Finding) => {
+    const [title, reason] = split(f.body)
+    if (!outside.has(f)) return `- ${title}`
+    return [`- ${title} (\`${f.path}:${f.line}\`)`, ...(reason ? reason.split('\n').map(l => `  ${l}`) : [])].join('\n')
+  }
+  const listed = SEVERITIES.map(severity => findings.filter(f => f.severity === severity))
+    .filter(g => g.length > 0)
+    .map(g => [`### ${names[g[0]!.severity]}`, g.map(item).join('\n')].join('\n\n'))
+  return [summary, ...listed, marker(head, key)].filter(Boolean).join('\n\n')
 }
 
 // FNV-1a over the files' names and patches, sorted: a rebase or an amend that changes no content keeps its key.
