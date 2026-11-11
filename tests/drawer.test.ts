@@ -1215,7 +1215,7 @@ test('the next queued PR is reviewed by a read-only subagent and stored as my pe
   expect(sent.commit_id).toBe('h5')
   expect(sent.event).toBeUndefined()
   expect(sent.comments).toEqual([{ path: 'a.ts', line: 2, side: 'RIGHT', body: '**major · two is off by one**\nthe loop stops one short' }])
-  expect(sent.body.includes('### nit\n\n**outside the diff** (`a.ts:40`)')).toBe(true)
+  expect(sent.body.includes('### major\n\n- two is off by one\n\n### nit\n\n- outside the diff (`a.ts:40`)')).toBe(true)
   expect(sent.body.includes('<!-- review-inbox auto-review sha=h5 key=')).toBe(true)
   const done = JSON.parse(files.get(AUTO)!).jobs['o/r#5']
   expect([done.status, done.reviewId, done.tokens, done.lock]).toEqual(['done', 77, 42_000, undefined])

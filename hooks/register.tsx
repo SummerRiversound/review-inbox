@@ -1085,7 +1085,7 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
     let reviewId = await pendingId()
     if (reviewId === undefined) {
       const { comments, rest } = placeFindings(jsonLines<PrFile>(await gh($, filesArgs(pr), env)), result.findings, severityNames())
-      const body = reviewBody(result.summary, rest, job.headSha, job.contentKey ?? '', severityNames())
+      const body = reviewBody(result.summary, result.findings, rest, job.headSha, job.contentKey ?? '', severityNames())
       // GitHub allows one pending review a PR: a create refused because another machine made one adopts that one.
       reviewId = await gh($, createArgs(pr), env, createInput(job.headSha, body, comments)).then(
         id => Number(id.trim()),

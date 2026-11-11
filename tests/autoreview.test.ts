@@ -218,16 +218,16 @@ test('a finding on a changed or context line of a hunk becomes a comment that op
   expect(rest.map(f => f.body)).toEqual(['outside', 'no patch', 'not in the PR'])
 })
 
-test('findings in the body are grouped under a heading per severity, most severe first, each a bold conclusion with its reason and place below', () => {
+test('the body lists every finding under its severity, most severe first: one on the code by its conclusion, one outside the diff with its place and reason', () => {
+  const onCode = { severity: 'minor' as const, path: 'a.ts', line: 11, body: 'stale doc\nthe count is wrong' }
   const rest = [
     { severity: 'nit' as const, path: 'a.ts', line: 20, body: 'outside' },
-    { severity: 'blocker' as const, path: 'b.ts', line: 3, body: 'data loss\nrows are dropped' },
-    { severity: 'nit' as const, path: 'c.ts', line: 7, body: 'naming' },
+    { severity: 'blocker' as const, path: 'b.ts', line: 3, body: 'data loss\nrows are dropped\nwhen the job retries' },
   ]
-  expect(reviewBody('Looks fine.', rest, 'abc', 'k1', NAMES)).toBe(
-    'Looks fine.\n\n### 블로커\n\n**data loss**\nrows are dropped (`b.ts:3`)\n\n### nit\n\n**outside** (`a.ts:20`)\n\n**naming** (`c.ts:7`)\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
+  expect(reviewBody('**Requesting changes (1 blocker).**', [onCode, ...rest], rest, 'abc', 'k1', NAMES)).toBe(
+    '**Requesting changes (1 blocker).**\n\n### 블로커\n\n- data loss (`b.ts:3`)\n  rows are dropped\n  when the job retries\n\n### 마이너\n\n- stale doc\n\n### nit\n\n- outside (`a.ts:20`)\n\n<!-- review-inbox auto-review sha=abc key=k1 -->',
   )
-  expect(reviewBody('LGTM', [], 'abc', 'k1', NAMES)).toBe('LGTM\n\n<!-- review-inbox auto-review sha=abc key=k1 -->')
+  expect(reviewBody('LGTM', [], [], 'abc', 'k1', NAMES)).toBe('LGTM\n\n<!-- review-inbox auto-review sha=abc key=k1 -->')
 })
 
 test('the pending review is created on the head with no event, its comments and body on stdin', () => {
@@ -413,6 +413,20 @@ test('the built-in rules carry a way to review and a way to write for the reader
   expect(REVIEWER_RULES.includes('do not narrate how it works inside')).toBe(true)
   expect(REVIEWER_RULES.includes('so the body names no file or line')).toBe(true)
   expect(REVIEWER_RULES.includes('Never describe how you checked')).toBe(true)
+  // The summary leaves the findings to the list the mod puts under it.
+  expect(REVIEWER_RULES.includes('never restate a finding or explain why something is fine')).toBe(true)
+  expect(REVIEWER_RULES.includes("never pass on the description's test results or the checks as things you confirmed")).toBe(true)
+})
+
+test('the built-in rules keep to what this pull request must fix', () => {
+  expect(REVIEWER_RULES.includes('first check whether each finding of my last review is closed in the code')).toBe(true)
+  expect(REVIEWER_RULES.includes('what another reviewer or bot already raised on the same line, though an open blocker of theirs still counts toward your verdict')).toBe(true)
+  expect(REVIEWER_RULES.includes('what the description defers to a later pull request or issue')).toBe(true)
+  expect(REVIEWER_RULES.includes('a problem that predates it, unless the change breaks what it promises')).toBe(true)
+  expect(REVIEWER_RULES.includes('A merge conflict with the base branch is not a finding')).toBe(true)
+  expect(REVIEWER_RULES.includes('a new check or guard that other paths changing the same state skip')).toBe(true)
+  expect(REVIEWER_RULES.includes('the rules it writes down for contributors and agents')).toBe(true)
+  expect(REVIEWER_RULES.includes('a doc whose wording alone is stale while the behaviour matches is minor')).toBe(true)
 })
 
 test('a reviewer that cannot read the diff answers without JSON, which counts as a failed run rather than a review', () => {
