@@ -2,6 +2,14 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.31.0 — 2026-11-11
+
+### Changed
+
+- An auto review's body lists every finding by its conclusion under its severity, right below the verdict, so the whole review reads from the body. A finding on a code line shows its conclusion there and its reason on the line; one outside the diff shows its place and reason in the list. The summary after the verdict is at most one sentence, for what no finding says, and no longer explains why things are fine.
+- The auto reviewer leaves out what is not the pull request's to fix: merge conflicts with the base branch, problems that predate the change unless it breaks what it promises, work the description defers, and what another reviewer or bot already raised on the same line. Another reviewer's open blocker still counts toward the verdict.
+- On a re-request the auto reviewer first checks whether each finding of your last review is closed. It also holds the change to the rules the repository writes down, such as AGENTS.md, CLAUDE.md or CONTRIBUTING, and checks that a new check or guard is not skipped by other paths.
+
 ## 0.30.1 — 2026-11-09
 
 ### Fixed
