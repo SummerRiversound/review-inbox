@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.32.1 — 2026-11-13
+
+### Fixed
+
+- Changing an auto review setting from the drawer works again when another plugin named review-inbox is also on, such as an older copy from another marketplace. Claude Code then names the settings rows with the marketplace, so the change failed with `no /config row with key review-inbox.autoReviewModel`; the mod now looks up its own row first.
+
 ## 0.32.0 — 2026-11-13
 
 ### Added
