@@ -256,6 +256,14 @@ export type AutoSettingKey = (typeof AUTO_SETTINGS)[number]['key']
 // The values a setting picks from, as `takes` lists them; free text has none.
 export const choicesOf = (setting: (typeof AUTO_SETTINGS)[number]) => (setting.takes.includes(' | ') ? setting.takes.split(' | ') : undefined)
 
+// The /config row of a field: `review-inbox.<field>`, or `review-inbox@<marketplace>.<field>` when another plugin named review-inbox is also on; the published marketplace's row wins over a fork's.
+export function settingRowKey(keys: readonly string[], field: string): string {
+  const plain = `review-inbox.${field}`
+  if (keys.includes(plain)) return plain
+  const own = keys.filter(k => k.startsWith('review-inbox@') && k.endsWith(`.${field}`))
+  return own.find(k => k.startsWith('review-inbox@review-inbox.')) ?? own[0] ?? plain
+}
+
 // One line a setting; the engine hands an unset one over as its default, so a value equal to it is marked as the default.
 export function setupList(now: Partial<Record<AutoSettingKey, string>>): string {
   const shown = (value: string) => value || 'empty'

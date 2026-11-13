@@ -31,6 +31,7 @@ import {
   reviewerPrompt,
   reviewerSpec,
   setupList,
+  settingRowKey,
   verifierPrompt,
   trackHeads,
 } from '../hooks/autoreview'
@@ -461,4 +462,11 @@ test('the band follows the running review, else the next to start, and counts th
   expect(bandFocus(waiting)).toEqual({ key: 'o/r#2', state: { kind: 'queued', ahead: 0 }, waiting: 1 })
   expect(bandFocus({ 'o/r#3': { kind: 'settling', startsAt: 50 }, 'o/r#5': { kind: 'settling', startsAt: 20 } })).toEqual({ key: 'o/r#5', state: { kind: 'settling', startsAt: 20 }, waiting: 1 })
   expect(bandFocus({ 'o/r#4': { kind: 'failed', error: 'x' }, 'o/r#6': { kind: 'capped' }, 'o/r#7': { kind: 'manual', why: 'before' } })).toBeUndefined()
+})
+
+test('a setting is written to its own /config row, which carries the marketplace when another review-inbox is also on', () => {
+  expect(settingRowKey(['theme', 'review-inbox.autoReviewModel'], 'autoReviewModel')).toBe('review-inbox.autoReviewModel')
+  expect(settingRowKey(['review-inbox@fork.autoReviewModel', 'review-inbox@review-inbox.autoReviewModel'], 'autoReviewModel')).toBe('review-inbox@review-inbox.autoReviewModel')
+  expect(settingRowKey(['review-inbox@fork.autoReviewModel'], 'autoReviewModel')).toBe('review-inbox@fork.autoReviewModel')
+  expect(settingRowKey(['review-inbox@fork.autoReviewTools'], 'autoReviewModel')).toBe('review-inbox.autoReviewModel')
 })
