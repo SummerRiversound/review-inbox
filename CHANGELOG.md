@@ -2,7 +2,7 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
-## Unreleased
+## 0.32.0 — 2026-11-13
 
 ### Added
 
