@@ -276,6 +276,7 @@ export const es: Messages = {
     addGroup: (path: string) => `Añade una búsqueda guardada a mi bandeja de revisiones editando ${path}; créalo como {"groups": []} si no existe y conserva los "buttons" que tenga. Cada entrada es {"id", "name", "query", "scope": "prs" | "issues"}, con "countInBand": true para contarla en la banda; la query usa la sintaxis de búsqueda de GitHub. Primero pregúntame qué debe encontrar.`,
     autoSetup: (list, set) => `Repasa conmigo, uno a uno, los ajustes de revisión automática de mi bandeja de revisiones: léelos con ${list}, explica con palabras sencillas qué hace cada uno, su valor predeterminado y el actual, y cambia lo que elija con ${set}.`,
     review: (url: string) => `Revisa ${url}.`,
+    reviewWith: (url: string, skill: string) => `Revisa ${url} con la skill /${skill}.`,
     refine: (url: string, sha: string) => `Pule conmigo mi revisión pendiente en ${url}; revisa el head ${sha}. Lee su texto y sus comentarios con \`gh api\` y cámbialos ahí según lo acordemos.`,
     pending: (id: number, repo: string, number: number) =>
       `Mi revisión pendiente ${id} está en este PR, y GitHub no acepta otra mientras exista: trabaja sobre esa. Envíala con \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (o APPROVE, REQUEST_CHANGES) solo cuando te diga cuál, o bórrala; no crees otra revisión.`,

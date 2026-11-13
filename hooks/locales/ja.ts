@@ -273,6 +273,7 @@ export const ja: Messages = {
     addGroup: (path: string) => `レビュー受信トレイに保存した検索を1つ追加して。${path} を編集して、なければ {"groups": []} として作り、"buttons" があればそのまま残して。各項目は {"id", "name", "query", "scope": "prs" | "issues"} で、バンドに件数を出すなら "countInBand": true を付けて。query は GitHub の検索構文だよ。まず何を探したいか私に聞いて。`,
     autoSetup: (list, set) => `レビュー受信箱の自動レビュー設定を一つずつ一緒に決めて。${list} で設定を読み、設定ごとの役割、既定値、今の値をやさしい言葉で説明してから、私が選んだ値を ${set} で変更して。`,
     review: (url: string) => `${url} をレビューして。`,
+    reviewWith: (url: string, skill: string) => `/${skill} スキルで ${url} をレビューして。`,
     refine: (url: string, sha: string) => `${url} にある自分の保留中のレビューを一緒に仕上げよう。head ${sha} をレビューしたもの。本文とコメントは \`gh api\` で読み、決めたとおりにそこで直して。`,
     pending: (id: number, repo: string, number: number) =>
       `この PR には自分の保留中のレビュー ${id} があり、それがある間 GitHub は新しいレビューを受け付けない。そのレビューを直して使って。判定を伝えたら \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(または APPROVE、REQUEST_CHANGES)で提出するか削除して。新しいレビューは作らないで。`,

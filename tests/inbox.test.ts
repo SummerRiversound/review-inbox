@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import type { InboxItem } from '../types'
 import { MESSAGES } from '../hooks/i18n'
 import {
-  INBOX_QUERY, REFRESH_MS, detailsOf, headCommittedAt, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, hasRequest, sinceRules, sortItems, summaryRules,
+  INBOX_QUERY, REFRESH_MS, detailsOf, headCommittedAt, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, parseReviewSkill, hasRequest, sinceRules, sortItems, summaryRules,
 } from '../hooks/inbox'
 
 const { en, ko } = MESSAGES
@@ -64,6 +64,19 @@ test('a PR with my pending review asks Claude to refine that review where the PR
   expect(text).toEndWith('Work in /src/r.\n')
   expect(text.includes('`gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT`')).toBe(true)
   expect(reviewPrompts('', [a], en, undefined)).toBe('Review https://github.com/o/r/pull/5.\n')
+})
+
+test('a review skill names the skill in each request, but not in a pending review Claude refines', async () => {
+  const a = item({ repo: 'o/r', number: 5, url: 'https://github.com/o/r/pull/5', headSha: 'h5' })
+  const b = item({ url: 'https://github.com/o/r/pull/6' })
+  expect(reviewPrompts('', [a, b], en, undefined, {}, 'my-review')).toBe(
+    'Review https://github.com/o/r/pull/5 with the /my-review skill.\nReview https://github.com/o/r/pull/6 with the /my-review skill.\n',
+  )
+  expect(reviewPrompt('', b, ko, undefined, undefined, 'my-review')).toBe('/my-review 스킬로 https://github.com/o/r/pull/6 리뷰해 줘.\n')
+  expect(reviewPrompts('', [a], en, undefined, { 'o/r#5': { id: 77, where: 'Work in /src/r.' } }, 'my-review')).toStartWith('Refine my pending review')
+  expect(reviewPrompts('Review https://github.com/o/r/pull/6 with the /my-review skill.', [b], en, undefined, {}, 'my-review')).toBe('')
+  expect(parseReviewSkill(' /my-review ')).toBe('my-review')
+  expect(parseReviewSkill(undefined)).toBe('')
 })
 
 test('the PRs added in the drawer go into the prompt together, the style once, none twice', async () => {

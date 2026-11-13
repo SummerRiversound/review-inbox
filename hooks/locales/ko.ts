@@ -273,6 +273,7 @@ export const ko: Messages = {
     addGroup: path => `리뷰 인박스에 저장한 검색을 하나 추가해 줘. ${path}를 고치고, 없으면 {"groups": []}로 만들고 "buttons"가 있으면 그대로 둬. 항목은 {"id", "name", "query", "scope": "prs" | "issues"} 모양이고, 밴드에 개수를 띄우려면 "countInBand": true를 넣어. query는 GitHub 검색 문법이야. 먼저 무엇을 찾고 싶은지 나에게 물어봐.`,
     autoSetup: (list, set) => `리뷰 인박스의 자동 리뷰 설정을 하나씩 같이 정해 줘. ${list}로 설정을 읽고, 설정마다 하는 일과 기본값, 지금 값을 쉬운 말로 설명한 뒤, 내가 고른 값은 ${set}로 바꿔 줘.`,
     review: url => `${url} 리뷰해 줘.`,
+    reviewWith: (url, skill) => `/${skill} 스킬로 ${url} 리뷰해 줘.`,
     refine: (url: string, sha: string) => `${url}에 있는 내 임시 리뷰를 같이 다듬자. head ${sha}를 리뷰한 거야. 본문과 코멘트는 \`gh api\`로 읽고, 우리가 정한 대로 거기서 고쳐.`,
     pending: (id: number, repo: string, number: number) =>
       `이 PR에 내 임시 리뷰 ${id}가 있고, 그게 있는 동안 GitHub는 새 리뷰를 받지 않아. 그 리뷰를 고쳐서 써. 내가 판정을 말하면 그때 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(또는 APPROVE, REQUEST_CHANGES)로 제출하거나 지워. 리뷰를 새로 만들지는 마.`,

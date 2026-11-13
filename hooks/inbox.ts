@@ -297,9 +297,11 @@ export function sincePrompt(commits: string[], files: string[]): string {
 // My pending review on the PR, and where to work on it.
 export type PendingReview = { id: number; where: string }
 
-export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string, pending?: PendingReview): string {
+// `skill`: the reviewSkill option, a skill the request names so Claude reviews with it; empty asks plainly.
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string, pending?: PendingReview, skill = ''): string {
   // GitHub takes no new review while mine is pending, so Claude refines that one.
-  const lines = pending ? [m.prompt.refine(item.url, item.headSha), m.prompt.pending(pending.id, item.repo, item.number), pending.where] : [m.prompt.review(item.url)]
+  const ask = skill ? m.prompt.reviewWith(item.url, skill) : m.prompt.review(item.url)
+  const lines = pending ? [m.prompt.refine(item.url, item.headSha), m.prompt.pending(pending.id, item.repo, item.number), pending.where] : [ask]
   const styleLine = style ? `${m.prompt.style}${style}` : undefined
   if (styleLine && !draft.includes(styleLine)) lines.push(styleLine)
   const warnings = item.impact.filter(i => i.warn).map(i => i.text)
@@ -309,11 +311,14 @@ export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?
   return draft === '' || draft.endsWith('\n') ? text : `\n${text}`
 }
 
+// A name typed with its slash, as in /my-review, works the same as without.
+export const parseReviewSkill = (option: string | undefined) => (option ?? '').trim().replace(/^\/+/, '')
+
 // What the drawer adds to the draft when it closes: one request per PR not already in it, in the order pressed.
 // `pending`: my pending review by card key.
-export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string, pending: Record<string, PendingReview> = {}): string {
+export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string, pending: Record<string, PendingReview> = {}, skill = ''): string {
   let text = draft
-  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style, pending[itemKey(item)])
+  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style, pending[itemKey(item)], skill)
   return text.slice(draft.length)
 }
 

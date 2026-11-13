@@ -273,6 +273,7 @@ export const zhTW: Messages = {
     addGroup: path => `幫我的審查收件匣新增一個已儲存的搜尋：編輯 ${path}，若不存在就建立為 {"groups": []}，已有的 "buttons" 保持不變。每一項是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示列顯示數量就加上 "countInBand": true；query 使用 GitHub 搜尋語法。先問我想找什麼。`,
     autoSetup: (list, set) => `和我逐項設定審查收件匣的自動審查：用 ${list} 讀取設定，用簡單的話說明每項的作用、預設值和目前的值，再用 ${set} 改成我選的值。`,
     review: url => `幫我審查一下 ${url}。`,
+    reviewWith: (url, skill) => `用 /${skill} 技能幫我審查一下 ${url}。`,
     refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待送出審查；它審查的是 head ${sha}。用 \`gh api\` 讀取它的內文和留言，並照我們談好的在那裡修改。`,
     pending: (id: number, repo: string, number: number) =>
       `這個 PR 上有我的待送出審查 ${id}，它存在時 GitHub 不接受新的審查：請在它上面修改。等我說了結論再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）送出，或者刪除它；不要新建審查。`,

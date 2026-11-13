@@ -66,6 +66,7 @@ claude plugin uninstall review-inbox@review-inbox
 | `repoPaths` | 비어 있음 | 다음 할 일 버튼이 저장소마다 Claude가 작업할 폴더입니다. 아래를 보세요. |
 | `motion` | `auto` | `off`면 입력창 위 한 줄의 숫자가 깜빡이지 않습니다. `auto`일 때도 Claude Code의 움직임 줄이기 설정(`prefersReducedMotion`)이 켜져 있으면 깜빡이지 않습니다. 자동 리뷰 줄의 스피너도 같은 기준으로 멈춥니다. |
 | `directActions` | `off` | `on`이면 카드에서 GitHub에 직접 쓰는 버튼을 붙입니다. 자세한 내용은 아래 "GitHub 직접 실행"에 있습니다. |
+| `reviewSkill` | 비어 있음 | `Claude에게 리뷰`가 리뷰에 쓰게 할 스킬입니다. 예: `my-review`. 지정하면 요청 문장이 `/my-review 스킬로 <PR> 리뷰해 줘.`가 됩니다. 내 보류 리뷰가 있는 PR은 지금처럼 그 리뷰를 다듬습니다. 비워 두면 스킬 없이 요청합니다. |
 | `autoReview` | `off` | `on`이면 나에게 리뷰를 요청한 PR을 백그라운드에서 리뷰하고, 게시하기 전까지 각 리뷰를 내 임시 리뷰로 보관합니다. **토큰을 눈에 띄게 더 씁니다.** 이 값은 처음 상태일 뿐입니다. 리뷰 대기 탭 맨 위의 `자동 리뷰` 버튼을 한 번 누르면 그 뒤로는 버튼만 켜고 끕니다. 켤 때는 먼저 확인을 받습니다. 아래 "자동 리뷰"를 보세요. |
 | `autoReviewPost` | `pending` | 끝난 리뷰를 어떻게 할지 정합니다. `pending`은 내 임시 리뷰로 두어 카드에서 게시하게 하고, `comment`는 코멘트로 게시하며, `verdict`는 제안한 판정(승인·변경 요청 포함) 그대로 게시합니다. `pending`이 아니면 묻지 않고 내 이름으로 게시됩니다. |
 | `autoReviewModel` | `sonnet` | 리뷰어가 쓰는 모델입니다. `sonnet` 또는 `opus`이며, `opus`는 더 깊이 리뷰하지만 비용이 더 듭니다. |

@@ -66,6 +66,7 @@ Set on the install screen; change them later in `/config`. A change applies righ
 | `repoPaths` | empty | Where Claude works on each repository, for the next-step buttons. See below. |
 | `motion` | `auto` | `off` stops the band's count flash. `auto` stops it too when Claude Code's reduced motion setting (`prefersReducedMotion`) is on. It also stops the spinner on the auto review line. |
 | `directActions` | `off` | `on` adds buttons that write to GitHub from a card. See Direct GitHub actions below. |
+| `reviewSkill` | empty | A skill `Review with Claude` asks Claude to review with, such as `my-review`: each request then reads `Review <PR> with the /my-review skill.` A PR with your pending review is still refined as before. Empty asks for a plain review. |
 | `autoReview` | `off` | `on` reviews PRs that ask for you in the background and keeps each review as your pending review until you post it. **It uses noticeably more tokens.** This is only where it starts: once you press the `Auto review` button atop the To review tab, which asks first before it turns on, the button alone turns it on and off. See Auto review below. |
 | `autoReviewPost` | `pending` | What a finished review becomes: `pending` keeps it as your pending review to post from the card, `comment` posts it as a comment, `verdict` posts it with the verdict it suggests, approve and request changes included. Anything but `pending` posts under your name without asking. |
 | `autoReviewModel` | `sonnet` | The model the reviewer runs on: `sonnet` or `opus`, which reviews deeper and costs more. |
