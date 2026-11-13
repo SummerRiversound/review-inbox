@@ -119,6 +119,7 @@ import {
   requestedTeam,
   reusableSummary,
   reviewPrompts,
+  parseReviewSkill,
   searchQuery,
   shouldFetch,
   shownReady,
@@ -245,6 +246,7 @@ type Options = {
   repoPaths?: string
   motion?: string
   directActions?: string
+  reviewSkill?: string
   autoReview?: string
   autoReviewModel?: string
   autoReviewVerify?: string
@@ -263,7 +265,7 @@ type Options = {
 // A band count that goes down shows in the success color this long; no tween, nothing moves.
 const FLASH_MS = 250
 
-let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoTurns: TURNS_DEFAULT, autoTools: 'read' as ReviewerTools, autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
+let config = { scope: '', githubUser: '', language: 'en' as Language, refreshMs: 10 * 60_000, repoPaths: {} as Record<string, string>, motion: 'auto', directActions: false, reviewSkill: '', auto: { isOn: false, daily: DAILY_DEFAULT, large: true, backlog: true, settleMs: SETTLE_MS } as AutoSettings, autoModel: 'sonnet', autoVerify: false, autoSkills: [] as string[], autoTurns: TURNS_DEFAULT, autoTools: 'read' as ReviewerTools, autoInstructions: '', autoSeverityNames: '', autoPost: 'pending' }
 // Off by the motion option, or under auto by Claude Code's prefersReducedMotion setting.
 let isStill = false
 let lastBand: BandCounts | undefined
@@ -1477,7 +1479,7 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
       const job = jobs[itemKey(i)]
       if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = { id: job.reviewId, where: workWhere(await placeFor($, i.repo), i.repo, true, m) }
     }
-    const reviews = reviewPrompts(text, reviewsOn, m, style, pending)
+    const reviews = reviewPrompts(text, reviewsOn, m, style, pending, config.reviewSkill)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
     const own = await buttonPrompts($, keys)
@@ -1642,6 +1644,7 @@ export const register: Register = (on, options) => {
     repoPaths: parseRepoPaths(opts.repoPaths ?? ''),
     motion: opts.motion === 'off' ? 'off' : 'auto',
     directActions: opts.directActions === 'on',
+    reviewSkill: parseReviewSkill(opts.reviewSkill),
     auto: { isOn: opts.autoReview === 'on', daily: parseDaily(opts.autoReviewDaily), large: opts.autoReviewLarge !== 'off', backlog: opts.autoReviewBacklog !== 'off', settleMs: parseSettle(opts.autoReviewSettleMinutes) },
     autoModel: opts.autoReviewModel === 'opus' ? 'opus' : 'sonnet',
     autoVerify: opts.autoReviewVerify === 'on',

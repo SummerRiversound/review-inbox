@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## Unreleased
+
+### Added
+
+- `reviewSkill` names a skill for `Review with Claude` to review with, such as your own review playbook. Each request then asks Claude to review the PR with that skill. A PR with your pending review is still refined as before.
+
 ## 0.31.0 — 2026-11-11
 
 ### Changed

@@ -64,6 +64,12 @@
       ],
       "default": "off"
     },
+    "reviewSkill": {
+      "type": "string",
+      "title": "Review skill",
+      "description": "A skill Review with Claude asks Claude to review with, such as my-review; empty asks for a plain review",
+      "default": ""
+    },
     "autoReview": {
       "type": "string",
       "title": "Auto review",

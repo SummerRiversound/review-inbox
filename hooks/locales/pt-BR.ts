@@ -277,6 +277,7 @@ export const ptBR: Messages = {
     addGroup: (path: string) => `Adicione uma busca salva à minha caixa de revisões editando ${path}; crie como {"groups": []} se não existir e mantenha os "buttons" que houver. Cada entrada é {"id", "name", "query", "scope": "prs" | "issues"}, com "countInBand": true para contar na faixa; a query usa a sintaxe de busca do GitHub. Primeiro me pergunte o que ela deve encontrar.`,
     autoSetup: (list, set) => `Passe comigo, uma a uma, pelas configurações de revisão automática da minha caixa de revisões: leia-as com ${list}, explique em palavras simples o que cada uma faz, o padrão e o valor atual, e mude o que eu escolher com ${set}.`,
     review: (url: string) => `Revise o PR ${url}.`,
+    reviewWith: (url: string, skill: string) => `Revise o PR ${url} com a skill /${skill}.`,
     refine: (url: string, sha: string) => `Refine comigo minha revisão pendente em ${url}; ela revisa o head ${sha}. Leia o texto e os comentários com \`gh api\` e altere-os lá conforme combinarmos.`,
     pending: (id: number, repo: string, number: number) =>
       `Minha revisão pendente ${id} está neste PR, e o GitHub não aceita outra enquanto ela existir: trabalhe nela. Envie com \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (ou APPROVE, REQUEST_CHANGES) só quando eu disser qual, ou apague; não crie outra revisão.`,

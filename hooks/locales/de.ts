@@ -277,6 +277,7 @@ export const de: Messages = {
     addGroup: path => `Füge meinem Review-Posteingang eine gespeicherte Suche hinzu, indem du ${path} bearbeitest; lege die Datei als {"groups": []} an, falls sie fehlt, und lass vorhandene "buttons" stehen. Jeder Eintrag ist {"id", "name", "query", "scope": "prs" | "issues"}, mit "countInBand": true, damit sie im Band gezählt wird; die query ist GitHub-Suchsyntax. Frag mich zuerst, was sie finden soll.`,
     autoSetup: (list, set) => `Geh mit mir die Einstellungen des automatischen Reviews meiner Review-Inbox einzeln durch: lies sie mit ${list}, erkläre in einfachen Worten, was jede tut, ihren Standard und ihren aktuellen Wert, und ändere, was ich wähle, mit ${set}.`,
     review: url => `Bitte reviewe ${url}.`,
+    reviewWith: (url, skill) => `Bitte reviewe ${url} mit dem Skill /${skill}.`,
     refine: (url: string, sha: string) => `Überarbeite mit mir mein ausstehendes Review auf ${url}; es prüft den Head ${sha}. Lies Text und Kommentare mit \`gh api\` und ändere sie dort so, wie wir es abstimmen.`,
     pending: (id: number, repo: string, number: number) =>
       `Auf diesem PR liegt mein ausstehendes Review ${id}, und solange es da ist, nimmt GitHub kein neues an: arbeite damit. Reiche es mit \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (oder APPROVE, REQUEST_CHANGES) erst ein, wenn ich sage welches, oder lösche es; lege kein weiteres Review an.`,

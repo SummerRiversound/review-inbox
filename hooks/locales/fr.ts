@@ -276,6 +276,7 @@ export const fr: Messages = {
     addGroup: path => `Ajoute une recherche enregistrée à ma boîte de revues en modifiant ${path} ; crée-le sous la forme {"groups": []} s’il manque et garde les "buttons" qui s’y trouvent. Chaque entrée est {"id", "name", "query", "scope": "prs" | "issues"}, avec "countInBand": true pour la compter dans la bande ; la query suit la syntaxe de recherche GitHub. Demande-moi d’abord ce qu’elle doit trouver.`,
     autoSetup: (list, set) => `Parcours avec moi, un par un, les réglages de revue automatique de ma boîte de revues : lis-les avec ${list}, explique simplement ce que fait chacun, sa valeur par défaut et sa valeur actuelle, et change ce que je choisis avec ${set}.`,
     review: url => `Fais la revue de ${url}.`,
+    reviewWith: (url, skill) => `Fais la revue de ${url} avec la skill /${skill}.`,
     refine: (url: string, sha: string) => `Affine avec moi ma revue en attente sur ${url} ; elle porte sur le head ${sha}. Lis son texte et ses commentaires avec \`gh api\` et modifie-les là, comme nous en convenons.`,
     pending: (id: number, repo: string, number: number) =>
       `Ma revue en attente ${id} est sur cette PR, et GitHub n'accepte aucune nouvelle revue tant qu'elle existe : travaille sur celle-là. Soumets-la avec \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (ou APPROVE, REQUEST_CHANGES) seulement quand je dis laquelle, ou supprime-la ; ne crée pas d'autre revue.`,

@@ -273,6 +273,7 @@ export const zhCN: Messages = {
     addGroup: path => `给我的审查收件箱添加一个已保存的搜索：编辑 ${path}，如果不存在就创建为 {"groups": []}，已有的 "buttons" 保持不变。每一项是 {"id", "name", "query", "scope": "prs" | "issues"}，要在提示栏里显示数量就加上 "countInBand": true；query 使用 GitHub 搜索语法。先问我想找什么。`,
     autoSetup: (list, set) => `和我逐项设置审查收件箱的自动审查：用 ${list} 读取设置，用简单的话说明每项的作用、默认值和当前值，再用 ${set} 改成我选的值。`,
     review: url => `帮我审查一下 ${url}。`,
+    reviewWith: (url, skill) => `用 /${skill} 技能帮我审查一下 ${url}。`,
     refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待提交审查；它审查的是 head ${sha}。用 \`gh api\` 读取它的正文和评论，并按我们商定的在那里修改。`,
     pending: (id: number, repo: string, number: number) =>
       `这个 PR 上有我的待提交审查 ${id}，它存在时 GitHub 不接受新的审查：请在它上面修改。等我说了结论再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）提交，或者删除它；不要新建审查。`,
