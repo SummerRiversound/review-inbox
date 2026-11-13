@@ -866,19 +866,28 @@ test('the first time the switch turns auto review on, its settings open under it
   await ui.unmount()
 })
 
-test('the settings under the auto review switch say what each does and change a setting the way /config does', { options: { autoReviewModel: 'sonnet' } }, async ($, on) => {
+// The /config rows the engine lists, one per auto review field under `owner`: `review-inbox`, or `review-inbox@<marketplace>` when two plugins share the name.
+function configRows(on: On, owner = 'review-inbox') {
+  const fields = ['autoReviewModel', 'autoReviewTools', 'autoReviewInstructions', 'autoReviewSkills']
+  on('config.list', async () => ({
+    value: fields.map(field => ({ key: `${owner}.${field}`, label: field, kind: 'text', value: '', provider: { plugin: 'review-inbox', tier: 'user' }, isLocked: false })),
+  }))
+}
+
+test('the settings under the auto review switch say what each does and change a setting through its own /config row, also when another review-inbox is on', { options: { autoReviewModel: 'sonnet' } }, async ($, on) => {
   const sets: { key: string; value: unknown }[] = []
   on('config.set', async ($, e) => {
     sets.push({ key: e.key, value: e.value })
     return { value: e.value }
   })
+  configRows(on, 'review-inbox@review-inbox')
   const ui = await opened($, on, [], [], 'review')
 
   expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
   await ui.press({ key: 'auto-settings' })
   expect(await shown(ui, /read lets the reviewer read the diff and the code only/)).toBe(true)
   await ui.select({ key: 'auto-set-autoReviewModel', value: 'opus' })
-  expect(sets).toEqual([{ key: 'review-inbox.autoReviewModel', value: 'opus' }])
+  expect(sets).toEqual([{ key: 'review-inbox@review-inbox.autoReviewModel', value: 'opus' }])
   await ui.press({ key: 'auto-settings' })
   expect(await ui.find({ key: 'auto-set-autoReviewModel' })).toBeUndefined()
   await ui.unmount()
@@ -920,6 +929,7 @@ test('the set tool changes a setting the way /config does and refuses a setting 
     sets.push({ key: e.key, value: e.value })
     return { value: e.value }
   })
+  configRows(on)
   const ui = await opened($, on, [], [], 'review')
   const set = (setting: string, value: string) => $.tool.call({ tool: 'mcp__review-inbox__set_auto_review_setting', setting, value } as never)
 
@@ -941,6 +951,7 @@ test('a setting the engine refuses is left as it was, with the reason in a toast
     return { value: undefined }
   })
   on('config.set', async () => ({ deny: 'managed settings own this row' }))
+  configRows(on)
   const ui = await opened($, on, [], [], 'review')
 
   await ui.press({ key: 'auto-settings' })

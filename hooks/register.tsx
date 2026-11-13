@@ -83,6 +83,7 @@ import {
   setupList,
   AUTO_SETTINGS,
   choicesOf,
+  settingRowKey,
   severityCounts,
   sinceArgs,
   startedToday,
@@ -865,7 +866,10 @@ async function fillSetup($: EngineInterface) {
 
 // Writes one auto review setting as /config does; the engine then loads the mod again with it.
 async function setAutoSetting($: EngineInterface, key: AutoSettingKey, value: string): Promise<string | undefined> {
-  const answer = await $.config.set({ key: `review-inbox.${key}`, value }).catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }))
+  const answer = await $.config
+    .list()
+    .then(rows => $.config.set({ key: settingRowKey(rows.map(row => row.key), key), value }))
+    .catch((error: unknown) => ({ deny: error instanceof Error ? error.message : String(error) }))
   return answer.deny
 }
 
