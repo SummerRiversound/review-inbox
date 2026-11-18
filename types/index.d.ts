@@ -69,8 +69,9 @@ export type AutoJob = {
   // The running review: its subagent, the session holding it and when that session last said so.
   agentId?: string
   runner?: string
-  // The id of that session, so every session can say whether the review runs in it or in which other.
-  session?: string
+  // That session's id, so every session can say whether the review runs in it or in which other. It counts only while its `runner` is still the job's:
+  // an older release takes a run over without rewriting this.
+  session?: { id: string; runner: string }
   heartbeatAt?: number
   startedAt?: number
   // The run folder, and the checkout whose worktree is in it.

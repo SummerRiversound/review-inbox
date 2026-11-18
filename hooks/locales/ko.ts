@@ -207,7 +207,7 @@ export const ko: Messages = {
     runHere: '이 세션에서',
     runOther: (folder?: string) => (folder ? `다른 세션에서 (${folder})` : '다른 세션에서'),
     sessionHere: '자동 리뷰: 이 세션에서 돌립니다',
-    sessionOther: (folder: string) => `자동 리뷰: 다른 세션(${folder})에서 돌립니다`,
+    sessionOther: (folder?: string) => (folder ? `자동 리뷰: 다른 세션에서 돌립니다 (${folder})` : '자동 리뷰: 다른 세션에서 돌립니다'),
     switchOn: '자동 리뷰: 켜짐',
     switchOff: '자동 리뷰: 꺼짐',
     turnedOn: '자동 리뷰가 켜졌습니다',

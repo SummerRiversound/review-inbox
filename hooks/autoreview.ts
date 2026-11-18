@@ -85,7 +85,7 @@ export function autoStates(file: AutoReviewFile, items: InboxItem[], settings: A
     const job = file.jobs[key]
     if (job?.headSha !== item.headSha || job.status === 'closed') continue
     if (job.status === 'running') {
-      states[key] = { kind: 'running', since: job.startedAt ?? job.heartbeatAt ?? now, ...(job.session ? { session: job.session } : {}) }
+      states[key] = { kind: 'running', since: job.startedAt ?? job.heartbeatAt ?? now, ...(job.session && job.session.runner === job.runner ? { session: job.session.id } : {}) }
     } else if (job.elsewhere && now < job.elsewhere.until) {
       states[key] = { kind: 'running', since: job.elsewhere.since }
     } else if (job.status === 'done') {

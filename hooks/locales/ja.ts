@@ -207,7 +207,7 @@ export const ja: Messages = {
     runHere: 'このセッションで',
     runOther: (folder?: string) => (folder ? `別のセッションで (${folder})` : '別のセッションで'),
     sessionHere: '自動レビュー: このセッションで実行します',
-    sessionOther: (folder: string) => `自動レビュー: 別のセッション (${folder}) で実行します`,
+    sessionOther: (folder?: string) => (folder ? `自動レビュー: 別のセッションで実行します (${folder})` : '自動レビュー: 別のセッションで実行します'),
     switchOn: '自動レビュー: オン',
     switchOff: '自動レビュー: オフ',
     turnedOn: '自動レビューがオンになりました',

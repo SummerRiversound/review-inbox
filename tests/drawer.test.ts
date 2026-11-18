@@ -1215,6 +1215,7 @@ test('with the review session elsewhere and closed, a queued PR waits and says s
   await tick()
   expect(got.spawns).toHaveLength(0)
   expect(await shown(ui, /Auto review: waiting for its session/)).toBe(true)
+  expect(await shown(ui, /^Auto reviews start in/)).toBe(false)
 
   expect((await $.command.run({ command: 'review-inbox', args: 'auto-review-anywhere' })).text).toBe('Auto reviews now run in any session.')
   expect(JSON.parse(files.get(AUTO)!).reviewer).toBeUndefined()
@@ -1243,43 +1244,52 @@ test('a review this session runs says so on its card, and records the session fo
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }) })
   await tick()
   expect(got.spawns).toHaveLength(1)
-  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].session).toBe('self')
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].session.id).toBe('self')
   expect(await shown(ui, /Auto review running · \d+ min so far · in this session$/)).toBe(true)
   await ui.unmount()
 })
 
 test('a review another session runs names that session by its folder', AUTO_ON, async ($, on) => {
   agents(on)
-  const running = queued({ status: 'running', runner: 'x', session: 'other', agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
+  const running = queued({ status: 'running', runner: 'x', session: { id: 'other', runner: 'x' }, agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
   const ui = await opened($, on, [], [], 'review', {
     items: [recent(5)],
     files: { [AUTO]: running, [SESSIONS]: JSON.stringify({ other: { at: Date.now(), folder: 'r', remotes: [], prs: [] } }) },
     run: autoGithub({ created: [] }),
   })
+  await tick()
   expect(await shown(ui, /Auto review running · \d+ min so far · in another session \(r\)$/)).toBe(true)
   await ui.unmount()
 })
 
-test('a running review whose session left no name keeps its line as it was', AUTO_ON, async ($, on) => {
+test('a running review an older release took over, which leaves the last session on it, shows only how long it has run', AUTO_ON, async ($, on) => {
   agents(on)
-  const running = queued({ status: 'running', runner: 'x', agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
+  const running = queued({ status: 'running', runner: 'x', session: { id: 'self', runner: 'before' }, agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: running }, run: autoGithub({ created: [] }) })
+  await tick()
   expect(await shown(ui, /Auto review running · \d+ min so far$/)).toBe(true)
   await ui.unmount()
 })
 
-test('beside the switch the review session reads as this one, or as another by its folder', AUTO_ON, async ($, on) => {
+test('beside the switch the session that starts the reviews reads as this one, or as another by its folder', AUTO_ON, async ($, on) => {
   agents(on)
   const ui = await opened($, on, [], [], 'review', {
     items: [recent(5)],
     files: { [AUTO]: JSON.stringify({ ...JSON.parse(queued()), reviewer: 'other' }), [SESSIONS]: JSON.stringify({ other: { at: Date.now(), folder: 'r', remotes: [], prs: [] } }) },
     run: autoGithub({ created: [] }),
   })
-  expect(await shown(ui, /^Auto review runs in another session \(r\)$/)).toBe(true)
+  await tick()
+  expect(await shown(ui, /^Auto reviews start in another session \(r\)$/)).toBe(true)
   await $.command.run({ command: 'review-inbox', args: 'auto-review-here' })
-  expect(await shown(ui, /^Auto review runs in this session$/)).toBe(true)
+  expect(await shown(ui, /^Auto reviews start in this session$/)).toBe(true)
   await $.command.run({ command: 'review-inbox', args: 'auto-review-anywhere' })
-  expect(await shown(ui, /^Auto review runs in/)).toBe(false)
+  expect(await shown(ui, /^Auto reviews start in/)).toBe(false)
+  await ui.unmount()
+})
+
+test('with auto review off no session is named beside the switch', async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: JSON.stringify({ ...JSON.parse(queued()), reviewer: 'self' }) } })
+  expect(await shown(ui, /^Auto reviews start in/)).toBe(false)
   await ui.unmount()
 })
 
