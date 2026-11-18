@@ -147,6 +147,7 @@ export const de: Messages = {
   },
   buttons: {
     more: "Aktionen",
+    all: "Aktionen für alle",
     none: "Noch keine eigenen Schaltflächen; die eingebauten werden angezeigt.",
     counts: (buttons, groups) => `Eigene: ${buttons} Schaltflächen, ${groups} gespeicherte Suchen`,
     how: "Mit /review-inbox add-button oder /review-inbox add-search schreibt Claude eine mit Ihnen.",
@@ -281,9 +282,6 @@ export const de: Messages = {
     refine: (url: string, sha: string) => `Überarbeite mit mir mein ausstehendes Review auf ${url}; es prüft den Head ${sha}. Lies Text und Kommentare mit \`gh api\` und ändere sie dort so, wie wir es abstimmen.`,
     pending: (id: number, repo: string, number: number) =>
       `Auf diesem PR liegt mein ausstehendes Review ${id}, und solange es da ist, nimmt GitHub kein neues an: arbeite damit. Reiche es mit \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (oder APPROVE, REQUEST_CHANGES) erst ein, wenn ich sage welches, oder lösche es; lege kein weiteres Review an.`,
-    check: 'Achte besonders auf: ',
-    since: 'Seit meinem letzten Review geändert: ',
-    style: 'Mein üblicher Review-Stil: ',
     task: {
       changes: url => `Setze die offenen Review-Kommentare zu ${url} um; lies sie mit \`gh pr view ${url} --comments\`.`,
       'ci-failing': url =>

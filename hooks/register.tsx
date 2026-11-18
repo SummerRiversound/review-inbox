@@ -278,6 +278,8 @@ let actionsPath = ''
 const buttonKey = (key: string, id: string) => `${key}::${id}`
 // The Merge button fills the prompt like a card's own button, under an id actions.json cannot give one.
 const MERGE = '@merge'
+// The All actions row's place in `more`; no card key has this shape.
+const ALL = 'all:review'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -786,6 +788,8 @@ function toast($: EngineInterface, text: string) {
 
 // Run by the session that just fetched; a failure keeps the last style and tries again a day later.
 async function refreshStyle($: EngineInterface, env: Record<string, string>) {
+  // Only auto review reads the style, so nothing is learned, and no comment of mine is sent, while it is off.
+  if (!config.auto.isOn) return
   const file = await readJson($, styleFile(), {} as StyleFile)
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
@@ -1405,11 +1409,16 @@ async function placeFor($: EngineInterface, repo: string): Promise<Place> {
 }
 
 // Filling the prompt takes the keyboard from the drawer, so Review and the task buttons only mark a card and the drawer's close fills them all.
-async function addCard($: EngineInterface, key: string) {
-  const keys = await read($, added)
-  if (keys.includes(key) || (await read($, requested)).includes(key)) return
-  await update($, added, () => [...keys, key])
-  $.ui.toast(m.toast.added(keys.length + 1))
+const addCard = ($: EngineInterface, key: string) => addCards($, [key])
+
+// The single press and All actions share this, so a card is marked the same way from either.
+async function addCards($: EngineInterface, keys: string[]) {
+  const have = await read($, added)
+  const asked = await read($, requested)
+  const fresh = keys.filter(key => !have.includes(key) && !asked.includes(key))
+  if (fresh.length === 0) return
+  await update($, added, () => [...have, ...fresh])
+  $.ui.toast(m.toast.added(have.length + fresh.length))
 }
 
 // Read at each drawer open and each /review-inbox buttons, so an edit to the file shows without a restart.
@@ -1475,7 +1484,6 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   const chosen = keys.flatMap(key => byKey.get(key) ?? [])
   if (keys.length > 0) {
     const { text } = await $.prompt.read()
-    const style = learnedStyle(await readJson($, styleFile(), {} as StyleFile))
     const jobs = (await read($, autoReview)).jobs
     const reviewsOn = chosen.flatMap(c => c.review ?? [])
     const pending: Record<string, PendingReview> = {}
@@ -1483,7 +1491,7 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
       const job = jobs[itemKey(i)]
       if (job?.headSha === i.headSha && job.reviewId) pending[itemKey(i)] = { id: job.reviewId, where: workWhere(await placeFor($, i.repo), i.repo, true, m) }
     }
-    const reviews = reviewPrompts(text, reviewsOn, m, style, pending, config.reviewSkill)
+    const reviews = reviewPrompts(text, reviewsOn, m, pending, config.reviewSkill)
     const tasks = await Promise.all(chosen.flatMap(c => c.task ?? []).map(async task => ({ task, place: await placeFor($, task.repo) })))
     const queued = reviews + taskPrompts(text + reviews, tasks, m)
     const own = await buttonPrompts($, keys)
@@ -2036,10 +2044,10 @@ export const register: Register = (on, options) => {
         />
       )
     }
-    const moreButton = (key: string) => (
+    const moreButton = (key: string, name = m.buttons.more) => (
       <Button
         key={`more-${key}`}
-        label={`${moreKey === key ? '▾' : '▸'} ${m.buttons.more}`}
+        label={`${moreKey === key ? '▾' : '▸'} ${name}`}
         dimColor
         onPress={() => void update($, more, open => (open === key ? '' : key))}
       />
@@ -2065,6 +2073,36 @@ export const register: Register = (on, options) => {
             })}
         </Box>
       )
+    // All actions: what a card's Review and its own buttons do, for every ready review request at once, in the order shown; drafts are left out.
+    const allRow = (cards: InboxItem[]) => {
+      if (cards.length === 0) return undefined
+      const button = (key: string, name: string, keys: string[], isPrimary = false) => {
+        const isAdded = keys.every(k => addedKeys.includes(k))
+        return (
+          <Button
+            key={key}
+            label={isAdded ? m.card.added : name}
+            {...(isAdded ? { dimColor: true } : isPrimary ? { variant: 'primary' as const } : {})}
+            onPress={() => void addCards($, keys)}
+          />
+        )
+      }
+      return (
+        <Box flexDirection="column" marginBottom={1}>
+          <Box flexDirection="row" justifyContent="flex-end">
+            {moreButton(ALL, m.buttons.all)}
+          </Box>
+          {moreKey === ALL && (
+            <Box flexDirection="row" flexWrap="wrap" justifyContent="flex-end" gap={1}>
+              {buttons
+                .filter(b => b.scope === 'review')
+                .map(b => button(`all-btn-${b.id}`, b.name, cards.map(i => buttonKey(itemKey(i), b.id))))}
+              {button('all-review', m.card.review, cards.map(itemKey), true)}
+            </Box>
+          )}
+        </Box>
+      )
+    }
     // Settings live in /review-inbox buttons; the drawer speaks up only when actions.json needs fixing.
     const crowded = crowdedScopes(buttons)
 
@@ -2740,6 +2778,7 @@ export const register: Register = (on, options) => {
                 )}
                 {unhide('review', everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
+                {allRow([...reviewing.filter(i => !i.isDraft), ...directReady, ...teamReady])}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
                 {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
                 {section('review:team', m.sections.team(teamReady.length), teamReady, card)}

@@ -124,14 +124,15 @@ Wenn nichts Ihr Zutun erfordert (keine Review-Anfrage, kein PR mit etwas zu tun,
 
 Eine Karte pro PR, der auf Ihr Review wartet: eine Zusammenfassung in einem Satz, der Grund für den PR, seine Auswirkungen, Größe und Autor sowie die Zeit, seit der Ihr Review aussteht. Riskante Punkte wie eine Schemaänderung oder eine vorgeschriebene Deploy-Reihenfolge werden mit ⚠️ markiert.
 
-- `Mit Claude reviewen` markiert die Karte als `Hinzugefügt` und lässt das Panel geöffnet, sodass Sie mehrere PRs auswählen können. Wenn Sie das Panel schließen (Esc oder ×), wird für jeden hinzugefügten PR eine Review-Anfrage in Ihren Prompt eingefügt, samt Warnhinweisen und den Änderungen seit Ihrem letzten Review. Gesendet wird erst, wenn Sie Enter drücken. Ein PR, für den Ihr bereits eingegebener Text schon eine Anfrage enthält, erscheint beim Öffnen des Panels als `Hinzugefügt`.
+- `Mit Claude reviewen` markiert die Karte als `Hinzugefügt` und lässt das Panel geöffnet, sodass Sie mehrere PRs auswählen können. Wenn Sie das Panel schließen (Esc oder ×), wird für jeden hinzugefügten PR eine Review-Anfrage in Ihren Prompt eingefügt: nur die Anfrage und der Link des PRs, sonst nichts. Gesendet wird erst, wenn Sie Enter drücken. Ein PR, für den Ihr bereits eingegebener Text schon eine Anfrage enthält, erscheint beim Öffnen des Panels als `Hinzugefügt`.
+- `▸ Aktionen für alle` über den Karten öffnet `Mit Claude reviewen` und die Review-Schaltflächen unter `▸ Aktionen` für alle Karten auf einmal, sodass Sie nicht jede einzeln drücken müssen. Entwürfe bleiben außen vor.
 - `Ausblenden` unter `▸ Aktionen`, neben `Notiz`, blendet die Karte aus, bis der PR einen neuen Commit erhält.
 - `erneut angefragt` kennzeichnet einen PR, den Sie bereits reviewt haben und der Sie erneut anfragt, mit einer kurzen Zusammenfassung der Änderungen seit Ihrem letzten Review.
 - Die Karten sind in direkte Anfragen, Team-Anfragen und Entwürfe gruppiert.
 
 ![Reviewen auf zwei Karten markiert sie als Hinzugefügt, Ausblenden blendet eine dritte aus, und Esc übernimmt beide Review-Anfragen in den Prompt](docs/images/en/review.gif)
 
-Die Anfrage enthält außerdem eine Zeile, die beschreibt, wie Sie üblicherweise reviewen, damit Claude so reviewt, wie Sie es tun würden. Einmal pro Woche liest die Mod Ihre eigenen Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben, und lässt Claude Ihre Sprache und Ihren Ton beschreiben, worauf Sie zuerst achten und wie Sie Bitten formulieren. Liegen weniger als fünf Kommentare zum Lernen vor, geht die Anfrage ohne diese Zeile hinaus; schlägt das Lernen fehl, bleibt die letzte Beschreibung erhalten und die Mod versucht es einen Tag später erneut. Automatische Reviews, die unter Ihrem Namen veröffentlicht wurden, bleiben außen vor, sodass sie nur aus dem lernt, was Sie selbst geschrieben haben.
+Automatische Reviews werden in Ihrem üblichen Ton geschrieben. Solange sie eingeschaltet sind, liest die Mod einmal pro Woche Ihre eigenen Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben, und lässt Claude Ihre Sprache und Ihren Ton beschreiben, worauf Sie zuerst achten und wie Sie Bitten formulieren. Liegen weniger als fünf Kommentare zum Lernen vor, wird ohne diese Beschreibung geschrieben; schlägt das Lernen fehl, bleibt die letzte Beschreibung erhalten und die Mod versucht es einen Tag später erneut. Automatische Reviews, die unter Ihrem Namen veröffentlicht wurden, bleiben außen vor, sodass sie nur aus dem lernt, was Sie selbst geschrieben haben.
 
 ### Meine PRs
 

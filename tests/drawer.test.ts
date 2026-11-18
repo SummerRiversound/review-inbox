@@ -495,6 +495,45 @@ test('More opens a card\'s own buttons, one card at a time, and a press adds the
   await ui.unmount()
 })
 
+test('All actions opens one row for every ready review request, and a press adds each of them once but no draft', async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const ui = await opened($, on, [], [], 'review', { items: [item(1), item(2), { ...item(3), isDraft: true }] })
+
+  await ui.press({ key: 'more-o/r#1' })
+  await ui.press({ key: 'btn-o/r#1-summarize-risks' })
+  expect(await ui.find({ key: 'all-review' })).toBe(undefined)
+  await ui.press({ key: 'more-all:review' })
+  expect(await ui.find({ key: 'btn-o/r#1-summarize-risks' })).toBe(undefined)
+  await ui.press({ key: 'all-review' })
+  expect(await label('review-o/r#1')).toBe('Added')
+  expect(await label('review-o/r#2')).toBe('Added')
+  expect(await label('review-o/r#3')).toBe('Review with Claude')
+  expect(await label('all-review')).toBe('Added')
+  expect(toasts.at(-1)).toStartWith('3 cards added')
+
+  // The card pressed by hand is not added a second time.
+  await ui.press({ key: 'all-btn-summarize-risks' })
+  expect(toasts.at(-1)).toStartWith('4 cards added')
+  await ui.press({ key: 'more-o/r#2' })
+  expect(await label('btn-o/r#2-summarize-risks')).toBe('Added')
+  await ui.press({ key: 'more-o/r#3' })
+  expect(await label('btn-o/r#3-summarize-risks')).toBe('Summarize risks')
+  await ui.unmount()
+})
+
+test('with only drafts waiting there is no All actions', async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [{ ...item(3), isDraft: true }] })
+
+  expect(await ui.find({ key: 'review-o/r#3' })).toBeDefined()
+  expect(await ui.find({ key: 'more-all:review' })).toBe(undefined)
+  await ui.unmount()
+})
+
 test('Note and Hide sit in a card\'s More row, not on the card itself', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
 

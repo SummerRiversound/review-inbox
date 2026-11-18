@@ -2,6 +2,7 @@ import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
+import { styleQuery } from '../hooks/style'
 
 // Where the mod keeps the inbox for HOME=/home/me with no scope, no account and English.
 const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}-f${INBOX_FORMAT}.json`
@@ -62,8 +63,8 @@ const myGqlPr = {
   reviewDecision: null, mergeable: 'MERGEABLE', commits: { nodes: [] }, reviews: { nodes: [] },
 }
 
-// A session with nothing fetched yet, whose review-request search fails, or answers only when `answer` is called.
-function slowReviews(on: On, reviews: 'hang' | 'fail') {
+// A session with nothing fetched yet, whose review-request search answers, fails, or answers only when `answer` is called; `asked` holds each gh call.
+function slowReviews(on: On, reviews: 'hang' | 'fail' | 'ok') {
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/home/me' })
   on('settings.read', async () => ({ value: {} }))
@@ -82,17 +83,19 @@ function slowReviews(on: On, reviews: 'hang' | 'fail') {
     return { value: undefined }
   })
   let answer = () => {}
+  const asked: string[] = []
   on('process.run', async ($, e) => {
     const args = e.argv.join(' ')
+    asked.push(args)
     if (!args.startsWith('gh api graphql')) return { value: ran(1, 'offline') }
     if (args.includes('q=is:pr is:open review-requested:@me')) {
       if (reviews === 'fail') return { value: ran(1, 'offline') }
-      await new Promise<void>(resolve => (answer = resolve))
+      if (reviews === 'hang') await new Promise<void>(resolve => (answer = resolve))
     }
     const nodes = args.includes('is:pr is:open author:@me') ? [myGqlPr] : []
     return { value: { ...ran(0), stdout: page(nodes) } }
   })
-  return { clock, inbox: () => JSON.parse(files.get(INBOX) ?? '{}'), answer: () => answer() }
+  return { clock, inbox: () => JSON.parse(files.get(INBOX) ?? '{}'), answer: () => answer(), asked }
 }
 
 test('a list GitHub has answered is shown while a slower one is still being fetched', async ($, on) => {
@@ -119,4 +122,27 @@ test('a fetch that fails partway keeps the lists it did get, with the error', as
 
   expect(inbox().error).toBe('offline')
   expect(inbox().mine.map((pr: { url: string }) => pr.url)).toEqual(['u1'])
+})
+
+// The saved search of PRs I reviewed also asks for reviewed-by:@me, but for open ones only.
+const learnsStyle = (asked: string[]) => asked.some(args => args.includes(`q=${styleQuery('')}`))
+
+test('with auto review on, a fetch that worked goes on to read my recent reviews for my style', { options: { autoReview: 'on' } }, async ($, on) => {
+  const { clock, inbox, asked } = slowReviews(on, 'ok')
+
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 10; i++) await clock.advance(1_000)
+
+  expect(inbox().fetchedAt).toBeDefined()
+  expect(learnsStyle(asked)).toBe(true)
+})
+
+test('with auto review off my reviews are not read for a style, as only auto review uses it', async ($, on) => {
+  const { clock, inbox, asked } = slowReviews(on, 'ok')
+
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 10; i++) await clock.advance(1_000)
+
+  expect(inbox().fetchedAt).toBeDefined()
+  expect(learnsStyle(asked)).toBe(false)
 })

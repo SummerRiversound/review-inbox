@@ -143,6 +143,7 @@ export const zhCN: Messages = {
   },
   buttons: {
     more: "操作",
+    all: "批量操作",
     none: "还没有自己的按钮，目前只显示内置按钮。",
     counts: (buttons, groups) => `我的按钮 ${buttons} 个，已保存的搜索 ${groups} 个`,
     how: "输入 /review-inbox add-button 或 /review-inbox add-search，与 Claude 一起编写。",
@@ -277,9 +278,6 @@ export const zhCN: Messages = {
     refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待提交审查；它审查的是 head ${sha}。用 \`gh api\` 读取它的正文和评论，并按我们商定的在那里修改。`,
     pending: (id: number, repo: string, number: number) =>
       `这个 PR 上有我的待提交审查 ${id}，它存在时 GitHub 不接受新的审查：请在它上面修改。等我说了结论再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）提交，或者删除它；不要新建审查。`,
-    check: '重点检查：',
-    since: '我上次审查后的变更：',
-    style: '我平时的审查风格：',
     task: {
       changes: url => `帮我处理 ${url} 上未解决的审查评论，用 \`gh pr view ${url} --comments\` 读取。`,
       'ci-failing': url =>

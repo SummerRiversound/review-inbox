@@ -38,55 +38,46 @@ test('a summary is read out of a reply that wraps the JSON in prose', async () =
   expect(parseSummary('no json here')).toBeUndefined()
 })
 
-test('the review prompt asks for the review with the warnings and what changed since my review, in the chosen language', async () => {
+test('the review prompt is the request and the link only, in the chosen language', async () => {
   const full = item({
     url: 'URL', summary: 'S',
-    impact: [{ text: 'A', warn: true }, { text: 'B', warn: false }, { text: 'C', warn: true }],
+    impact: [{ text: 'A', warn: true }, { text: 'B', warn: false }],
     sinceLastReview: 'D',
   })
-  expect(reviewPrompt('', full, ko)).toBe('URL 리뷰해 줘.\n특히 확인할 점: A / C\n지난 내 리뷰 이후 바뀐 점: D\n')
-  expect(reviewPrompt('먼저', item({ url: 'URL', summary: 'S' }), ko)).toBe('\nURL 리뷰해 줘.\n')
-  expect(reviewPrompt('', full, en)).toBe('Review URL.\nCheck in particular: A / C\nChanged since my last review: D\n')
-})
-
-test('my review style goes into the prompt once, however many PRs are added', async () => {
-  const first = reviewPrompt('', item({ url: 'U1' }), en, 'Short and direct.')
-  expect(first).toBe('Review U1.\nMy usual review style: Short and direct.\n')
-  expect(reviewPrompt(first, item({ url: 'U2' }), en, 'Short and direct.')).toBe('Review U2.\n')
-  expect(reviewPrompt('', item({ url: 'U1' }), en, undefined)).toBe('Review U1.\n')
+  expect(reviewPrompt('', full, ko)).toBe('URL 리뷰해 줘.\n')
+  expect(reviewPrompt('먼저', full, ko)).toBe('\nURL 리뷰해 줘.\n')
+  expect(reviewPrompt('', full, en)).toBe('Review URL.\n')
 })
 
 test('a PR with my pending review asks Claude to refine that review where the PR is checked out, not to start another', async () => {
   const a = item({ repo: 'o/r', number: 5, url: 'https://github.com/o/r/pull/5', headSha: 'h5' })
-  const text = reviewPrompts('', [a], en, undefined, { 'o/r#5': { id: 77, where: 'Work in /src/r.' } })
+  const text = reviewPrompts('', [a], en, { 'o/r#5': { id: 77, where: 'Work in /src/r.' } })
   expect(text).toStartWith('Refine my pending review on https://github.com/o/r/pull/5 with me; it reviews head h5.')
   expect(text.includes('My pending review 77 is on this PR')).toBe(true)
   expect(text).toEndWith('Work in /src/r.\n')
   expect(text.includes('`gh api -X POST repos/o/r/pulls/5/reviews/77/events -f event=COMMENT`')).toBe(true)
-  expect(reviewPrompts('', [a], en, undefined)).toBe('Review https://github.com/o/r/pull/5.\n')
+  expect(reviewPrompts('', [a], en)).toBe('Review https://github.com/o/r/pull/5.\n')
 })
 
 test('a review skill names the skill in each request, but not in a pending review Claude refines', async () => {
   const a = item({ repo: 'o/r', number: 5, url: 'https://github.com/o/r/pull/5', headSha: 'h5' })
   const b = item({ url: 'https://github.com/o/r/pull/6' })
-  expect(reviewPrompts('', [a, b], en, undefined, {}, 'my-review')).toBe(
+  expect(reviewPrompts('', [a, b], en, {}, 'my-review')).toBe(
     'Review https://github.com/o/r/pull/5 with the /my-review skill.\nReview https://github.com/o/r/pull/6 with the /my-review skill.\n',
   )
-  expect(reviewPrompt('', b, ko, undefined, undefined, 'my-review')).toBe('/my-review 스킬로 https://github.com/o/r/pull/6 리뷰해 줘.\n')
-  expect(reviewPrompts('', [a], en, undefined, { 'o/r#5': { id: 77, where: 'Work in /src/r.' } }, 'my-review')).toStartWith('Refine my pending review')
-  expect(reviewPrompts('Review https://github.com/o/r/pull/6 with the /my-review skill.', [b], en, undefined, {}, 'my-review')).toBe('')
+  expect(reviewPrompt('', b, ko, undefined, 'my-review')).toBe('/my-review 스킬로 https://github.com/o/r/pull/6 리뷰해 줘.\n')
+  expect(reviewPrompts('', [a], en, { 'o/r#5': { id: 77, where: 'Work in /src/r.' } }, 'my-review')).toStartWith('Refine my pending review')
+  expect(reviewPrompts('Review https://github.com/o/r/pull/6 with the /my-review skill.', [b], en, {}, 'my-review')).toBe('')
   expect(parseReviewSkill(' /my-review ')).toBe('my-review')
   expect(parseReviewSkill(undefined)).toBe('')
 })
 
-test('the PRs added in the drawer go into the prompt together, the style once, none twice', async () => {
+test('the PRs added in the drawer go into the prompt together, none twice', async () => {
   const a = item({ url: 'https://github.com/o/r/pull/1' })
   const b = item({ url: 'https://github.com/o/r/pull/2' })
-  expect(reviewPrompts('', [a, b], en, 'Short.')).toBe(
-    'Review https://github.com/o/r/pull/1.\nMy usual review style: Short.\nReview https://github.com/o/r/pull/2.\n',
-  )
-  expect(reviewPrompts('Review https://github.com/o/r/pull/1.', [a, b], en, undefined)).toBe('\nReview https://github.com/o/r/pull/2.\n')
-  expect(reviewPrompts('draft', [], en, 'Short.')).toBe('')
+  expect(reviewPrompts('', [a, b], en)).toBe('Review https://github.com/o/r/pull/1.\nReview https://github.com/o/r/pull/2.\n')
+  expect(reviewPrompts('Review https://github.com/o/r/pull/1.', [a, b], en)).toBe('\nReview https://github.com/o/r/pull/2.\n')
+  expect(reviewPrompts('draft', [], en)).toBe('')
 })
 
 test('a PR counts as added only when the draft names its exact link', async () => {

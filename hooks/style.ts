@@ -51,7 +51,7 @@ export function styleSamples(nodes: Partial<GqlReviewed>[], me: string): string[
   return samples
 }
 
-// Fewer recent reviews than this say too little about how I write; the prompt then goes without a style line.
+// Fewer recent reviews than this say too little about how I write; auto review then goes without a style.
 export const MIN_STYLE_SAMPLES = 5
 
 export function stylePrompt(samples: string[]): string | undefined {

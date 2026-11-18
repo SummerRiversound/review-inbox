@@ -143,6 +143,7 @@ export const ja: Messages = {
   },
   buttons: {
     more: "操作",
+    all: "一括操作",
     none: "自分のボタンはまだありません。組み込みのボタンだけを表示しています。",
     counts: (buttons, groups) => `自分のボタン ${buttons} 個、保存した検索 ${groups} 個`,
     how: "/review-inbox add-button または /review-inbox add-search で、Claude と一緒に作成できます。",
@@ -277,9 +278,6 @@ export const ja: Messages = {
     refine: (url: string, sha: string) => `${url} にある自分の保留中のレビューを一緒に仕上げよう。head ${sha} をレビューしたもの。本文とコメントは \`gh api\` で読み、決めたとおりにそこで直して。`,
     pending: (id: number, repo: string, number: number) =>
       `この PR には自分の保留中のレビュー ${id} があり、それがある間 GitHub は新しいレビューを受け付けない。そのレビューを直して使って。判定を伝えたら \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(または APPROVE、REQUEST_CHANGES)で提出するか削除して。新しいレビューは作らないで。`,
-    check: '特に確認してほしい点: ',
-    since: '前回の自分のレビュー以降に変わった点: ',
-    style: '普段の自分のレビュースタイル: ',
     task: {
       changes: (url: string) => `${url} の未解決のレビューコメントに対応して。コメントは \`gh pr view ${url} --comments\` で読んで。`,
       'ci-failing': (url: string) =>
