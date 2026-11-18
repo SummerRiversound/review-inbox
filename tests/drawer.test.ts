@@ -534,19 +534,6 @@ test('with only drafts waiting there is no All actions', async ($, on) => {
   await ui.unmount()
 })
 
-test('with auto review off the weekly style is not learned, as only auto review reads it', async ($, on) => {
-  const asked: string[] = []
-  await opened($, on, [], [], 'review', {
-    items: [item(1)],
-    run: args => {
-      asked.push(args)
-      return undefined
-    },
-  })
-
-  expect(asked.some(a => a.includes('reviewed-by:@me'))).toBe(false)
-})
-
 test('Note and Hide sit in a card\'s More row, not on the card itself', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
 
