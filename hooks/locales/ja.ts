@@ -115,7 +115,6 @@ export const ja: Messages = {
     until: (month: number, day: number) => `${month}/${day} まで延期`,
   },
   sort: {
-    label: "並び順",
     default: "既定",
     updated: "更新が新しい順",
     size: "小さい順",

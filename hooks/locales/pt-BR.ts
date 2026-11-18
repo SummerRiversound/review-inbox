@@ -119,7 +119,6 @@ export const ptBR: Messages = {
     until: (month: number, day: number) => `adiado até ${day}/${month}`,
   },
   sort: {
-    label: "Ordem",
     default: "Padrão",
     updated: "Atualizados recentemente",
     size: "Menores primeiro",

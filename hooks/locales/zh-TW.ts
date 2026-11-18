@@ -115,7 +115,6 @@ export const zhTW: Messages = {
     until: (month: number, day: number) => `延後到 ${month}/${day}`,
   },
   sort: {
-    label: "排序",
     default: "預設",
     updated: "最近更新",
     size: "由小到大",

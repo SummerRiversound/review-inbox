@@ -127,7 +127,6 @@ const en = {
     until: (month: number, day: number) => `snoozed until ${month}/${day}`,
   },
   sort: {
-    label: "Sort",
     default: "Default order",
     updated: "Recently updated",
     size: "Smallest first",

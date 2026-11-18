@@ -115,7 +115,6 @@ export const zhCN: Messages = {
     until: (month: number, day: number) => `推迟到 ${month}/${day}`,
   },
   sort: {
-    label: "排序",
     default: "默认",
     updated: "最近更新",
     size: "从小到大",

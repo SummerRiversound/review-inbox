@@ -102,7 +102,7 @@ my-org/legacy=~/old/legacy-app
 
 ## Pestañas
 
-Cada pestaña agrupa sus tarjetas por categoría. Pulsa el encabezado de una categoría para plegarla y otra vez para abrirla. `N ocultos · mostrar todo`, al final de una lista, vuelve a mostrar solo las tarjetas ocultas de esa lista. Los botones de `Orden`, bajo las pestañas, reordenan las tarjetas dentro de cada categoría: `Predeterminado`, `Actualizados recientemente`, `Más pequeños primero` (solo en las solicitudes de revisión) o `Repositorio · autor`.
+Cada pestaña agrupa sus tarjetas por categoría. Pulsa el encabezado de una categoría para plegarla y otra vez para abrirla. `N ocultos · mostrar todo`, al final de una lista, vuelve a mostrar solo las tarjetas ocultas de esa lista. El botón `⇅`, a la derecha de las pestañas, muestra el orden en uso y abre los demás, que reordenan las tarjetas dentro de cada categoría: `Predeterminado`, `Actualizados recientemente`, `Más pequeños primero` (solo en las solicitudes de revisión) o `Repositorio · autor`.
 
 `Nota`, en `▸ Acciones` de una tarjeta, escribe una línea encima del título: qué revisaste o qué acordaste hacer y cuándo. `Guardar` deja la tarjeta a la vista. `Posponer hasta mañana` y `Posponer hasta la próxima semana` la apartan hasta mañana o el próximo lunes a las 9, o antes si hay novedades: un commit nuevo en una solicitud de revisión, un cambio de estado o una revisión nueva en tu PR, actividad nueva en una incidencia. Un aviso te dice cuándo vuelve una tarjeta pospuesta, con su nota. `Borrar` quita la nota.
 

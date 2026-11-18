@@ -102,7 +102,7 @@ my-org/legacy=~/old/legacy-app
 
 ## Tabs
 
-Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the bottom of a list brings back that list's hidden cards. The `Sort` buttons under the tabs reorder the cards within each category: `Default order`, `Recently updated`, `Smallest first` (review requests only) or `Repository · author`.
+Each tab groups its cards into categories. Press a category's header to fold it, and again to open it. `N hidden · show all` at the bottom of a list brings back that list's hidden cards. The `⇅` button at the right of the tabs shows the order in use and opens the others, which reorder the cards within each category: `Default order`, `Recently updated`, `Smallest first` (review requests only) or `Repository · author`.
 
 `Note`, under a card's `▸ Actions`, writes one line above its title: what you checked, or what you agreed to do and when. `Save` keeps the card in view. `Snooze until tomorrow` and `Snooze until next week` put it away until 9 a.m. tomorrow or next Monday, or sooner when it has news: a new commit on a review request, a new state or a new review on your PR, new activity on an issue. A toast tells you when a snoozed card is back, with its note. `Clear` removes the note.
 

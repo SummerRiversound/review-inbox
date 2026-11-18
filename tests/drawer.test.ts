@@ -534,19 +534,29 @@ test('with only drafts waiting there is no All actions', async ($, on) => {
   await ui.unmount()
 })
 
-test('the sort buttons reorder the cards within their category, and size is offered only where cards have one', async ($, on) => {
+test('the sort button at the right of the tabs opens the orders, a choice reorders the cards within their category and closes them, and size is offered only where cards have one', async ($, on) => {
   const big = { ...item(1), additions: 900, updatedAt: '2026-10-05T00:00:00Z' }
   const small = { ...item(2), additions: 3, updatedAt: '2026-10-02T00:00:00Z' }
   const ui = await opened($, on, [], [], 'review', { items: [big, small] })
   const numbers = async () => (await ui.findAll({ type: 'Text', text: /^o\/r #\d/ })).map(t => (t.text ?? '').match(/#(\d)/)?.[1])
 
+  const label = async () => (await ui.find({ key: 'sort-open' }))?.props.label
   expect(await numbers()).toEqual(['1', '2'])
+  expect(await label()).toBe('⇅ Default order')
+  expect(await ui.find({ key: 'sort-size' })).toBe(undefined)
+  await ui.press({ key: 'sort-open' })
   await ui.press({ key: 'sort-size' })
   expect(await numbers()).toEqual(['2', '1'])
+  expect(await label()).toBe('⇅ Smallest first')
+  expect(await ui.find({ key: 'sort-size' })).toBe(undefined)
+  await ui.press({ key: 'sort-open' })
   await ui.press({ key: 'sort-updated' })
   expect(await numbers()).toEqual(['1', '2'])
+  await ui.press({ key: 'sort-open' })
   await ui.press({ key: 'sort-size' })
   await ui.press({ key: 'tab-work' })
+  expect(await label()).toBe('⇅ Default order')
+  await ui.press({ key: 'sort-open' })
   expect(await ui.find({ key: 'sort-size' })).toBe(undefined)
   expect((await ui.find({ key: 'sort-default' }))?.props.variant).toBe('primary')
   await ui.unmount()

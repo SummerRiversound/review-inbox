@@ -284,6 +284,8 @@ const buttonKey = (key: string, id: string) => `${key}::${id}`
 const MERGE = '@merge'
 // The All actions row's place in `more`; no card key has this shape.
 const ALL = 'all:review'
+// The sort choices' place in `more`, so they open one row at a time like a card's.
+const SORT = 'sort:choices'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -2727,27 +2729,37 @@ export const register: Register = (on, options) => {
               </Box>
             )}
             {/* No hotkeys: number keys are already taken by other plugins' buttons. */}
-            <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginY={1}>
-              {tabs.map(t => (
-                <Button
-                  key={`tab-${t.id}`}
-                  label={t.label}
-                  {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
-                  onPress={() => void update($, tab, () => t.id)}
-                />
-              ))}
+            <Box flexDirection="row" justifyContent="space-between" columnGap={1} marginY={1}>
+              <Box flexDirection="row" flexWrap="wrap" columnGap={1} flexShrink={1} minWidth={0}>
+                {tabs.map(t => (
+                  <Button
+                    key={`tab-${t.id}`}
+                    label={t.label}
+                    {...(t.id === active ? { variant: 'primary' as const } : { dimColor: true })}
+                    onPress={() => void update($, tab, () => t.id)}
+                  />
+                ))}
+              </Box>
+              {/* The order in use, at the right of the tabs; a press opens the choices under it. */}
+              <Box flexShrink={0}>
+                <Button key="sort-open" label={`⇅ ${m.sort[order]}`} dimColor onPress={() => void update($, more, open => (open === SORT ? '' : SORT))} />
+              </Box>
             </Box>
-            <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginBottom={1}>
-              <Text dimColor>{m.sort.label}</Text>
-              {SORTS.filter(s => s !== 'size' || active === 'review').map(s => (
-                <Button
-                  key={`sort-${s}`}
-                  label={m.sort[s]}
-                  {...(s === order ? { variant: 'primary' as const } : { dimColor: true })}
-                  onPress={() => void update($, sort, () => s)}
-                />
-              ))}
-            </Box>
+            {moreKey === SORT && (
+              <Box flexDirection="row" flexWrap="wrap" justifyContent="flex-end" columnGap={1} marginBottom={1}>
+                {SORTS.filter(s => s !== 'size' || active === 'review').map(s => (
+                  <Button
+                    key={`sort-${s}`}
+                    label={m.sort[s]}
+                    {...(s === order ? { variant: 'primary' as const } : { dimColor: true })}
+                    onPress={async () => {
+                      await update($, sort, () => s)
+                      await update($, more, () => '')
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
 
             {active === 'review' && (
               <Box flexDirection="column">

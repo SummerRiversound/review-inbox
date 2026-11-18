@@ -118,7 +118,6 @@ export const fr: Messages = {
     until: (month: number, day: number) => `reportée au ${day}/${month}`,
   },
   sort: {
-    label: "Tri",
     default: "Par défaut",
     updated: "Mis à jour récemment",
     size: "Les plus petites d'abord",

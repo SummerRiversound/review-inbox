@@ -119,7 +119,6 @@ export const de: Messages = {
     until: (month: number, day: number) => `zurückgestellt bis ${day}.${month}.`,
   },
   sort: {
-    label: "Sortierung",
     default: "Standard",
     updated: "Zuletzt aktualisiert",
     size: "Kleinste zuerst",

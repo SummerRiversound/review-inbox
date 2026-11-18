@@ -115,7 +115,6 @@ export const ko: Messages = {
     until: (month: number, day: number) => `${month}/${day}까지 미룸`,
   },
   sort: {
-    label: "정렬",
     default: "기본 순서",
     updated: "최근 업데이트 순",
     size: "크기 순",

@@ -118,7 +118,6 @@ export const es: Messages = {
     until: (month: number, day: number) => `pospuesto hasta el ${day}/${month}`,
   },
   sort: {
-    label: "Orden",
     default: "Predeterminado",
     updated: "Actualizados recientemente",
     size: "Más pequeños primero",
