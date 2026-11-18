@@ -69,6 +69,8 @@ export type AutoJob = {
   // The running review: its subagent, the session holding it and when that session last said so.
   agentId?: string
   runner?: string
+  // The id of that session, so every session can say whether the review runs in it or in which other.
+  session?: string
   heartbeatAt?: number
   startedAt?: number
   // The run folder, and the checkout whose worktree is in it.
@@ -119,7 +121,7 @@ export type AutoState =
   | { kind: 'settling'; startsAt: number }
   | { kind: 'capped' }
   | { kind: 'queued'; ahead: number }
-  | { kind: 'running'; since: number }
+  | { kind: 'running'; since: number; session?: string }
   | { kind: 'done'; result?: AutoResult; tokens?: number; reviewId?: number; carriedFrom?: string }
   | { kind: 'stale'; reviewId: number; from: string }
   | { kind: 'failed'; error: string }

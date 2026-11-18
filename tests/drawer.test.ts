@@ -1238,6 +1238,51 @@ test('a session that is not the review session leaves queued PRs to it while it 
   await ui.unmount()
 })
 
+test('a review this session runs says so on its card, and records the session for the others to read', AUTO_ON, async ($, on) => {
+  const got = agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({ created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }) })
+  await tick()
+  expect(got.spawns).toHaveLength(1)
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].session).toBe('self')
+  expect(await shown(ui, /Auto review running · \d+ min so far · in this session$/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a review another session runs names that session by its folder', AUTO_ON, async ($, on) => {
+  agents(on)
+  const running = queued({ status: 'running', runner: 'x', session: 'other', agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
+  const ui = await opened($, on, [], [], 'review', {
+    items: [recent(5)],
+    files: { [AUTO]: running, [SESSIONS]: JSON.stringify({ other: { at: Date.now(), folder: 'r', remotes: [], prs: [] } }) },
+    run: autoGithub({ created: [] }),
+  })
+  expect(await shown(ui, /Auto review running · \d+ min so far · in another session \(r\)$/)).toBe(true)
+  await ui.unmount()
+})
+
+test('a running review whose session left no name keeps its line as it was', AUTO_ON, async ($, on) => {
+  agents(on)
+  const running = queued({ status: 'running', runner: 'x', agentId: 'b1', startedAt: Date.now(), heartbeatAt: Date.now() + 3_600_000 })
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: running }, run: autoGithub({ created: [] }) })
+  expect(await shown(ui, /Auto review running · \d+ min so far$/)).toBe(true)
+  await ui.unmount()
+})
+
+test('beside the switch the review session reads as this one, or as another by its folder', AUTO_ON, async ($, on) => {
+  agents(on)
+  const ui = await opened($, on, [], [], 'review', {
+    items: [recent(5)],
+    files: { [AUTO]: JSON.stringify({ ...JSON.parse(queued()), reviewer: 'other' }), [SESSIONS]: JSON.stringify({ other: { at: Date.now(), folder: 'r', remotes: [], prs: [] } }) },
+    run: autoGithub({ created: [] }),
+  })
+  expect(await shown(ui, /^Auto review runs in another session \(r\)$/)).toBe(true)
+  await $.command.run({ command: 'review-inbox', args: 'auto-review-here' })
+  expect(await shown(ui, /^Auto review runs in this session$/)).toBe(true)
+  await $.command.run({ command: 'review-inbox', args: 'auto-review-anywhere' })
+  expect(await shown(ui, /^Auto review runs in/)).toBe(false)
+  await ui.unmount()
+})
+
 test('the next queued PR is reviewed by a read-only subagent and stored as my pending review, comments only on lines the diff has', AUTO_ON, async ($, on) => {
   const toasts: string[] = []
   on('ui.toast', async ($, e) => {
