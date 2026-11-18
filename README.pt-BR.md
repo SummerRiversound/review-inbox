@@ -132,7 +132,7 @@ Um cartão para cada PR aguardando sua revisão: um resumo de uma frase, o motiv
 
 ![Revisar em dois cartões os marca como Adicionado, Ocultar oculta um terceiro, e Esc coloca os dois pedidos de revisão no prompt](docs/images/en/review.gif)
 
-As revisões automáticas são escritas no seu tom habitual. Uma vez por semana, o mod lê os seus próprios comentários em até 30 PRs que você revisou recentemente e pede ao Claude que descreva o idioma e o tom que você usa, o que você olha primeiro e como você formula os pedidos. Com menos de cinco comentários para aprender, elas são escritas sem essa descrição; se o aprendizado falhar, a última descrição é mantida e o mod tenta de novo um dia depois. Revisões automáticas publicadas com o seu nome ficam de fora, então ele aprende só com o que você mesmo escreveu.
+As revisões automáticas são escritas no seu tom habitual. Enquanto elas estão ativadas, uma vez por semana o mod lê os seus próprios comentários em até 30 PRs que você revisou recentemente e pede ao Claude que descreva o idioma e o tom que você usa, o que você olha primeiro e como você formula os pedidos. Com menos de cinco comentários para aprender, elas são escritas sem essa descrição; se o aprendizado falhar, a última descrição é mantida e o mod tenta de novo um dia depois. Revisões automáticas publicadas com o seu nome ficam de fora, então ele aprende só com o que você mesmo escreveu.
 
 ### Meus PRs
 

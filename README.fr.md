@@ -132,7 +132,7 @@ Une carte par PR en attente de votre revue : un résumé en une phrase, la raiso
 
 ![Faire la revue sur deux cartes les marque Ajouté, Masquer cache une troisième carte, et Échap place les deux demandes de revue dans le prompt](docs/images/en/review.gif)
 
-Les revues automatiques sont rédigées dans votre ton habituel. Une fois par semaine, le mod lit vos propres commentaires sur jusqu'à 30 PR dont vous avez récemment fait la revue, et demande à Claude de décrire votre langue et votre ton, ce que vous regardez en premier et la façon dont vous formulez vos demandes. S'il y a moins de cinq commentaires dont s'inspirer, elles sont rédigées sans cette description ; si l'apprentissage échoue, la dernière description est conservée et le mod réessaie un jour plus tard. Les revues automatiques publiées sous votre nom sont écartées, pour qu'il n'apprenne que de ce que vous avez écrit vous-même.
+Les revues automatiques sont rédigées dans votre ton habituel. Tant qu'elles sont activées, une fois par semaine, le mod lit vos propres commentaires sur jusqu'à 30 PR dont vous avez récemment fait la revue, et demande à Claude de décrire votre langue et votre ton, ce que vous regardez en premier et la façon dont vous formulez vos demandes. S'il y a moins de cinq commentaires dont s'inspirer, elles sont rédigées sans cette description ; si l'apprentissage échoue, la dernière description est conservée et le mod réessaie un jour plus tard. Les revues automatiques publiées sous votre nom sont écartées, pour qu'il n'apprenne que de ce que vous avez écrit vous-même.
 
 ### Mes PR
 

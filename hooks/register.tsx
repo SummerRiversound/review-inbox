@@ -278,6 +278,8 @@ let actionsPath = ''
 const buttonKey = (key: string, id: string) => `${key}::${id}`
 // The Merge button fills the prompt like a card's own button, under an id actions.json cannot give one.
 const MERGE = '@merge'
+// The All actions row's place in `more`; no card key has this shape.
+const ALL = 'all:review'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
@@ -786,6 +788,8 @@ function toast($: EngineInterface, text: string) {
 
 // Run by the session that just fetched; a failure keeps the last style and tries again a day later.
 async function refreshStyle($: EngineInterface, env: Record<string, string>) {
+  // Only auto review reads the style, so nothing is learned, and no comment of mine is sent, while it is off.
+  if (!config.auto.isOn) return
   const file = await readJson($, styleFile(), {} as StyleFile)
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
@@ -2040,10 +2044,10 @@ export const register: Register = (on, options) => {
         />
       )
     }
-    const moreButton = (key: string) => (
+    const moreButton = (key: string, name = m.buttons.more) => (
       <Button
         key={`more-${key}`}
-        label={`${moreKey === key ? '▾' : '▸'} ${m.buttons.more}`}
+        label={`${moreKey === key ? '▾' : '▸'} ${name}`}
         dimColor
         onPress={() => void update($, more, open => (open === key ? '' : key))}
       />
@@ -2069,10 +2073,9 @@ export const register: Register = (on, options) => {
             })}
         </Box>
       )
-    // All actions: what a card's Review and its own buttons do, for every ready review request at once; drafts are left out.
-    const ALL = 'all:review'
-    const allRow = () => {
-      if (ready.length === 0) return undefined
+    // All actions: what a card's Review and its own buttons do, for every ready review request at once, in the order shown; drafts are left out.
+    const allRow = (cards: InboxItem[]) => {
+      if (cards.length === 0) return undefined
       const button = (key: string, name: string, keys: string[], isPrimary = false) => {
         const isAdded = keys.every(k => addedKeys.includes(k))
         return (
@@ -2087,19 +2090,14 @@ export const register: Register = (on, options) => {
       return (
         <Box flexDirection="column" marginBottom={1}>
           <Box flexDirection="row" justifyContent="flex-end">
-            <Button
-              key={`more-${ALL}`}
-              label={`${moreKey === ALL ? '▾' : '▸'} ${m.buttons.all}`}
-              dimColor
-              onPress={() => void update($, more, open => (open === ALL ? '' : ALL))}
-            />
+            {moreButton(ALL, m.buttons.all)}
           </Box>
           {moreKey === ALL && (
             <Box flexDirection="row" flexWrap="wrap" justifyContent="flex-end" gap={1}>
               {buttons
                 .filter(b => b.scope === 'review')
-                .map(b => button(`all-btn-${b.id}`, b.name, ready.map(i => buttonKey(itemKey(i), b.id))))}
-              {button('all-review', m.card.review, ready.map(itemKey), true)}
+                .map(b => button(`all-btn-${b.id}`, b.name, cards.map(i => buttonKey(itemKey(i), b.id))))}
+              {button('all-review', m.card.review, cards.map(itemKey), true)}
             </Box>
           )}
         </Box>
@@ -2780,7 +2778,7 @@ export const register: Register = (on, options) => {
                 )}
                 {unhide('review', everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
-                {allRow()}
+                {allRow([...reviewing.filter(i => !i.isDraft), ...directReady, ...teamReady])}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
                 {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
                 {section('review:team', m.sections.team(teamReady.length), teamReady, card)}

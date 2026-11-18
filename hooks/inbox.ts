@@ -296,7 +296,7 @@ export function sincePrompt(commits: string[], files: string[]): string {
 // My pending review on the PR, and where to work on it.
 export type PendingReview = { id: number; where: string }
 
-// The request and the link only: how to review is the user's to say, with reviewSkill or their own buttons.
+// The request and the link only, unless my pending review is on the PR: how to review is the user's to say, with reviewSkill or their own buttons.
 // `skill`: the reviewSkill option, a skill the request names so Claude reviews with it; empty asks plainly.
 export function reviewPrompt(draft: string, item: InboxItem, m: Messages, pending?: PendingReview, skill = ''): string {
   // GitHub takes no new review while mine is pending, so Claude refines that one.

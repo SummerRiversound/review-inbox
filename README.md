@@ -132,7 +132,7 @@ One card per PR waiting for your review: a one-sentence summary, why the PR exis
 
 ![Review on two cards marks them Added, Hide hides a third, and Esc puts both review requests into the prompt](docs/images/en/review.gif)
 
-Auto review writes in your usual tone. Once a week the mod reads your own comments on up to 30 PRs you recently reviewed, and asks Claude to describe your language and tone, what you look at first and how you phrase requests. With fewer than five comments to learn from, it writes without that description; if learning fails, the last description stays and the mod tries again a day later. Auto reviews posted under your name are left out, so it learns only from what you wrote yourself.
+Auto review writes in your usual tone. While it is on, once a week the mod reads your own comments on up to 30 PRs you recently reviewed, and asks Claude to describe your language and tone, what you look at first and how you phrase requests. With fewer than five comments to learn from, it writes without that description; if learning fails, the last description stays and the mod tries again a day later. Auto reviews posted under your name are left out, so it learns only from what you wrote yourself.
 
 ### My PRs
 

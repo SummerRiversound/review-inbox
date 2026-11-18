@@ -132,7 +132,7 @@ Eine Karte pro PR, der auf Ihr Review wartet: eine Zusammenfassung in einem Satz
 
 ![Reviewen auf zwei Karten markiert sie als Hinzugefügt, Ausblenden blendet eine dritte aus, und Esc übernimmt beide Review-Anfragen in den Prompt](docs/images/en/review.gif)
 
-Automatische Reviews werden in Ihrem üblichen Ton geschrieben. Einmal pro Woche liest die Mod Ihre eigenen Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben, und lässt Claude Ihre Sprache und Ihren Ton beschreiben, worauf Sie zuerst achten und wie Sie Bitten formulieren. Liegen weniger als fünf Kommentare zum Lernen vor, wird ohne diese Beschreibung geschrieben; schlägt das Lernen fehl, bleibt die letzte Beschreibung erhalten und die Mod versucht es einen Tag später erneut. Automatische Reviews, die unter Ihrem Namen veröffentlicht wurden, bleiben außen vor, sodass sie nur aus dem lernt, was Sie selbst geschrieben haben.
+Automatische Reviews werden in Ihrem üblichen Ton geschrieben. Solange sie eingeschaltet sind, liest die Mod einmal pro Woche Ihre eigenen Kommentare zu bis zu 30 PRs, die Sie kürzlich reviewt haben, und lässt Claude Ihre Sprache und Ihren Ton beschreiben, worauf Sie zuerst achten und wie Sie Bitten formulieren. Liegen weniger als fünf Kommentare zum Lernen vor, wird ohne diese Beschreibung geschrieben; schlägt das Lernen fehl, bleibt die letzte Beschreibung erhalten und die Mod versucht es einen Tag später erneut. Automatische Reviews, die unter Ihrem Namen veröffentlicht wurden, bleiben außen vor, sodass sie nur aus dem lernt, was Sie selbst geschrieben haben.
 
 ### Meine PRs
 
