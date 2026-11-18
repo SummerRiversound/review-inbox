@@ -102,7 +102,7 @@ my-org/legacy=~/old/legacy-app
 
 ## Abas
 
-Cada aba agrupa seus cartões por categoria. Pressione o título de uma categoria para recolhê-la e de novo para abri-la. `N ocultos · mostrar todos`, no topo de uma lista, mostra de novo apenas os cartões ocultos daquela lista.
+Cada aba agrupa seus cartões por categoria. Pressione o título de uma categoria para recolhê-la e de novo para abri-la. `N ocultos · mostrar todos`, no fim de uma lista, mostra de novo apenas os cartões ocultos daquela lista.
 
 `Nota`, em `▸ Ações` de um cartão, escreve uma linha acima do título: o que você conferiu ou o que combinou fazer e quando. `Salvar` mantém o cartão à vista. `Adiar até amanhã` e `Adiar até a próxima semana` tiram o cartão de vista até amanhã ou a próxima segunda-feira, às 9 da manhã, ou antes, se houver novidade: um commit novo num pedido de revisão, uma mudança de estado ou uma revisão nova no seu PR, atividade nova numa issue. Um aviso mostra quando um cartão adiado volta, com a nota. `Apagar` remove a nota.
 

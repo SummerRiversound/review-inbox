@@ -2506,7 +2506,7 @@ export const register: Register = (on, options) => {
         {from > 0 && <Button key={`page-first-${id}`} label={m.sections.first} dimColor onPress={() => void update($, pages, p => without(p, id))} />}
       </Box>
     )
-    // Show all brings back only that list's hidden cards.
+    // Show all brings back only that list's hidden cards. It sits under its list: above, it read as part of the cards still to do.
     const unhide = (list: 'review' | 'pr' | 'issue', keys: string[]) =>
       keys.length > 0 && (
         <Box marginBottom={1}>
@@ -2793,34 +2793,34 @@ export const register: Register = (on, options) => {
                 {section('review:auto', m.sections.autoDone(autoDone.length), autoDone, postedRow,
                   <Button key="auto-check-all" label={m.auto.checkAll} onPress={() => void checkAuto($, autoDone.map(p => p.at)).catch(() => undefined)} />,
                 )}
-                {unhide('review', everything.filter(away.review).map(itemKey))}
                 {list.length === 0 && empty(m.empty.review)}
                 {allRow([...reviewing.filter(i => !i.isDraft), ...directReady, ...teamReady])}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
                 {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
                 {section('review:team', m.sections.team(teamReady.length), teamReady, card)}
                 {section('review:drafts', m.sections.drafts(idleDrafts.length), idleDrafts, card)}
+                {unhide('review', everything.filter(away.review).map(itemKey))}
               </Box>
             )}
 
             {active === 'work' && (
               <Box flexDirection="column">
                 {heading(m.tabs.mine(atLeast(myPrs.length, cappedTabs.mine)))}
-                {unhide('pr', allPrs.filter(away.pr).map(prHideKey))}
                 {myPrs.length === 0 && empty(m.empty.mine)}
                 {section('mine:session', m.sections.session(working.length), working, prCard)}
                 {ORDER.map(s => {
                   const group = myPrs.filter(pr => pr.state === s && !working.includes(pr))
                   return section(`mine:${s}`, `${m.state[s]} ${group.length}`, group, prCard)
                 })}
+                {unhide('pr', allPrs.filter(away.pr).map(prHideKey))}
                 {heading(m.tabs.issues(atLeast(direct.length, cappedTabs.issues)))}
-                {unhide('issue', allIssues.filter(away.issue).map(issueHideKey))}
                 {myIssues.length === 0 && empty(m.empty.issues)}
                 {(['assigned', 'mention', 'reference'] as const).map(kind => {
                   const group = myIssues.filter(i => i.kind === kind)
                   const label = kind === 'reference' ? m.sections.references(REFERENCE_DAYS, group.length) : `${m.issueKind[kind]} ${group.length}`
                   return section(`issues:${kind}`, label, group, issueCard)
                 })}
+                {unhide('issue', allIssues.filter(away.issue).map(issueHideKey))}
               </Box>
             )}
 
