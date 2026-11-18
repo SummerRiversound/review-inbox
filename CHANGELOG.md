@@ -2,6 +2,18 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.33.0 — 2026-11-18
+
+### Added
+
+- `▸ All actions`, above the cards of the Review tab, opens `Review with Claude` and the review buttons under `▸ Actions` for every waiting PR at once, so you need not press each card. A press adds the cards in the order shown and skips the ones already added. Drafts are left out.
+- Every session shows which one runs auto review. A running review's line, on the band and on its card, ends with `in this session` or `in another session (folder)`. When a review session is named, the line beside the `Auto review` button reads `Auto reviews start in this session` or names the other session's folder. A review run by another machine, or by a session still on an older release, has no such ending.
+
+### Changed
+
+- The request `Review with Claude` puts into your prompt is now the request and the PR's link only. The lines for what to check, what changed since your last review and your usual review style are gone: how to review is yours to say, with `reviewSkill` or your own buttons. A PR with your pending review is still refined as before.
+- Your review style is learned only while auto review is on, as auto review is now the only thing that uses it. With auto review off, your review comments are no longer read or sent to Claude once a week.
+
 ## 0.32.1 — 2026-11-13
 
 ### Fixed
