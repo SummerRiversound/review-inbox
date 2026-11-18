@@ -2,6 +2,13 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.34.1 — 2026-11-18
+
+### Changed
+
+- The sort choices fold into one button at the right of the tabs. It shows the order in use behind `⇅`; a press opens the others under it, and choosing one closes them.
+- The line beside the `Auto review` button now reads `Runs in this session` or `Runs in another session (folder: name)`, without the `Auto review` prefix. A running review's line names the other session the same way, `in another session (folder: name)`, so the name in brackets reads as that session's folder.
+
 ## 0.34.0 — 2026-11-18
 
 ### Added
