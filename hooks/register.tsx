@@ -922,7 +922,7 @@ const setJob = ($: EngineInterface, key: string, fields: Partial<AutoJob>, head?
   })
 
 // A job no run holds: undefined fields are left out when the file is written.
-const IDLE = { status: undefined, agentId: undefined, runner: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, draft: undefined }
+const IDLE = { status: undefined, agentId: undefined, runner: undefined, session: undefined, folder: undefined, checkout: undefined, lock: undefined, elsewhere: undefined, draft: undefined }
 
 const prOf = (key: string) => {
   const at = key.lastIndexOf('#')
@@ -1174,7 +1174,7 @@ async function tickAuto($: EngineInterface) {
       const isMine = job.agentId !== undefined && (await $.agent.list()).some(a => a.id === job.agentId && LIVE.includes(a.status))
       const run = `${key}@${job.startedAt}`
       const isQuiet = !isMine && Date.now() - (job.heartbeatAt ?? 0) > RUN_STALE_MS
-      if (isMine) await setJob($, key, { runner: sessionToken, heartbeatAt: Date.now() })
+      if (isMine) await setJob($, key, { runner: sessionToken, session: { id: selfId, runner: sessionToken }, heartbeatAt: Date.now() })
       // Its session closed: back to the front of the queue, not counted as an attempt. Quiet on two ticks in a row, as after a sleep every run is quiet until its session renews it.
       else if (isQuiet && quietRun === run) {
         await removeRun($, job)
@@ -1187,7 +1187,7 @@ async function tickAuto($: EngineInterface) {
     const key = nextJob(autoStates(file, await read($, items), config.auto, Date.now()))
     if (!key) return
     // As sync claims the fetch: write, wait, read back; the last claim written wins.
-    await setJob($, key, { status: 'running', runner: sessionToken, startedAt: Date.now(), heartbeatAt: Date.now() })
+    await setJob($, key, { status: 'running', runner: sessionToken, session: { id: selfId, runner: sessionToken }, startedAt: Date.now(), heartbeatAt: Date.now() })
     await $.clock.sleep(500)
     const settled = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
     if (settled?.jobs[key]?.runner !== sessionToken) return
@@ -1507,8 +1507,15 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
   return true
 }
 
+// A running review names the session it runs in, as every session shows the same line; one an older release or another machine runs has no session to name.
+function runningText(s: Extract<AutoState, { kind: 'running' }>, now: number, known: Record<string, Presence>): string {
+  const text = m.auto.running(Math.max(0, Math.floor((now - s.since) / 60_000)))
+  if (s.session === undefined) return text
+  return `${text} · ${s.session === selfId ? m.auto.runHere : m.auto.runOther(known[s.session]?.folder)}`
+}
+
 // A card's auto review line, and the band's; a done review with a result draws its own.
-function autoText(s: AutoState, now: number, isAway: boolean): string {
+function autoText(s: AutoState, now: number, isAway: boolean, known: Record<string, Presence>): string {
   return s.kind === 'manual'
     ? s.why === 'before'
       ? m.auto.before
@@ -1518,7 +1525,7 @@ function autoText(s: AutoState, now: number, isAway: boolean): string {
       : s.kind === 'capped'
         ? m.auto.capped
         : s.kind === 'running'
-          ? m.auto.running(Math.max(0, Math.floor((now - s.since) / 60_000)))
+          ? runningText(s, now, known)
           : s.kind === 'done'
             ? s.reviewId
               ? m.auto.pending
@@ -1825,7 +1832,8 @@ export const register: Register = (on, options) => {
     // Auto reviews posted by themselves and not checked yet.
     const finished = autoNow.posted?.length ?? 0
     const focused = focus && everything.find(i => itemKey(i) === focus.key)
-    const isAway = reviewerAway(autoNow, await read($, sessions))
+    const known = await read($, sessions)
+    const isAway = reviewerAway(autoNow, known)
     const frame = SPIN[(await read($, spin)) % SPIN.length]
 
     const elements = $.ui.resolve(e)
@@ -1871,7 +1879,7 @@ export const register: Register = (on, options) => {
             </Box>
             <Box flexShrink={0}>
               <Text color={focus.state.kind === 'running' ? 'suggestion' : 'subtle'}>
-                {` #${focused.number} · ${autoText(focus.state, now, isAway)}`}
+                {` #${focused.number} · ${autoText(focus.state, now, isAway, known)}`}
                 {focus.waiting > 0 && <Text dimColor>{m.band.autoWaiting(focus.waiting)}</Text>}
               </Text>
             </Box>
@@ -2189,7 +2197,8 @@ export const register: Register = (on, options) => {
 
     const autoNow = await read($, autoReview)
     const autoMap = autoStates(autoNow, everything, config.auto, now)
-    const isAway = reviewerAway(autoNow, await read($, sessions))
+    const known = await read($, sessions)
+    const isAway = reviewerAway(autoNow, known)
     // Where the card stands in auto review; nothing when it is off or the card is not one it reviews.
     const autoLine = (item: InboxItem) => {
       const key = itemKey(item)
@@ -2213,7 +2222,7 @@ export const register: Register = (on, options) => {
           </Box>
         )
       }
-      const text = autoText(s, now, isAway)
+      const text = autoText(s, now, isAway, known)
       return (
         <Box flexDirection="row" justifyContent="space-between" gap={1} marginTop={1}>
           <Box flexShrink={1} minWidth={0}>
@@ -2740,6 +2749,14 @@ export const register: Register = (on, options) => {
                       onPress={() => void pressSwitch($).catch(() => undefined)}
                     />
                     <Button key="auto-settings" label={settingsOpen ? m.auto.settingsClose : m.auto.settingsOpen} dimColor onPress={() => void update($, autoSettings, open => !open)} />
+                    {/* The session that starts the reviews; while it is closed the waiting cards say so. */}
+                    {config.auto.isOn && autoNow.reviewer !== undefined && !isAway && (
+                      <Box flexShrink={1} minWidth={0}>
+                        <Text dimColor wrap="truncate-end">
+                          {autoNow.reviewer === selfId ? m.auto.sessionHere : m.auto.sessionOther(known[autoNow.reviewer]?.folder)}
+                        </Text>
+                      </Box>
+                    )}
                   </Box>
                 )}
                 {settingsOpen && (
