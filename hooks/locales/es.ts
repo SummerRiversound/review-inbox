@@ -117,6 +117,13 @@ export const es: Messages = {
     shown: (text: string) => `Nota: ${text}`,
     until: (month: number, day: number) => `pospuesto hasta el ${day}/${month}`,
   },
+  sort: {
+    label: "Orden",
+    default: "Predeterminado",
+    updated: "Actualizados recientemente",
+    size: "Más pequeños primero",
+    repo: "Repositorio · autor",
+  },
   session: {
     here: 'esta sesión',
     at: names => `En curso en ${names}`,

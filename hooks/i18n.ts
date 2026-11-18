@@ -126,6 +126,13 @@ const en = {
     shown: (text: string) => `Note: ${text}`,
     until: (month: number, day: number) => `snoozed until ${month}/${day}`,
   },
+  sort: {
+    label: "Sort",
+    default: "Default order",
+    updated: "Recently updated",
+    size: "Smallest first",
+    repo: "Repository · author",
+  },
   session: {
     here: 'this session',
     at: (names: string) => `Working in ${names}`,

@@ -118,6 +118,13 @@ export const de: Messages = {
     shown: (text: string) => `Notiz: ${text}`,
     until: (month: number, day: number) => `zurückgestellt bis ${day}.${month}.`,
   },
+  sort: {
+    label: "Sortierung",
+    default: "Standard",
+    updated: "Zuletzt aktualisiert",
+    size: "Kleinste zuerst",
+    repo: "Repository · Autor",
+  },
   session: {
     here: 'diese Sitzung',
     at: names => `In Arbeit: ${names}`,

@@ -114,6 +114,13 @@ export const zhTW: Messages = {
     shown: (text: string) => `備註：${text}`,
     until: (month: number, day: number) => `延後到 ${month}/${day}`,
   },
+  sort: {
+    label: "排序",
+    default: "預設",
+    updated: "最近更新",
+    size: "由小到大",
+    repo: "儲存庫 · 作者",
+  },
   session: {
     here: '此工作階段',
     at: names => `正在處理：${names}`,

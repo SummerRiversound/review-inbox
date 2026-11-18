@@ -1,4 +1,4 @@
-import type { Capped, IssueItem, MyPr, MyPrState, TaskKind } from '../types'
+import type { Capped, IssueItem, MyPr, MyPrState, Sort, TaskKind } from '../types'
 import type { Messages } from './i18n'
 import { DETAILS_FIELDS, detailsOf, hasRequest } from './inbox'
 import type { GqlDetails } from './inbox'
@@ -323,4 +323,26 @@ export function bandLabels(counts: BandCounts, m: Messages, capped: Capped = {})
 export function droppedCounts(before: BandCounts | undefined, after: BandCounts): (keyof BandCounts)[] {
   if (before === undefined) return []
   return BAND_KEYS.filter(k => after[k] > 0 && after[k] < before[k])
+}
+
+export const SORTS: Sort[] = ['default', 'updated', 'size', 'repo']
+
+type Sortable = { repo?: string; author?: string; updatedAt?: unknown; at?: unknown; additions?: number; deletions?: number }
+
+// The cards of one category in the chosen order: newest activity first, smallest change first, or by repository then author.
+// Cards equal under it, or lacking what it reads, keep the list's own order among themselves; the ones lacking it come last.
+export function sortCards<T>(cards: T[], sort: Sort): T[] {
+  if (sort === 'default') return cards
+  const updated = (c: Sortable) => {
+    const at = c.updatedAt ?? c.at
+    return typeof at === 'string' ? Date.parse(at) || 0 : 0
+  }
+  const size = (c: Sortable) => (typeof c.additions === 'number' && typeof c.deletions === 'number' ? c.additions + c.deletions : undefined)
+  const compare = (a: Sortable, b: Sortable) => {
+    if (sort === 'updated') return updated(b) - updated(a)
+    if (sort === 'repo') return (a.repo ?? '').localeCompare(b.repo ?? '') || (a.author ?? '').localeCompare(b.author ?? '')
+    const [x, y] = [size(a), size(b)]
+    return x === undefined || y === undefined ? Number(x === undefined) - Number(y === undefined) : x - y
+  }
+  return [...cards].sort((a, b) => compare(a as Sortable, b as Sortable))
 }

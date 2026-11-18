@@ -114,6 +114,13 @@ export const zhCN: Messages = {
     shown: (text: string) => `备注：${text}`,
     until: (month: number, day: number) => `推迟到 ${month}/${day}`,
   },
+  sort: {
+    label: "排序",
+    default: "默认",
+    updated: "最近更新",
+    size: "从小到大",
+    repo: "仓库 · 作者",
+  },
   session: {
     here: '此会话',
     at: names => `正在处理：${names}`,

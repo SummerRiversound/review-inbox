@@ -114,6 +114,13 @@ export const ja: Messages = {
     shown: (text: string) => `メモ: ${text}`,
     until: (month: number, day: number) => `${month}/${day} まで延期`,
   },
+  sort: {
+    label: "並び順",
+    default: "既定",
+    updated: "更新が新しい順",
+    size: "小さい順",
+    repo: "リポジトリ・作成者別",
+  },
   session: {
     here: 'このセッション',
     at: names => `作業中: ${names}`,

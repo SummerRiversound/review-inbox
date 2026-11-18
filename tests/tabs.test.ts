@@ -7,6 +7,7 @@ import { INBOX_QUERY } from '../hooks/inbox'
 import { STYLE_QUERY } from '../hooks/style'
 import {
   awayText, bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, REFERENCES_QUERY, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
+  sortCards,
 } from '../hooks/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
@@ -279,4 +280,25 @@ test('a band count that goes down is picked out, one that rises, holds or reache
   expect(droppedCounts(undefined, before)).toEqual([])
   expect(droppedCounts(before, { reviews: 2, prTodo: 2, issues: 0, searches: 0 })).toEqual(['reviews'])
   expect(droppedCounts(before, { reviews: 4, prTodo: 1, issues: 1, searches: 0 })).toEqual(['prTodo'])
+})
+
+test('cards sort by newest activity, by smallest change, or by repository then author, and the default order is the list\'s own', async () => {
+  const cards = [
+    { n: 1, repo: 'b/r', author: 'kim', updatedAt: '2026-10-02T00:00:00Z', additions: 50, deletions: 50 },
+    { n: 2, repo: 'a/r', author: 'lee', updatedAt: '2026-10-03T00:00:00Z', additions: 5, deletions: 0 },
+    { n: 3, repo: 'a/r', author: 'ahn', updatedAt: '2026-10-01T00:00:00Z', additions: 300, deletions: 10 },
+  ]
+  const order = (sort: Parameters<typeof sortCards>[1]) => sortCards(cards, sort).map(c => c.n)
+  expect(order('default')).toEqual([1, 2, 3])
+  expect(order('updated')).toEqual([2, 1, 3])
+  expect(order('size')).toEqual([2, 1, 3])
+  expect(order('repo')).toEqual([3, 2, 1])
+  expect(cards.map(c => c.n)).toEqual([1, 2, 3])
+})
+
+test('cards that lack what an order reads come last in their own order, and an issue\'s activity time stands for its update', async () => {
+  const mixed = [{ n: 1 }, { n: 2, additions: 9, deletions: 1 }, { n: 3 }, { n: 4, additions: 1, deletions: 1 }]
+  expect(sortCards(mixed, 'size').map(c => c.n)).toEqual([4, 2, 1, 3])
+  const issues = [{ n: 1, at: '2026-10-01T00:00:00Z' }, { n: 2, at: '2026-10-05T00:00:00Z' }, { n: 3 }]
+  expect(sortCards(issues, 'updated').map(c => c.n)).toEqual([2, 1, 3])
 })
