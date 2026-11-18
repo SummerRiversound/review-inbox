@@ -114,6 +114,13 @@ export const ko: Messages = {
     shown: (text: string) => `메모: ${text}`,
     until: (month: number, day: number) => `${month}/${day}까지 미룸`,
   },
+  sort: {
+    label: "정렬",
+    default: "기본 순서",
+    updated: "최근 업데이트 순",
+    size: "크기 순",
+    repo: "저장소·작성자별",
+  },
   session: {
     here: '이 세션',
     at: names => `작업 중: ${names}`,

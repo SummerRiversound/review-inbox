@@ -117,6 +117,13 @@ export const fr: Messages = {
     shown: (text: string) => `Note : ${text}`,
     until: (month: number, day: number) => `reportée au ${day}/${month}`,
   },
+  sort: {
+    label: "Tri",
+    default: "Par défaut",
+    updated: "Mis à jour récemment",
+    size: "Les plus petites d'abord",
+    repo: "Dépôt · auteur",
+  },
   session: {
     here: 'cette session',
     at: names => `En cours dans : ${names}`,

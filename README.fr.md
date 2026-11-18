@@ -102,7 +102,7 @@ my-org/legacy=~/old/legacy-app
 
 ## Onglets
 
-Chaque onglet regroupe ses cartes par catégorie. Appuyez sur l'en-tête d'une catégorie pour la replier, et de nouveau pour la déplier. `N masquées · tout afficher`, en bas d'une liste, ne réaffiche que les cartes masquées de cette liste.
+Chaque onglet regroupe ses cartes par catégorie. Appuyez sur l'en-tête d'une catégorie pour la replier, et de nouveau pour la déplier. `N masquées · tout afficher`, en bas d'une liste, ne réaffiche que les cartes masquées de cette liste. Les boutons `Tri`, sous les onglets, réordonnent les cartes à l'intérieur de chaque catégorie : `Par défaut`, `Mis à jour récemment`, `Les plus petites d'abord` (demandes de revue uniquement) ou `Dépôt · auteur`.
 
 `Note`, sous `▸ Actions` d'une carte, écrit une ligne au-dessus de son titre : ce que vous avez vérifié, ou ce que vous avez prévu de faire et quand. `Enregistrer` laisse la carte visible. `Reporter à demain` et `Reporter à la semaine prochaine` la mettent de côté jusqu'à demain ou lundi prochain, 9 h, ou plus tôt s'il y a du nouveau : un nouveau commit sur une demande de revue, un nouvel état ou une nouvelle revue sur votre PR, une nouvelle activité sur une issue. Une notification signale le retour d'une carte reportée, avec sa note. `Effacer` supprime la note.
 

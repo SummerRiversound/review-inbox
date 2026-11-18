@@ -27,6 +27,7 @@ import type {
   RepoPaths,
   SearchGroup,
   Settling,
+  Sort,
   Tab,
   Thread,
 } from '../types'
@@ -146,12 +147,14 @@ import {
   REFERENCES_QUERY,
   AUTHORED_DAYS,
   ORDER,
+  SORTS,
   REFERENCE_DAYS,
   REFERENCE_PAGE,
   TAB_QUERIES,
   atLeast,
   BAND_KEYS,
   bandCounts,
+  sortCards,
   bandLabels,
   droppedCounts,
   isIssueHidden,
@@ -208,6 +211,7 @@ const repos = atom({ plugin: 'review-inbox', key: 'repos' } as const, {} as Repo
 const added = atom({ plugin: 'review-inbox', key: 'added' } as const, [] as string[])
 const requested = atom({ plugin: 'review-inbox', key: 'requested' } as const, [] as string[])
 const onlyHere = atom({ plugin: 'review-inbox', key: 'onlyHere' } as const, false)
+const sort = atom({ plugin: 'review-inbox', key: 'sort' } as const, 'default' as Sort)
 const reloadAsked = atom({ plugin: 'review-inbox', key: 'reloadAsked' } as const, '')
 const dropped = atom({ plugin: 'review-inbox', key: 'dropped' } as const, [] as string[])
 const actions = atom({ plugin: 'review-inbox', key: 'actions' } as const, { buttons: [], groups: [], errors: [] } as Actions)
@@ -1927,6 +1931,10 @@ export const register: Register = (on, options) => {
     const myIssues = scoped(shownIssues)
     const cappedTabs = await read($, capped)
     const shut = await read($, collapsed)
+    // Size is known for review requests only, so the other tabs keep their own order under it.
+    const chosen = await read($, sort)
+    const order: Sort = chosen === 'size' && active !== 'review' ? 'default' : chosen
+    const sorted = <T,>(cards: T[]) => sortCards(cards, order)
     const pageStarts = await read($, pages)
     // What the cards of one drawing may take, and what they took.
     let budget: Size = { nodes: Infinity, chars: Infinity, text: Infinity }
@@ -2473,8 +2481,10 @@ export const register: Register = (on, options) => {
       )
 
     // A category with a header that folds it, and `action` at the header's right; an empty one is left out.
-    const section = <T,>(id: string, label: string, list: T[], render: (item: T) => RenderChildren, action?: RenderChildren) => {
-      if (list.length === 0) return undefined
+    const section = <T,>(id: string, label: string, cards: T[], render: (item: T) => RenderChildren, action?: RenderChildren) => {
+      if (cards.length === 0) return undefined
+      // The posted auto reviews are a log, newest first, whatever the cards' order.
+      const list = id === 'review:auto' ? cards : sorted(cards)
       const isShut = shut.includes(id)
       // A list that shrank past where Next left it starts over.
       const from = (pageStarts[id] ?? 0) < list.length ? (pageStarts[id] ?? 0) : 0
@@ -2592,7 +2602,7 @@ export const register: Register = (on, options) => {
       const id = `searches:${group.id}`
       const isShut = shut.includes(id)
       const result = resultOf(group, results)
-      const hits = !isShut && result?.error === undefined ? fit((result?.hits ?? []).map(hit => hitRow(group.id, hit))) : []
+      const hits = !isShut && result?.error === undefined ? fit(sorted(result?.hits ?? []).map(hit => hitRow(group.id, hit))) : []
       const note = (text: string, color?: 'warning') => (
         <Box marginBottom={1}>
           <Text dimColor={!color} color={color}>
@@ -2727,6 +2737,17 @@ export const register: Register = (on, options) => {
                 />
               ))}
             </Box>
+            <Box flexDirection="row" flexWrap="wrap" columnGap={1} marginBottom={1}>
+              <Text dimColor>{m.sort.label}</Text>
+              {SORTS.filter(s => s !== 'size' || active === 'review').map(s => (
+                <Button
+                  key={`sort-${s}`}
+                  label={m.sort[s]}
+                  {...(s === order ? { variant: 'primary' as const } : { dimColor: true })}
+                  onPress={() => void update($, sort, () => s)}
+                />
+              ))}
+            </Box>
 
             {active === 'review' && (
               <Box flexDirection="column">
@@ -2794,7 +2815,7 @@ export const register: Register = (on, options) => {
                   <Button key="auto-check-all" label={m.auto.checkAll} onPress={() => void checkAuto($, autoDone.map(p => p.at)).catch(() => undefined)} />,
                 )}
                 {list.length === 0 && empty(m.empty.review)}
-                {allRow([...reviewing.filter(i => !i.isDraft), ...directReady, ...teamReady])}
+                {allRow([reviewing.filter(i => !i.isDraft), directReady, teamReady].flatMap(group => sorted(group)))}
                 {section('review:session', m.sections.session(reviewing.length), reviewing, card)}
                 {section('review:direct', m.sections.direct(directReady.length), directReady, card)}
                 {section('review:team', m.sections.team(teamReady.length), teamReady, card)}

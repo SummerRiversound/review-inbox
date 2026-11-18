@@ -171,6 +171,8 @@ export type IssueItem = CardDetails & {
 
 // My work holds my PRs and my issues; Browse holds the saved searches and the notifications.
 export type Tab = 'review' | 'work' | 'browse'
+// The order of the cards within a category; `default` is each list's own.
+export type Sort = 'default' | 'updated' | 'size' | 'repo'
 
 // A button of my own from actions.json, or a built-in one of the same shape; its prompt is a template filled from the card.
 export type ButtonScope = 'review' | 'pr' | 'issue'
@@ -291,6 +293,8 @@ declare module 'claude-code' {
       repos: RepoPaths
       // The active tab shows only this session's repositories.
       onlyHere: boolean
+      // The order chosen for the cards of every list.
+      sort: Sort
       // The release this session last pressed Reload them all on, so a later release asks afresh.
       reloadAsked: string
       // A band count that just went down, shown in the success color for a moment.

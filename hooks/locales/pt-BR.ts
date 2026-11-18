@@ -118,6 +118,13 @@ export const ptBR: Messages = {
     shown: (text: string) => `Nota: ${text}`,
     until: (month: number, day: number) => `adiado até ${day}/${month}`,
   },
+  sort: {
+    label: "Ordem",
+    default: "Padrão",
+    updated: "Atualizados recentemente",
+    size: "Menores primeiro",
+    repo: "Repositório · autor",
+  },
   session: {
     here: 'esta sessão',
     at: names => `Em andamento: ${names}`,
