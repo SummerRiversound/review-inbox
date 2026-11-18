@@ -2,6 +2,16 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.34.0 — 2026-11-18
+
+### Added
+
+- `Sort` buttons under the tabs reorder the cards of every list within each category: `Default order`, `Recently updated`, `Smallest first` or `Repository · author`. The categories stay as they are. `Smallest first` is offered on review requests only, the one list whose cards have a size. Cards equal under the chosen order keep the list's own order, and `All actions` adds the cards in the order shown.
+
+### Changed
+
+- `N hidden · show all` sits at the bottom of its list instead of the top, where it read as part of the cards still to do.
+
 ## 0.33.0 — 2026-11-18
 
 ### Added
