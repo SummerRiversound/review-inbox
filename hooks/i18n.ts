@@ -155,6 +155,7 @@ const en = {
   },
   buttons: {
     more: "Actions",
+    all: "All actions",
     none: "No buttons of my own yet; the built-in ones are shown.",
     counts: (buttons: number, groups: number) => `Of my own: ${buttons} buttons, ${groups} saved searches`,
     how: "/review-inbox add-button or /review-inbox add-search asks Claude to write one with you.",
@@ -289,9 +290,6 @@ const en = {
     refine: (url: string, sha: string) => `Refine my pending review on ${url} with me; it reviews head ${sha}. Read its body and comments with \`gh api\` and change them there as we agree.`,
     pending: (id: number, repo: string, number: number) =>
       `My pending review ${id} is on this PR, and GitHub takes no new review while it exists: work on that one. Submit it with \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (or APPROVE, REQUEST_CHANGES) only once I say which, or delete it; do not create another review.`,
-    check: 'Check in particular: ',
-    since: 'Changed since my last review: ',
-    style: 'My usual review style: ',
     // Commands, not data: Claude reads the comments, checks and logs itself, so no outside text lands in the prompt.
     task: {
       changes: (url: string) => `Address the unresolved review comments on ${url}; read them with \`gh pr view ${url} --comments\`.`,

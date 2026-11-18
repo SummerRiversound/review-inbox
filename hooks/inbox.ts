@@ -293,20 +293,15 @@ export function sincePrompt(commits: string[], files: string[]): string {
   ].join('\n\n')
 }
 
-// The style line is said once per prompt, so adding several PRs repeats only the requests.
 // My pending review on the PR, and where to work on it.
 export type PendingReview = { id: number; where: string }
 
+// The request and the link only: how to review is the user's to say, with reviewSkill or their own buttons.
 // `skill`: the reviewSkill option, a skill the request names so Claude reviews with it; empty asks plainly.
-export function reviewPrompt(draft: string, item: InboxItem, m: Messages, style?: string, pending?: PendingReview, skill = ''): string {
+export function reviewPrompt(draft: string, item: InboxItem, m: Messages, pending?: PendingReview, skill = ''): string {
   // GitHub takes no new review while mine is pending, so Claude refines that one.
   const ask = skill ? m.prompt.reviewWith(item.url, skill) : m.prompt.review(item.url)
   const lines = pending ? [m.prompt.refine(item.url, item.headSha), m.prompt.pending(pending.id, item.repo, item.number), pending.where] : [ask]
-  const styleLine = style ? `${m.prompt.style}${style}` : undefined
-  if (styleLine && !draft.includes(styleLine)) lines.push(styleLine)
-  const warnings = item.impact.filter(i => i.warn).map(i => i.text)
-  if (warnings.length > 0) lines.push(`${m.prompt.check}${warnings.join(' / ')}`)
-  if (item.sinceLastReview) lines.push(`${m.prompt.since}${item.sinceLastReview}`)
   const text = `${lines.join('\n')}\n`
   return draft === '' || draft.endsWith('\n') ? text : `\n${text}`
 }
@@ -316,9 +311,9 @@ export const parseReviewSkill = (option: string | undefined) => (option ?? '').t
 
 // What the drawer adds to the draft when it closes: one request per PR not already in it, in the order pressed.
 // `pending`: my pending review by card key.
-export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, style?: string, pending: Record<string, PendingReview> = {}, skill = ''): string {
+export function reviewPrompts(draft: string, items: InboxItem[], m: Messages, pending: Record<string, PendingReview> = {}, skill = ''): string {
   let text = draft
-  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, style, pending[itemKey(item)], skill)
+  for (const item of items) if (!hasRequest(text, item.url)) text += reviewPrompt(text, item, m, pending[itemKey(item)], skill)
   return text.slice(draft.length)
 }
 

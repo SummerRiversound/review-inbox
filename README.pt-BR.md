@@ -124,14 +124,15 @@ Quando nada precisa de você (nenhum pedido de revisão, nenhum PR seu com algo 
 
 Um cartão para cada PR aguardando sua revisão: um resumo de uma frase, o motivo do PR, o que ele afeta, o tamanho e o autor, e há quanto tempo a sua revisão está pendente. Itens de risco, como uma mudança de schema ou uma ordem de deploy obrigatória, são marcados com ⚠️.
 
-- `Revisar com o Claude` marca o cartão como `Adicionado` e mantém a caixa de revisões aberta, para que você possa escolher vários PRs. Quando você fecha a caixa (Esc ou ×), um pedido de revisão para cada PR adicionado vai para o seu prompt, com os avisos do PR e o que mudou desde a sua última revisão. Nada é enviado até você pressionar Enter. Se o texto que você está escrevendo no prompt já pede a revisão de um PR, ele aparece como `Adicionado` quando a caixa de revisões abre.
+- `Revisar com o Claude` marca o cartão como `Adicionado` e mantém a caixa de revisões aberta, para que você possa escolher vários PRs. Quando você fecha a caixa (Esc ou ×), um pedido de revisão para cada PR adicionado vai para o seu prompt: só o pedido e o link do PR, nada mais. Nada é enviado até você pressionar Enter. Se o texto que você está escrevendo no prompt já pede a revisão de um PR, ele aparece como `Adicionado` quando a caixa de revisões abre.
+- `▸ Ações para todos`, acima dos cartões, abre `Revisar com o Claude` e os botões de revisão de `▸ Ações` para todos os cartões de uma vez, sem precisar pressionar cada um. Rascunhos ficam de fora.
 - `Ocultar`, em `▸ Ações` ao lado de `Nota`, oculta o cartão até o PR receber um novo commit.
 - `revisão solicitada novamente` marca um PR que você já revisou e que pede a sua revisão de novo, com um breve resumo do que mudou desde a sua última revisão.
 - Os cartões são agrupados em solicitações diretas, solicitações à equipe e rascunhos.
 
 ![Revisar em dois cartões os marca como Adicionado, Ocultar oculta um terceiro, e Esc coloca os dois pedidos de revisão no prompt](docs/images/en/review.gif)
 
-O pedido também leva uma linha que descreve como você costuma revisar, para que o Claude revise do jeito que você revisaria. Uma vez por semana, o mod lê os seus próprios comentários em até 30 PRs que você revisou recentemente e pede ao Claude que descreva o idioma e o tom que você usa, o que você olha primeiro e como você formula os pedidos. Com menos de cinco comentários para aprender, o pedido vai sem essa linha; se o aprendizado falhar, a última descrição é mantida e o mod tenta de novo um dia depois. Revisões automáticas publicadas com o seu nome ficam de fora, então ele aprende só com o que você mesmo escreveu.
+As revisões automáticas são escritas no seu tom habitual. Uma vez por semana, o mod lê os seus próprios comentários em até 30 PRs que você revisou recentemente e pede ao Claude que descreva o idioma e o tom que você usa, o que você olha primeiro e como você formula os pedidos. Com menos de cinco comentários para aprender, elas são escritas sem essa descrição; se o aprendizado falhar, a última descrição é mantida e o mod tenta de novo um dia depois. Revisões automáticas publicadas com o seu nome ficam de fora, então ele aprende só com o que você mesmo escreveu.
 
 ### Meus PRs
 

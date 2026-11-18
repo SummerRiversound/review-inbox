@@ -143,6 +143,7 @@ export const zhTW: Messages = {
   },
   buttons: {
     more: "動作",
+    all: "批次動作",
     none: "還沒有自己的按鈕，目前只顯示內建按鈕。",
     counts: (buttons, groups) => `我的按鈕 ${buttons} 個，已儲存的搜尋 ${groups} 個`,
     how: "輸入 /review-inbox add-button 或 /review-inbox add-search，與 Claude 一起撰寫。",
@@ -277,9 +278,6 @@ export const zhTW: Messages = {
     refine: (url: string, sha: string) => `和我一起完善 ${url} 上我的待送出審查；它審查的是 head ${sha}。用 \`gh api\` 讀取它的內文和留言，並照我們談好的在那裡修改。`,
     pending: (id: number, repo: string, number: number) =>
       `這個 PR 上有我的待送出審查 ${id}，它存在時 GitHub 不接受新的審查：請在它上面修改。等我說了結論再用 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`（或 APPROVE、REQUEST_CHANGES）送出，或者刪除它；不要新建審查。`,
-    check: '請特別檢查：',
-    since: '我上次審查後的變更：',
-    style: '我平常的審查風格：',
     task: {
       changes: url => `幫我處理 ${url} 上未解決的審查留言，用 \`gh pr view ${url} --comments\` 讀取。`,
       'ci-failing': url =>

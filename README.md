@@ -124,14 +124,15 @@ When nothing needs you (no review request, none of your PRs to act on, no issue 
 
 One card per PR waiting for your review: a one-sentence summary, why the PR exists, what it touches, its size and author, and how long your review has been pending. Risky items, such as a schema change or a required deploy order, are marked ⚠️.
 
-- `Review with Claude` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt, with its warnings and what changed since your last review. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
+- `Review with Claude` marks the card `Added` and keeps the drawer open, so you can pick several PRs. When you close the drawer (Esc or ×), a review request for each added PR goes into your prompt: the request and the PR's link, nothing else. Nothing is sent until you press Enter. A PR your draft already asks for shows as `Added` when the drawer opens.
+- `▸ All actions`, above the cards, opens `Review with Claude` and the review buttons under `▸ Actions` for every card at once, so you need not press each one. Drafts are left out.
 - `Hide`, under `▸ Actions` beside `Note`, hides the card until the PR gets a new commit.
 - `re-requested` marks a PR you already reviewed that asks for you again, with a short summary of what changed since your last review.
 - Cards are grouped into direct requests, team requests and drafts.
 
 ![Review on two cards marks them Added, Hide hides a third, and Esc puts both review requests into the prompt](docs/images/en/review.gif)
 
-The request also carries one line describing how you usually review, so Claude reviews the way you would. Once a week the mod reads your own comments on up to 30 PRs you recently reviewed, and asks Claude to describe your language and tone, what you look at first and how you phrase requests. With fewer than five comments to learn from, the request goes without that line; if learning fails, the last description stays and the mod tries again a day later. Auto reviews posted under your name are left out, so it learns only from what you wrote yourself.
+Auto review writes in your usual tone. Once a week the mod reads your own comments on up to 30 PRs you recently reviewed, and asks Claude to describe your language and tone, what you look at first and how you phrase requests. With fewer than five comments to learn from, it writes without that description; if learning fails, the last description stays and the mod tries again a day later. Auto reviews posted under your name are left out, so it learns only from what you wrote yourself.
 
 ### My PRs
 

@@ -124,14 +124,15 @@ Cuando nada te necesita (ninguna solicitud de revisión, ningún PR tuyo con alg
 
 Una tarjeta por cada PR que espera tu revisión: un resumen de una frase, el motivo del PR, su alcance, su tamaño y autor, y cuánto tiempo lleva pendiente tu revisión. Los puntos de riesgo, como un cambio de esquema o un orden de despliegue obligatorio, se marcan con ⚠️.
 
-- `Revisar con Claude` marca la tarjeta como `Añadido` y deja la bandeja abierta, para que puedas elegir varios PR. Al cerrar la bandeja (Esc o ×), se añade a tu prompt una solicitud de revisión por cada PR añadido, con sus advertencias y lo que cambió desde tu última revisión. No se envía nada hasta que pulses Enter. Si el texto que tienes en el prompt ya pide un PR, ese PR aparece como `Añadido` al abrir la bandeja.
+- `Revisar con Claude` marca la tarjeta como `Añadido` y deja la bandeja abierta, para que puedas elegir varios PR. Al cerrar la bandeja (Esc o ×), se añade a tu prompt una solicitud de revisión por cada PR añadido: solo la solicitud y el enlace del PR, nada más. No se envía nada hasta que pulses Enter. Si el texto que tienes en el prompt ya pide un PR, ese PR aparece como `Añadido` al abrir la bandeja.
+- `▸ Acciones para todas`, encima de las tarjetas, abre `Revisar con Claude` y los botones de revisión de `▸ Acciones` para todas las tarjetas a la vez, así no tienes que pulsar cada una. Los borradores quedan fuera.
 - `Ocultar`, en `▸ Acciones` junto a `Nota`, oculta la tarjeta hasta que el PR reciba un commit nuevo.
 - `revisión solicitada de nuevo` marca un PR que ya revisaste y que vuelve a pedir tu revisión, con un breve resumen de lo que cambió desde tu última revisión.
 - Las tarjetas se agrupan en solicitudes directas, solicitudes al equipo y borradores.
 
 ![Revisar en dos tarjetas las marca como Añadido, Ocultar oculta una tercera y Esc pone ambas solicitudes de revisión en el prompt](docs/images/en/review.gif)
 
-La solicitud también incluye una línea que describe cómo sueles revisar, para que Claude revise como lo harías tú. Una vez por semana, el mod lee tus propios comentarios en hasta 30 PR que revisaste recientemente y le pide a Claude que describa tu idioma y tu tono, en qué te fijas primero y cómo formulas tus peticiones. Si hay menos de cinco comentarios de los que aprender, la solicitud va sin esa línea; si el aprendizaje falla, se conserva la última descripción y el mod vuelve a intentarlo un día después. Las revisiones automáticas publicadas con tu nombre quedan fuera, así que solo aprende de lo que escribiste tú.
+Las revisiones automáticas se escriben con tu tono habitual. Una vez por semana, el mod lee tus propios comentarios en hasta 30 PR que revisaste recientemente y le pide a Claude que describa tu idioma y tu tono, en qué te fijas primero y cómo formulas tus peticiones. Si hay menos de cinco comentarios de los que aprender, se escriben sin esa descripción; si el aprendizaje falla, se conserva la última descripción y el mod vuelve a intentarlo un día después. Las revisiones automáticas publicadas con tu nombre quedan fuera, así que solo aprende de lo que escribiste tú.
 
 ### Mis PR
 

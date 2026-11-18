@@ -124,14 +124,15 @@ Quand rien n'attend votre action (aucune demande de revue, aucune de vos PR à t
 
 Une carte par PR en attente de votre revue : un résumé en une phrase, la raison d'être de la PR, ce qu'elle touche, sa taille et son auteur, et depuis combien de temps votre revue est attendue. Les points à risque, comme un changement de schéma ou un ordre de déploiement imposé, sont signalés par ⚠️.
 
-- `Revue par Claude` marque la carte comme `Ajouté` et laisse la boîte de réception ouverte : vous pouvez ainsi choisir plusieurs PR. Quand vous fermez la boîte de réception (Échap ou ×), une demande de revue est insérée dans votre prompt pour chaque PR ajoutée, avec ses avertissements et ce qui a changé depuis votre dernière revue. Rien n'est envoyé tant que vous n'appuyez pas sur Entrée. Une PR que le texte de votre prompt demande déjà apparaît comme `Ajouté` à l'ouverture de la boîte de réception.
+- `Revue par Claude` marque la carte comme `Ajouté` et laisse la boîte de réception ouverte : vous pouvez ainsi choisir plusieurs PR. Quand vous fermez la boîte de réception (Échap ou ×), une demande de revue est insérée dans votre prompt pour chaque PR ajoutée : la demande et le lien de la PR, rien d'autre. Rien n'est envoyé tant que vous n'appuyez pas sur Entrée. Une PR que le texte de votre prompt demande déjà apparaît comme `Ajouté` à l'ouverture de la boîte de réception.
+- `▸ Actions pour toutes`, au-dessus des cartes, ouvre `Revue par Claude` et les boutons de revue de `▸ Actions` pour toutes les cartes à la fois : inutile d'appuyer sur chacune. Les brouillons sont écartés.
 - `Masquer`, sous `▸ Actions` à côté de `Note`, masque la carte jusqu'à ce que la PR reçoive un nouveau commit.
 - `revue redemandée` signale une PR dont vous avez déjà fait la revue et qui vous sollicite à nouveau, avec un court résumé de ce qui a changé depuis votre dernière revue.
 - Les cartes sont regroupées en demandes directes, demandes via l'équipe et brouillons.
 
 ![Faire la revue sur deux cartes les marque Ajouté, Masquer cache une troisième carte, et Échap place les deux demandes de revue dans le prompt](docs/images/en/review.gif)
 
-La demande contient aussi une ligne qui décrit votre façon habituelle de faire une revue, pour que Claude la fasse comme vous. Une fois par semaine, le mod lit vos propres commentaires sur jusqu'à 30 PR dont vous avez récemment fait la revue, et demande à Claude de décrire votre langue et votre ton, ce que vous regardez en premier et la façon dont vous formulez vos demandes. S'il y a moins de cinq commentaires dont s'inspirer, la demande part sans cette ligne ; si l'apprentissage échoue, la dernière description est conservée et le mod réessaie un jour plus tard. Les revues automatiques publiées sous votre nom sont écartées, pour qu'il n'apprenne que de ce que vous avez écrit vous-même.
+Les revues automatiques sont rédigées dans votre ton habituel. Une fois par semaine, le mod lit vos propres commentaires sur jusqu'à 30 PR dont vous avez récemment fait la revue, et demande à Claude de décrire votre langue et votre ton, ce que vous regardez en premier et la façon dont vous formulez vos demandes. S'il y a moins de cinq commentaires dont s'inspirer, elles sont rédigées sans cette description ; si l'apprentissage échoue, la dernière description est conservée et le mod réessaie un jour plus tard. Les revues automatiques publiées sous votre nom sont écartées, pour qu'il n'apprenne que de ce que vous avez écrit vous-même.
 
 ### Mes PR
 

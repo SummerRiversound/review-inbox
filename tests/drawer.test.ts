@@ -495,6 +495,25 @@ test('More opens a card\'s own buttons, one card at a time, and a press adds the
   await ui.unmount()
 })
 
+test('All actions opens one row for every ready review request, and a press adds each of them but no draft', async ($, on) => {
+  const label = async (key: string) => (await ui.find({ key }))?.props.label
+  const ui = await opened($, on, [], [], 'review', { items: [item(1), item(2), { ...item(3), isDraft: true }] })
+
+  expect(await ui.find({ key: 'all-review' })).toBe(undefined)
+  await ui.press({ key: 'more-all:review' })
+  await ui.press({ key: 'all-review' })
+  expect(await label('review-o/r#1')).toBe('Added')
+  expect(await label('review-o/r#2')).toBe('Added')
+  expect(await label('review-o/r#3')).toBe('Review with Claude')
+  expect(await label('all-review')).toBe('Added')
+
+  await ui.press({ key: 'all-btn-summarize-risks' })
+  await ui.press({ key: 'more-o/r#3' })
+  await ui.press({ key: 'more-o/r#1' })
+  expect(await label('btn-o/r#1-summarize-risks')).toBe('Added')
+  await ui.unmount()
+})
+
 test('Note and Hide sit in a card\'s More row, not on the card itself', async ($, on) => {
   const ui = await opened($, on, [pr(1, 'changes')], [], 'mine')
 

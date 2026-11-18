@@ -146,6 +146,7 @@ export const es: Messages = {
   },
   buttons: {
     more: "Acciones",
+    all: "Acciones para todas",
     none: "Aún no tienes botones propios; se muestran los integrados.",
     counts: (buttons, groups) => `Propios: ${buttons} botones, ${groups} búsquedas guardadas`,
     how: "Con /review-inbox add-button o /review-inbox add-search, Claude escribe uno contigo.",
@@ -280,9 +281,6 @@ export const es: Messages = {
     refine: (url: string, sha: string) => `Pule conmigo mi revisión pendiente en ${url}; revisa el head ${sha}. Lee su texto y sus comentarios con \`gh api\` y cámbialos ahí según lo acordemos.`,
     pending: (id: number, repo: string, number: number) =>
       `Mi revisión pendiente ${id} está en este PR, y GitHub no acepta otra mientras exista: trabaja sobre esa. Envíala con \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (o APPROVE, REQUEST_CHANGES) solo cuando te diga cuál, o bórrala; no crees otra revisión.`,
-    check: 'Fíjate especialmente en: ',
-    since: 'Cambios desde mi última revisión: ',
-    style: 'Mi estilo habitual de revisión: ',
     task: {
       changes: (url: string) => `Atiende los comentarios de revisión sin resolver en ${url}; léelos con \`gh pr view ${url} --comments\`.`,
       'ci-failing': (url: string) =>

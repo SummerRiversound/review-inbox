@@ -147,6 +147,7 @@ export const ptBR: Messages = {
   },
   buttons: {
     more: "Ações",
+    all: "Ações para todos",
     none: "Você ainda não tem botões próprios; os integrados estão sendo mostrados.",
     counts: (buttons, groups) => `Seus: ${buttons} botões, ${groups} buscas salvas`,
     how: "Com /review-inbox add-button ou /review-inbox add-search, o Claude escreve um com você.",
@@ -281,9 +282,6 @@ export const ptBR: Messages = {
     refine: (url: string, sha: string) => `Refine comigo minha revisão pendente em ${url}; ela revisa o head ${sha}. Leia o texto e os comentários com \`gh api\` e altere-os lá conforme combinarmos.`,
     pending: (id: number, repo: string, number: number) =>
       `Minha revisão pendente ${id} está neste PR, e o GitHub não aceita outra enquanto ela existir: trabalhe nela. Envie com \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\` (ou APPROVE, REQUEST_CHANGES) só quando eu disser qual, ou apague; não crie outra revisão.`,
-    check: 'Verifique em especial: ',
-    since: 'O que mudou desde a minha última revisão: ',
-    style: 'Meu estilo habitual de revisão: ',
     task: {
       changes: (url: string) => `Resolva os comentários de revisão pendentes em ${url}; leia-os com \`gh pr view ${url} --comments\`.`,
       'ci-failing': (url: string) =>

@@ -143,6 +143,7 @@ export const ko: Messages = {
   },
   buttons: {
     more: "작업",
+    all: "전체 작업",
     none: "아직 내 버튼이 없습니다. 기본 버튼만 보입니다.",
     counts: (buttons, groups) => `내 버튼 ${buttons}개, 저장한 검색 ${groups}개`,
     how: "/review-inbox add-button 또는 /review-inbox add-search를 입력하면 Claude와 함께 만듭니다.",
@@ -277,9 +278,6 @@ export const ko: Messages = {
     refine: (url: string, sha: string) => `${url}에 있는 내 임시 리뷰를 같이 다듬자. head ${sha}를 리뷰한 거야. 본문과 코멘트는 \`gh api\`로 읽고, 우리가 정한 대로 거기서 고쳐.`,
     pending: (id: number, repo: string, number: number) =>
       `이 PR에 내 임시 리뷰 ${id}가 있고, 그게 있는 동안 GitHub는 새 리뷰를 받지 않아. 그 리뷰를 고쳐서 써. 내가 판정을 말하면 그때 \`gh api -X POST repos/${repo}/pulls/${number}/reviews/${id}/events -f event=COMMENT\`(또는 APPROVE, REQUEST_CHANGES)로 제출하거나 지워. 리뷰를 새로 만들지는 마.`,
-    check: '특히 확인할 점: ',
-    since: '지난 내 리뷰 이후 바뀐 점: ',
-    style: '평소 내 리뷰 스타일: ',
     task: {
       changes: url => `${url}에서 해결 안 된 리뷰 코멘트를 반영해 줘. 코멘트는 \`gh pr view ${url} --comments\`로 읽어.`,
       'ci-failing': url =>
