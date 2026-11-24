@@ -1115,11 +1115,15 @@ async function finishRun($: EngineInterface, agentId: string, answer: string, to
     await removeRun($, job)
     // Posted by itself as autoReviewPost says; a post GitHub refuses leaves it my pending review, to post from the card.
     const post = reviewId > 0 ? autoPost(config.autoPost, result.verdict) : undefined
+    // GitHub takes a review of an older commit, so a head that moved while the reviewer read stops the post, as it stops a card's;
+    // the review stays pending on the head it read, and its card offers Review again.
+    const target = { repo: pr.repo, number: pr.number, title: '', sha: job.headSha, reviewId }
     const refused = post
-      ? await gh($, writeArgs(post, { repo: pr.repo, number: pr.number, title: '', reviewId }, ''), env).then(
-          () => undefined,
-          (error: unknown) => (error instanceof Error && error.message) || String(error),
-        )
+      ? await (async () => {
+          if ((await gh($, headArgs(target), env)).trim() !== job.headSha) return m.direct.newCommits
+          await gh($, writeArgs(post, target, ''), env)
+          return undefined
+        })().catch((error: unknown) => (error instanceof Error && error.message) || String(error))
       : undefined
     if (post && refused === undefined) {
       const verdict = post === 'post-comment' ? 'comment' : result.verdict
