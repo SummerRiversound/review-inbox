@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.34.2 — 2026-11-24
+
+### Fixed
+
+- While an auto review runs, only the session that runs it turns the spinner on the band, and it turns once a second instead of ten times a second. The other open sessions show the line still and redraw its minutes once a minute, instead of each redrawing ten times a second and using CPU while idle.
+
 ## 0.34.1 — 2026-11-18
 
 ### Changed
