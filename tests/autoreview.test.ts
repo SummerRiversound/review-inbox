@@ -459,7 +459,7 @@ test('a subagent name keeps to letters, digits, _ and - within 64 characters, cu
 
 test('only the session that runs the review turns the spinner; the others redraw its minutes once a minute', () => {
   const here = { kind: 'running', since: 7, session: 'me' } as const
-  expect(bandTickMs(here, 'me', true)).toBe(100)
+  expect(bandTickMs(here, 'me', true)).toBe(1_000)
   expect(bandTickMs(here, 'me', false)).toBe(60_000)
   expect(bandTickMs({ ...here, session: 'other' }, 'me', true)).toBe(60_000)
   expect(bandTickMs({ kind: 'running', since: 7 }, 'me', true)).toBe(60_000)

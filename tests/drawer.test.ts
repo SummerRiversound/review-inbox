@@ -1413,18 +1413,18 @@ function ticks(on: On) {
   return () => count
 }
 
-test('on the terminal the spinner of a review this session runs turns every tenth of a second', AUTO_ON, async ($, on) => {
+test('on the terminal the spinner of a review this session runs turns once a second', AUTO_ON, async ($, on) => {
   const written = ticks(on)
   const band = await runningBand($, on, 'terminal', true)
   const before = written()
-  await clock.advance(1_000)
+  await clock.advance(10_000)
 
   expect(written() - before).toBe(10)
   await band.unmount()
 })
 
-// Every open session reads the same file, so a spinner in each would redraw every session ten times a second.
-test('on the terminal a review run elsewhere is drawn again once a minute, not every tenth of a second', AUTO_ON, async ($, on) => {
+// Every open session reads the same file, so a spinner in each would redraw every session while any review runs.
+test('on the terminal a review run elsewhere is drawn again once a minute, not every second', AUTO_ON, async ($, on) => {
   const written = ticks(on)
   const band = await runningBand($, on, 'terminal')
   const before = written()
