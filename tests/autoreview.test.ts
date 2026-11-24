@@ -10,6 +10,7 @@ import {
   SETTLE_MS,
   autoStates,
   bandFocus,
+  bandTickMs,
   carried,
   contentKey,
   createArgs,
@@ -454,6 +455,16 @@ test('a subagent name keeps to letters, digits, _ and - within 64 characters, cu
   expect(long.endsWith('-142-2f2195a')).toBe(true)
   expect(agentName('auto-review', 'my.org/some.repo#7', 'abcdef0123')).toBe('auto-review-my-org-some-repo-7-abcdef0')
   expect(agentName('auto-review', 'o/r#5', 'h5h5h5h5')).toBe('auto-review-o-r-5-h5h5h5h')
+})
+
+test('only the session that runs the review turns the spinner; the others redraw its minutes once a minute', () => {
+  const here = { kind: 'running', since: 7, session: 'me' } as const
+  expect(bandTickMs(here, 'me', true)).toBe(100)
+  expect(bandTickMs(here, 'me', false)).toBe(60_000)
+  expect(bandTickMs({ ...here, session: 'other' }, 'me', true)).toBe(60_000)
+  expect(bandTickMs({ kind: 'running', since: 7 }, 'me', true)).toBe(60_000)
+  expect(bandTickMs({ kind: 'queued', ahead: 0 }, 'me', true)).toBeUndefined()
+  expect(bandTickMs(undefined, 'me', true)).toBeUndefined()
 })
 
 test('the band follows the running review, else the next to start, and counts the others still waiting', () => {

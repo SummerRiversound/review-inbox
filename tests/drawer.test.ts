@@ -1393,10 +1393,10 @@ test('while an auto review runs, a line under the band names its PR and how long
   await band.unmount()
 })
 
-// A review another machine of mine runs, with the band mounted on the surface given.
-async function runningBand($: Parameters<TestBody>[0], on: On, surface: 'terminal' | 'desktop') {
-  agents(on)
-  const g: Github = { locks: [{ status: 200, at: Date.now() - 10 * 60_000 }], unlocked: [] }
+// A review another machine of mine runs, or with `here` one this session runs, with the band mounted on the surface given.
+async function runningBand($: Parameters<TestBody>[0], on: On, surface: 'terminal' | 'desktop', here = false) {
+  agents(on, () => (here ? ['a1'] : []))
+  const g: Github = { locks: [here ? { status: 201, at: Date.now() } : { status: 200, at: Date.now() - 10 * 60_000 }], unlocked: [] }
   const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
   await tick()
   await ui.unmount()
@@ -1413,13 +1413,26 @@ function ticks(on: On) {
   return () => count
 }
 
-test('on the terminal the auto review spinner turns every tenth of a second', AUTO_ON, async ($, on) => {
+test('on the terminal the spinner of a review this session runs turns every tenth of a second', AUTO_ON, async ($, on) => {
   const written = ticks(on)
-  const band = await runningBand($, on, 'terminal')
+  const band = await runningBand($, on, 'terminal', true)
   const before = written()
   await clock.advance(1_000)
 
   expect(written() - before).toBe(10)
+  await band.unmount()
+})
+
+// Every open session reads the same file, so a spinner in each would redraw every session ten times a second.
+test('on the terminal a review run elsewhere is drawn again once a minute, not every tenth of a second', AUTO_ON, async ($, on) => {
+  const written = ticks(on)
+  const band = await runningBand($, on, 'terminal')
+  const before = written()
+  await clock.advance(1_000)
+  expect(written()).toBe(before)
+
+  await clock.advance(59_000)
+  expect(written() - before).toBe(1)
   await band.unmount()
 })
 

@@ -138,6 +138,13 @@ export function bandFocus(states: Record<string, AutoState>): { key: string; sta
   return first && { key: first[0], state: first[1], waiting: live.length - 1 }
 }
 
+// How often the band is drawn again for the review it follows. Every session reads the same file, so only the one running it turns the spinner at a tenth of a second;
+// the rest, and a still band, redraw its minutes once a minute.
+export function bandTickMs(state: AutoState | undefined, selfId: string, spins: boolean): number | undefined {
+  if (state?.kind !== 'running') return undefined
+  return spins && state.session === selfId ? 100 : 60_000
+}
+
 // A reply that does not parse, or a run that failed to start, is tried once more; one out of turns is not, as the same budget runs out again.
 export const MAX_ATTEMPTS = 2
 // A run whose session has not renewed it for this long has lost that session: its job goes back to the queue.
