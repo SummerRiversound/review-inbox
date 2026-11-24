@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.34.3 — 2026-11-24
+
+### Fixed
+
+- An auto review set to post itself (`autoReviewPost` `comment` or `verdict`) no longer posts when the PR got new commits while it ran. It stays your pending review on the commit it read, and its card offers `Review again` or `Discard`, as a card's own post button already did.
+
 ## 0.34.2 — 2026-11-24
 
 ### Fixed
