@@ -1071,6 +1071,27 @@ test('a post GitHub refuses keeps the auto review as my pending review, to post 
   await ui.unmount()
 })
 
+test('a finished review whose PR got new commits while it ran is not posted, and stays my pending review on the head it read', { options: { autoReview: 'on', autoReviewPost: 'verdict' } }, async ($, on) => {
+  const toasts: string[] = []
+  on('ui.toast', async ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  const g: Github = { created: [], posted: [], head: 'h6', locks: [{ status: 201, at: Date.now() }], unlocked: [] }
+  agents(on, () => ['a1'])
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub(g) })
+  await tick()
+  await finish($, 'a1', JSON.stringify({ verdict: 'approve', summary: 'LGTM', findings: [] }))
+
+  expect(g.created).toHaveLength(1)
+  expect(g.posted).toEqual([])
+  const auto = JSON.parse(files.get(AUTO)!)
+  expect([auto.jobs['o/r#5'].status, auto.jobs['o/r#5'].reviewId, auto.jobs['o/r#5'].headSha]).toEqual(['done', 77, 'h5'])
+  expect(auto.posted).toBeUndefined()
+  expect(toasts).toContain('Auto review kept as your pending review; posting it failed: New commits since you looked: refresh and read them first. · o/r #5')
+  await ui.unmount()
+})
+
 test('with autoReviewVerify on a draft with findings goes to a second reviewer that checks each one, and its answer is what is stored', { options: { autoReview: 'on', autoReviewVerify: 'on' } }, async ($, on) => {
   const g: Github = { created: [], locks: [{ status: 201, at: Date.now() }], unlocked: [] }
   const got = agents(on, () => ['a1', 'a2'])
@@ -1159,7 +1180,8 @@ const RUNS = '/home/me/.claude/plugins/data/review-inbox/runs'
 const queued = (more: Record<string, unknown> = {}) =>
   JSON.stringify({ enabledAt: Date.now() - 3_600_000, jobs: { 'o/r#5': { headSha: 'h5', firstSeenAt: Date.now() - 3_600_000, ...more } } })
 // `locks`: GitHub's answer to each 👀 added, in turn; none fails the add, as on a repository that takes no reactions.
-type Github = { reviews?: string; created?: string[]; createFails?: boolean; posted?: string[]; postFails?: boolean; calls?: string[]; deleted?: string[]; locks?: { status: number; at: number }[]; unlocked?: string[] }
+// `head`: the PR's head commit when a finished review is about to post, h5 (the one reviewed) unless set.
+type Github = { reviews?: string; created?: string[]; createFails?: boolean; posted?: string[]; postFails?: boolean; head?: string; calls?: string[]; deleted?: string[]; locks?: { status: number; at: number }[]; unlocked?: string[] }
 const PATCH = '@@ -1,2 +1,3 @@\n one\n+two\n three'
 const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   g.calls?.push(args)
@@ -1176,6 +1198,7 @@ const autoGithub = (g: Github) => (args: string, stdin?: string) => {
   if (args.startsWith('gh api --paginate repos/o/r/pulls/5/files'))
     return { exitCode: 0, stdout: `${JSON.stringify({ filename: 'a.ts', patch: PATCH })}\n` }
   if (args === 'gh pr diff 5 --repo o/r') return { exitCode: 0, stdout: 'diff --git a/a.ts b/a.ts' }
+  if (args === 'gh api repos/o/r/pulls/5 --jq .head.sha') return { exitCode: 0, stdout: `${g.head ?? 'h5'}\n` }
   if (args.startsWith('gh api -X POST repos/o/r/pulls/5/reviews/77/events')) {
     g.posted?.push(args)
     return g.postFails ? { exitCode: 1, stderr: 'gh: Unprocessable Entity (HTTP 422)' } : { exitCode: 0 }
