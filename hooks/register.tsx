@@ -41,6 +41,7 @@ import {
   RUN_STALE_MS,
   autoStates,
   bandFocus,
+  bandTickMs,
   switchedOn,
   mayStart,
   reviewerAway,
@@ -1819,10 +1820,8 @@ export const register: Register = (on, options) => {
     const everything = await read($, items)
     const autoNow = await read($, autoReview)
     const focus = bandFocus(autoStates(autoNow, everything, config.auto, now))
-    // While a review runs the band is drawn again for the time it shows: every tenth of a second for the terminal's spinner, else once a minute.
     // Off the terminal the desktop app draws every site again on any state write (anthropics/claude-code#99211), which drops presses in the drawer.
-    const isRunning = focus?.state.kind === 'running'
-    const tickMs = !isRunning ? undefined : e.surface === 'terminal' && !isStill ? 100 : 60_000
+    const tickMs = bandTickMs(focus?.state, selfId, e.surface === 'terminal' && !isStill)
     if (spinTimer?.ms !== tickMs) {
       spinTimer?.timer.cancel()
       spinTimer = tickMs === undefined ? undefined : { ms: tickMs, timer: $.clock.every(tickMs, () => void update($, spin, n => n + 1)) }
