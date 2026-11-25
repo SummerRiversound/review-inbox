@@ -290,6 +290,8 @@ const SORT = 'sort:choices'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
+// The newest lists that came in while a card was added, shown once the picks are cleared.
+let heldFile: InboxFile | undefined
 let terminalColumns = 160
 // What this session has already shown; undefined until its first look, which compares with the last session's instead.
 let shownKeys: string[] | undefined
@@ -1271,6 +1273,11 @@ async function sync($: EngineInterface, force = false) {
 }
 
 async function show($: EngineInterface, file: InboxFile) {
+  // Cards coming or going above would move the ones being picked while the person scrolls on to the next.
+  if ((await read($, added)).length > 0) {
+    heldFile = file
+    return
+  }
   const claimed = file.fetchingSince !== undefined && Date.now() - file.fetchingSince < CLAIM_MS
   // A file written by an older version of the mod, in this or another session, lacks newer fields;
   // a missing list keeps what is shown rather than blanking a tab.
@@ -1379,7 +1386,7 @@ async function openDrawer($: EngineInterface) {
     const { text } = await $.prompt.read()
     const cards = await pickable($)
     await update($, requested, () => cards.filter(c => hasRequest(text, c.url)).map(c => c.key))
-    await update($, added, () => [])
+    await clearAdded($)
     await loadSeen($)
     await loadActions($)
     // A group added or edited since the last fetch has nothing to show yet.
@@ -1514,8 +1521,15 @@ async function fillAdded($: EngineInterface): Promise<boolean> {
       if (filled.refusal === 'dialog') return false
     }
   }
-  await update($, added, () => [])
+  await clearAdded($)
   return true
+}
+
+async function clearAdded($: EngineInterface) {
+  await update($, added, () => [])
+  const file = heldFile
+  heldFile = undefined
+  if (file) await show($, file)
 }
 
 // A running review names the session it runs in, as every session shows the same line; one an older release or another machine runs has no session to name.
