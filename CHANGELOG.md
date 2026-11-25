@@ -2,6 +2,12 @@
 
 All notable changes to this mod. Versions follow `version` in `.claude-plugin/plugin.json`; installed copies update when it changes.
 
+## 0.34.4 — 2026-11-25
+
+### Fixed
+
+- The drawer no longer jumps while you pick cards. Once a card is `Added`, lists fetched meanwhile wait, so new or finished requests do not move the cards you are scrolling through; they show, with their toasts, when the drawer's close fills the prompt or the drawer opens again.
+
 ## 0.34.3 — 2026-11-24
 
 ### Fixed
