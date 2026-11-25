@@ -1822,6 +1822,22 @@ test('with Direct GitHub actions on, a card with my pending review offers Post a
   await ui.unmount()
 })
 
+test('a list another session fetched shows at once, but waits while a card is added, so the cards being picked do not move', async ($, on) => {
+  const ui = await opened($, on, [], [], 'review', { items: [item(5), item(6)] })
+  const fetched = (items: InboxItem[]) => files.set(INBOX, JSON.stringify({ items, mine: [], issues: [], groups: {}, fetchedAt: Date.now() }))
+
+  fetched([item(4), item(5), item(6)])
+  await clock.advance(30_000)
+  expect(await shown(ui, /#4/)).toBe(true)
+
+  await ui.press({ key: 'review-o/r#5' })
+  fetched([item(3), item(4), item(5), item(6)])
+  await clock.advance(30_000)
+  expect(await shown(ui, /#3/)).toBe(false)
+  expect(await shown(ui, /#4/)).toBe(true)
+  await ui.unmount()
+})
+
 // The test kit has no drawer close, so what the close fills is pinned in the inbox tests.
 test('Refine in session takes the place of Review on a card with my pending review, and adds the card like Review', AUTO_ON, async ($, on) => {
   const ui = await opened($, on, [], [], 'review', { items: [autoItem, item(6)], files: { [AUTO]: reviewed }, run: github([], 'h5') })
