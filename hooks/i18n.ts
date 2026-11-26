@@ -286,6 +286,7 @@ const en = {
     open: "Open on GitHub",
     retry: 'Try again',
     stopped: 'the review was stopped',
+    sessionStopped: 'the session that runs it is stopped; send it any input, then Try again',
     reviewed: 'Auto review: you already reviewed this commit',
     finished: (verdict: string) => `Auto review done, suggests ${verdict}`,
     posted: (verdict: string) => `Auto review posted as ${verdict}`,

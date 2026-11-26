@@ -278,6 +278,7 @@ export const ptBR: Messages = {
     open: "Abrir no GitHub",
     retry: 'Tentar de novo',
     stopped: 'a revisão foi interrompida',
+    sessionStopped: 'a sessão responsável está parada; envie qualquer entrada e use Tentar de novo',
     reviewed: 'Revisão automática: você já revisou este commit',
     finished: (verdict: string) => `Revisão automática pronta, sugere: ${verdict}`,
     posted: verdict => `Revisão automática publicada como ${verdict}`,

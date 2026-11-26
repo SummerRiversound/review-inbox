@@ -278,6 +278,7 @@ export const de: Messages = {
     open: "Auf GitHub öffnen",
     retry: 'Erneut versuchen',
     stopped: 'das Review wurde abgebrochen',
+    sessionStopped: 'die zuständige Sitzung steht still; eine Eingabe senden, dann Erneut versuchen',
     reviewed: 'Automatisches Review: Sie haben diesen Commit bereits geprüft',
     finished: (verdict: string) => `Automatisches Review fertig, Vorschlag: ${verdict}`,
     posted: verdict => `Automatisches Review als ${verdict} veröffentlicht`,

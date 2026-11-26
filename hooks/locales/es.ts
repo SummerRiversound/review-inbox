@@ -277,6 +277,7 @@ export const es: Messages = {
     open: "Abrir en GitHub",
     retry: 'Reintentar',
     stopped: 'la revisión se detuvo',
+    sessionStopped: 'la sesión que la ejecuta está detenida; envíale cualquier entrada y pulsa Reintentar',
     reviewed: 'Revisión automática: ya revisaste este commit',
     finished: (verdict: string) => `Revisión automática lista, sugiere: ${verdict}`,
     posted: verdict => `Revisión automática publicada como ${verdict}`,

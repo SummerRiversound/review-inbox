@@ -277,6 +277,7 @@ export const fr: Messages = {
     open: "Ouvrir sur GitHub",
     retry: 'Réessayer',
     stopped: 'la revue a été interrompue',
+    sessionStopped: 'la session qui la porte est arrêtée ; envoyez-lui une saisie, puis Réessayer',
     reviewed: 'Revue automatique : vous avez déjà relu ce commit',
     finished: (verdict: string) => `Revue automatique terminée, proposition : ${verdict}`,
     posted: verdict => `Revue automatique publiée comme ${verdict}`,

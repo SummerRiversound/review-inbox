@@ -274,6 +274,7 @@ export const zhTW: Messages = {
     open: "在 GitHub 上開啟",
     retry: '重試',
     stopped: '審查已中斷',
+    sessionStopped: '負責的工作階段已停止；先對它傳送一次輸入，再點擊重試',
     reviewed: '自動審查：這個提交你已經審查過',
     finished: (verdict: string) => `自動審查完成，建議：${verdict}`,
     posted: verdict => `自動審查已以「${verdict}」送出`,

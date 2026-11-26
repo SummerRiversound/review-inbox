@@ -274,6 +274,7 @@ export const ko: Messages = {
     open: "GitHub에서 열기",
     retry: '다시 시도',
     stopped: '리뷰가 중단됨',
+    sessionStopped: '담당 세션이 멈춰 있음 · 입력을 한 번 보낸 뒤 다시 시도',
     reviewed: '자동 리뷰: 이 커밋은 이미 리뷰함',
     finished: (verdict: string) => `자동 리뷰 완료, 제안: ${verdict}`,
     posted: verdict => `자동 리뷰를 게시했습니다: ${verdict}`,
