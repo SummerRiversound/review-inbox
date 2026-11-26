@@ -274,6 +274,7 @@ export const ja: Messages = {
     open: "GitHub で開く",
     retry: 'もう一度試す',
     stopped: 'レビューが中断されました',
+    sessionStopped: '担当セッションが停止しています。何か入力を送ってから、もう一度試してください',
     reviewed: '自動レビュー: このコミットはレビュー済みです',
     finished: (verdict: string) => `自動レビュー完了、提案: ${verdict}`,
     posted: verdict => `自動レビューを ${verdict} として投稿しました`,

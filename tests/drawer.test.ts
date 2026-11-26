@@ -1713,6 +1713,20 @@ test('a stopped run stores nothing and waits for Try again rather than starting 
   await ui.unmount()
 })
 
+test('an agent Claude Code refuses because the session stopped shows what to do, not the engine text', AUTO_ON, async ($, on) => {
+  on('agent.register', async (_$, e) => ({ value: { agent: `review-inbox:${e.name}` } }))
+  on('agent.list', async () => ({ value: [] }))
+  on('agent.spawn', async () => ({ deny: 'the session was stopped and nobody has sent input since' }))
+  const ui = await opened($, on, [], [], 'review', { items: [recent(5)], files: { [AUTO]: queued() }, run: autoGithub({}) })
+  for (let i = 0; i < 6; i++) await tick()
+  console.log('DBG', files.get(AUTO))
+
+  expect(JSON.parse(files.get(AUTO)!).jobs['o/r#5'].status).toBe('failed')
+  expect(await shown(ui, /Auto review failed: the session that runs it is stopped; send it any input, then Try again/)).toBe(true)
+  expect(await shown(ui, /nobody has sent input/)).toBe(false)
+  await ui.unmount()
+})
+
 test('with the repository folder known, the run reads a detached worktree at the head, removed when the review is stored', { options: { autoReview: 'on', repoPaths: 'o/r=/src/r' } }, async ($, on) => {
   const g: Github = { created: [], calls: [] }
   const run = autoGithub(g)

@@ -956,7 +956,9 @@ async function failRun($: EngineInterface, key: string, error: string, isFinal =
   if (!job) return
   await removeRun($, job)
   const attempts = (job.attempts ?? 0) + 1
-  await setJob($, key, attempts < MAX_ATTEMPTS && !isFinal ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error }, job.headSha)
+  // Claude Code refuses an agent for a session that was stopped and got no input since; that English text says nothing of what to do.
+  const reason = /nobody has sent input since/.test(error) ? m.auto.sessionStopped : error
+  await setJob($, key, attempts < MAX_ATTEMPTS && !isFinal ? { ...IDLE, attempts } : { ...IDLE, attempts, status: 'failed', error: reason }, job.headSha)
 }
 
 // My pending review moved from an older commit with the same content: read as it is now (my edits on GitHub kept), deleted, made again on the head.

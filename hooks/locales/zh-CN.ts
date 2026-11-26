@@ -274,6 +274,7 @@ export const zhCN: Messages = {
     open: "在 GitHub 上打开",
     retry: '重试',
     stopped: '审查已中断',
+    sessionStopped: '负责的会话已停止；先给它发送一次输入，再点击重试',
     reviewed: '自动审查：这个提交你已经审查过',
     finished: (verdict: string) => `自动审查完成，建议：${verdict}`,
     posted: verdict => `自动审查已以「${verdict}」提交`,
