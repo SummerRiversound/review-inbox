@@ -127,3 +127,12 @@ test('a fetch running shows as loading, and nothing fetched yet as empty', () =>
   assert.equal(toView(undefined, false, NONE).status, 'empty')
   assert.equal(toView(undefined, true, NONE).status, 'loading')
 })
+
+test('a first fetch that fails shows why, never empty lists as if GitHub had none', async () => {
+  const s = setup(fakeGh(true).gh)
+  await s.sync()
+  const view = toView(s.file(), false, NONE)
+  assert.equal(view.status, 'error')
+  assert.equal(view.error, 'offline')
+  assert.equal(view.fetchedAt, null)
+})

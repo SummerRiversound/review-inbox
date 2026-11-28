@@ -48,7 +48,8 @@ export function createSync(deps: SyncDeps) {
       delete result.error
     } catch (error) {
       // Keep the lists this fetch did get, the last good ones otherwise, and try again in a minute.
-      result = { ...partial, fetchedAt: file.fetchedAt ?? deps.now(), retryAt: deps.now() + RETRY_MS, error: error instanceof Error ? error.message : String(error) }
+      // A first fetch that failed keeps no time, so nothing reads as fetched.
+      result = { ...partial, fetchedAt: file.fetchedAt, retryAt: deps.now() + RETRY_MS, error: error instanceof Error ? error.message : String(error) }
     }
     isDone = true
     await saving

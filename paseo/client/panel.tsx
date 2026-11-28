@@ -159,7 +159,7 @@ function Inbox({ theme, layout, state, setState }: { theme: PluginTheme; layout:
   const reviewCount = review.direct.length + review.team.length
   const workCount = work.prs.length + work.issues.length + work.references.length
   const running = Object.values(view.auto).filter(a => a.kind === 'running').length
-  const updated = view.fetchedAt === null ? m.status.firstFetch : view.status === 'loading' ? m.status.loading : m.status.updated(Math.floor((now - view.fetchedAt) / 60_000))
+  const updated = view.fetchedAt === null ? (view.status === 'error' ? '' : m.status.firstFetch) : view.status === 'loading' ? m.status.loading : m.status.updated(Math.floor((now - view.fetchedAt) / 60_000))
 
   const reviewRow = (item: InboxItem, first: boolean) => {
     const key = cardKey(item)
@@ -245,7 +245,9 @@ function Inbox({ theme, layout, state, setState }: { theme: PluginTheme; layout:
       <View style={s.seg} accessibilityRole="tablist">
         {TABS.map(tab => {
           const on = state.tab === tab
-          const label = tab === 'review' ? m.tabs.review(atLeast(reviewCount, view.capped.review === true)) : m.tabs.work(atLeast(workCount, view.capped.mine === true || view.capped.issues === true))
+          // Before a first fetch the counts are unknown, so the tabs show none.
+          const known = view.fetchedAt !== null
+          const label = (tab === 'review' ? m.tabs.review(known ? atLeast(reviewCount, view.capped.review === true) : '') : m.tabs.work(known ? atLeast(workCount, view.capped.mine === true || view.capped.issues === true) : '')).trim()
           return (
             <Pressable key={tab} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => setState({ ...state, tab })} style={s.segItem(on)}>
               <Text style={s.segText(on)}>{label}</Text>

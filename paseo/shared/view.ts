@@ -5,7 +5,7 @@ import type { AutoState, InboxFile, InboxItem, IssueItem, MyPr } from './types'
 
 // The fetched file as the panel reads it, with what the server alone knows beside it.
 export function toView(file: InboxFile | undefined, fetching: boolean, extra: { auto: Record<string, AutoState>; hidden: Record<string, string>; notifies: boolean }): InboxView {
-  const status = fetching ? 'loading' : file?.fetchedAt === undefined ? 'empty' : file.error !== undefined ? 'error' : 'ready'
+  const status = fetching ? 'loading' : file?.error !== undefined ? 'error' : file?.fetchedAt === undefined ? 'empty' : 'ready'
   return {
     status,
     fetchedAt: file?.fetchedAt ?? null,
