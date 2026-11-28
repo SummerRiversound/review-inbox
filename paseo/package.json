@@ -1,8 +1,24 @@
 {
   "name": "paseo-review-inbox",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "GitHub pull requests waiting for your review, summarized, with your own pull requests and issues, in one panel with a sidebar count.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SummerRiversound/review-inbox.git",
+    "directory": "paseo"
+  },
+  "license": "MIT",
   "type": "module",
+  "files": [
+    "paseo-plugin.json",
+    "index.client.tsx",
+    "index.server.ts",
+    "client/",
+    "server/",
+    "shared/",
+    "OVERVIEW.md",
+    "assets/"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "tsx --test tests/*.ts"

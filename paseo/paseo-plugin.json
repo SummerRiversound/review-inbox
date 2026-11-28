@@ -1,7 +1,11 @@
 {
   "id": "review-inbox",
   "name": "Review Inbox",
-  "description": "GitHub PRs awaiting your review, your own PRs, and issues assigned to you or mentioning you, in one panel.",
+  "description": "GitHub pull requests waiting for your review, summarized, with your own pull requests and issues, in one panel with a sidebar count.",
+  "media": [
+    "assets/panel.png",
+    "assets/my-work.png"
+  ],
   "requirements": {
     "paseo": ">=0.17.5"
   }
