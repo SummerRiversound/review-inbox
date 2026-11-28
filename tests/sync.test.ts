@@ -1,6 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
+import { PASEO_ENV } from '../paseo/shared/host'
 import { INBOX_FORMAT, cacheKey } from '../paseo/shared/inbox'
 import { styleQuery } from '../paseo/shared/style'
 
@@ -64,9 +65,9 @@ const myGqlPr = {
 }
 
 // A session with nothing fetched yet, whose review-request search answers, fails, or answers only when `answer` is called; `asked` holds each gh call.
-function slowReviews(on: On, reviews: 'hang' | 'fail' | 'ok') {
+function slowReviews(on: On, reviews: 'hang' | 'fail' | 'ok', env: Record<string, string> = {}) {
   const clock = mock.clock(on)
-  mock.env(on, { HOME: '/home/me' })
+  mock.env(on, { HOME: '/home/me', ...env })
   on('settings.read', async () => ({ value: {} }))
   on('session.start', async () => ({ cwd: '/work' }))
   on('session.id', async () => ({ value: 'self' }))
@@ -145,4 +146,14 @@ test('with auto review off my reviews are not read for a style, as only auto rev
 
   expect(inbox().fetchedAt).toBeDefined()
   expect(learnsStyle(asked)).toBe(false)
+})
+
+test('a Claude session Paseo opened never goes to GitHub, since the Paseo plugin reads it there', { options: { autoReview: 'on' } }, async ($, on) => {
+  const { clock, inbox, asked } = slowReviews(on, 'ok', { [PASEO_ENV]: '1' })
+
+  await $.session.start({ cwd: '/work', surface: null, isInteractive: false })
+  for (let i = 0; i < 40; i++) await clock.advance(1_000)
+
+  expect(asked.filter(args => args.startsWith('gh '))).toEqual([])
+  expect(inbox().fetchedAt).toBeUndefined()
 })

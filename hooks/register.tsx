@@ -274,6 +274,8 @@ const SORT = 'sort:choices'
 let languageOption: string | undefined
 let m: Messages = MESSAGES.en
 let isFetching = false
+// In a Claude session Paseo opened, the Paseo plugin reads GitHub: this session shows the shared file and never fetches or auto-reviews.
+let isResting = false
 // The newest lists that came in while a card was added, shown once the picks are cleared.
 let heldFile: InboxFile | undefined
 let terminalColumns = 160
@@ -1051,7 +1053,7 @@ const LIVE = ['pending', 'running', 'waiting']
 
 // Every session looks at the shared file on the sync timer; only a local read until a job is due. One review runs at a time across sessions.
 async function tickAuto($: EngineInterface) {
-  if (!config.auto.isOn || isTicking) return
+  if (!config.auto.isOn || isResting || isTicking) return
   isTicking = true
   try {
     const file = await readJson($, autoFile(), { jobs: {} } as AutoReviewFile)
@@ -1094,7 +1096,7 @@ async function tickAuto($: EngineInterface) {
 async function sync($: EngineInterface, force = false) {
   const file = await readJson($, inboxFile(), { items: [] } as InboxFile)
   if (file === undefined) return
-  if (isFetching || !shouldFetch(file, Date.now(), force, config.refreshMs)) return show($, file)
+  if (isResting || isFetching || !shouldFetch(file, Date.now(), force, config.refreshMs)) return show($, file)
 
   isFetching = true
   try {
@@ -1588,6 +1590,8 @@ export const register: Register = (on, options) => {
     m = MESSAGES[config.language]
     home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''
     ghRepo = await $.env.get('GH_REPO')
+    // The name is PASEO_ENV in paseo/shared/host.ts, spelled out since $.env.get takes a literal.
+    isResting = (await $.env.get('REVIEW_INBOX_PASEO').catch(() => undefined)) === '1'
     await loadActions($).catch(() => undefined)
     // A pane a reload kept open was not opened through openDrawer.
     await loadSeen($).catch(() => undefined)
