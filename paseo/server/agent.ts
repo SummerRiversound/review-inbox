@@ -1,4 +1,7 @@
-import type { PaseoApi } from '@getpaseo/client'
+import type { PluginHandlerContext } from '@getpaseo/plugin/server'
+
+// Paseo's API as handlers receive it; @getpaseo/client is not installed beside a plugin from Git.
+type PaseoApi = PluginHandlerContext['paseo']
 import type { Reviewer } from './review'
 
 // A review given up on after this long; its agent is archived, which stops it.

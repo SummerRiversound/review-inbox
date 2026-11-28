@@ -1,5 +1,4 @@
-import type { PaseoApi } from '@getpaseo/client'
-import type { PluginServerContext } from '@getpaseo/plugin/server'
+import type { PluginHandlerContext, PluginServerContext } from '@getpaseo/plugin/server'
 import { paseoReviewer } from './server/agent'
 import { gh, ghEnv } from './server/gh'
 import { claudeAsk } from './server/ask'
@@ -40,8 +39,8 @@ export default function contribute(server: PluginServerContext) {
 
   // The daemon's API reaches the plugin only inside a handler or hook; the first one keeps it for the reviewer.
   // shortcut: auto review waits for the first RPC or hook after the plugin starts; Paseo in use always sends one.
-  let api: PaseoApi | undefined
-  const keep = (paseo: PaseoApi) => void (api ??= paseo)
+  let api: PluginHandlerContext['paseo'] | undefined
+  const keep = (paseo: PluginHandlerContext['paseo']) => void (api ??= paseo)
   const review = createAutoReview({ gh, env: user => ghEnv(gh, user), config, loadInbox, loadAuto, saveAuto, runsDir: runsDir(), reviewer: paseoReviewer(() => api), now: Date.now, language: LANGUAGE })
   const tick = () => {
     fetch(false)
