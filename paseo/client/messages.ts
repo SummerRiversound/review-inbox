@@ -4,6 +4,10 @@ import { MESSAGES, pickLanguage } from '../shared/i18n'
 // Words the mod has no use for. Everything else on screen is the mod's own table, in the app's language.
 const en = {
   refresh: 'Refresh',
+  autoRunning: 'auto review running',
+  noAgent: 'Open an agent first: the request goes into its prompt.',
+  pending: 'Pending review',
+  github: 'Open on GitHub',
   settings: {
     title: 'Review inbox',
     scope: 'Search scope',
@@ -28,6 +32,10 @@ const en = {
 
 const ko: typeof en = {
   refresh: '새로고침',
+  autoRunning: '자동 리뷰 진행 중',
+  noAgent: '먼저 에이전트를 열어 주세요. 요청은 그 입력창에 들어갑니다.',
+  pending: '임시 리뷰 보기',
+  github: 'GitHub에서 열기',
   settings: {
     title: '리뷰 인박스',
     scope: '검색 범위',

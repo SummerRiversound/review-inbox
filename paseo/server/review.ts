@@ -50,6 +50,9 @@ export type ReviewDeps = {
   language: Language
 }
 
+// The mod's auto-review settings from this plugin's: large PRs and earlier requests are reviewed too, as the mod's defaults do.
+export const autoSettings = (config: InboxConfig): AutoSettings => ({ isOn: config.autoReview, daily: config.daily ?? undefined, large: true, backlog: true, settleMs: config.settleMinutes * 60_000 })
+
 // What a finished, failed or skipped run leaves on its job; the run's own fields are cleared.
 type Outcome = Pick<AutoJob, 'status' | 'attempts' | 'error' | 'reviewId' | 'result' | 'staleFrom'>
 const IDLE: Partial<AutoJob> = { status: undefined, startedAt: undefined, error: undefined, staleFrom: undefined }
@@ -135,8 +138,7 @@ export function createAutoReview(deps: ReviewDeps) {
     file.enabledAt ??= now
     // A run the daemon left when it stopped goes back to the front of the queue, not counted as an attempt.
     for (const [key, job] of Object.entries(file.jobs)) if (job.status === 'running') file.jobs[key] = { ...job, ...IDLE, manual: true }
-    const settings: AutoSettings = { isOn: true, daily: config.daily ?? undefined, large: true, backlog: true, settleMs: config.settleMinutes * 60_000 }
-    const key = nextJob(autoStates(file, inbox.items, settings, now))
+    const key = nextJob(autoStates(file, inbox.items, autoSettings(config), now))
     const item = inbox.items.find(i => itemKey(i) === key)
     if (key === undefined || item === undefined) return deps.saveAuto(config, file)
     const job = file.jobs[key]!

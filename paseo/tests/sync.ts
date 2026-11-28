@@ -4,7 +4,9 @@ import type { Gh, Summarizer } from '../shared/fetch'
 import { RETRY_MS } from '../shared/inbox'
 import { DEFAULT_CONFIG, type InboxConfig } from '../shared/settings'
 import type { InboxFile } from '../shared/types'
-import { toView } from '../shared/view'
+import { reviewGroups, toView, workGroups } from '../shared/view'
+
+const NONE = { auto: {}, hidden: {}, notifies: false }
 import { ghEnv } from '../server/gh'
 import { createSync } from '../server/sync'
 
@@ -60,11 +62,12 @@ test('a fetch fills the three lists the panel shows', async () => {
   const { gh } = fakeGh()
   const s = setup(gh)
   await s.sync()
-  const view = toView(s.file(), false)
+  const view = toView(s.file(), false, NONE)
   assert.equal(view.status, 'ready')
-  assert.deepEqual(view.review.map(r => [r.key, r.author, r.tag]), [['o/r#7', 'ann', null]])
-  assert.deepEqual(view.mine.map(r => r.key), ['o/r#1'])
-  assert.deepEqual(view.issues.map(r => [r.key, r.tag]), [['assigned:o/r#3', 'assigned']])
+  assert.deepEqual(reviewGroups(view).direct.map(i => [i.repo, i.number, i.author]), [['o/r', 7, 'ann']])
+  const work = workGroups(view)
+  assert.deepEqual(work.prs.map(pr => pr.number), [1])
+  assert.deepEqual(work.issues.map(i => [i.number, i.kind]), [[3, 'assigned']])
 })
 
 test('GitHub is read again only once the refresh interval passed, or on a refresh', async () => {
@@ -103,7 +106,7 @@ test('a failed fetch keeps the last lists, says why, and retries in a minute', a
   assert.equal(file.error, 'offline')
   assert.equal(file.items.length, 1)
   assert.ok(file.retryAt !== undefined && file.retryAt - 1_000_000 <= RETRY_MS)
-  assert.equal(toView(file, false).status, 'error')
+  assert.equal(toView(file, false, NONE).status, 'error')
   fail = false
   s.tick(RETRY_MS)
   await s.sync()
@@ -121,6 +124,6 @@ test('a named account reads GitHub with that login’s token', async () => {
 })
 
 test('a fetch running shows as loading, and nothing fetched yet as empty', () => {
-  assert.equal(toView(undefined, false).status, 'empty')
-  assert.equal(toView(undefined, true).status, 'loading')
+  assert.equal(toView(undefined, false, NONE).status, 'empty')
+  assert.equal(toView(undefined, true, NONE).status, 'loading')
 })
