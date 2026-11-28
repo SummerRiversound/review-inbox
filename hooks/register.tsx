@@ -104,7 +104,6 @@ import {
   CLAIM_MS,
   cacheKey,
   INBOX_FORMAT,
-  INBOX_QUERY,
   RETRY_MS,
   ageColor,
   detailsText,
@@ -113,45 +112,34 @@ import {
   isHidden,
   isTorn,
   itemKey,
-  lastReviewedSha,
   minutesSince,
   newArrivals,
   parseReviewSkill,
   parseSummary,
-  headCommittedAt,
   requestedAt,
-  requestedTeam,
-  reusableSummary,
   reviewPrompts,
-  searchQuery,
   shouldFetch,
   shownReady,
   sincePrompt,
   sinceRules,
-  sortItems,
   summaryPrompt,
   summaryRules,
-  toDetail,
   waitingDays,
 } from '../paseo/shared/inbox'
-import type { GqlPr, PendingReview, PrDetail, SearchHit, Summary } from '../paseo/shared/inbox'
+import type { PendingReview, PrDetail, SearchHit, Summary } from '../paseo/shared/inbox'
 import { isLanguage, MESSAGES, pickLanguage } from '../paseo/shared/i18n'
-import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from '../paseo/shared/notes'
+import { isSnoozed, keptNotes, matches, snoozeUntil } from '../paseo/shared/notes'
 import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from '../paseo/shared/sessions'
 import type { Place, ReloadRequest } from '../paseo/shared/sessions'
 import type { Language, Messages } from '../paseo/shared/i18n'
-import { isGatewayTimeout, readPages, SEARCH_LIMIT } from '../paseo/shared/pages'
-import type { Page, Pages } from '../paseo/shared/pages'
+import { isGatewayTimeout } from '../paseo/shared/pages'
+import type { Pages } from '../paseo/shared/pages'
 import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from '../paseo/shared/style'
 import type { GqlReviewed, StyleFile } from '../paseo/shared/style'
 import {
-  REFERENCES_QUERY,
-  AUTHORED_DAYS,
   ORDER,
   SORTS,
   REFERENCE_DAYS,
-  REFERENCE_PAGE,
-  TAB_QUERIES,
   atLeast,
   BAND_KEYS,
   bandCounts,
@@ -171,17 +159,14 @@ import {
   prHideKey,
   prSeenKeys,
   reviewers,
-  referencesQuery,
   stateColor,
-  tabQueries,
   taskOf,
   taskPrompts,
-  toIssues,
-  toMyPrs,
-  toReferences,
   workWhere,
 } from '../paseo/shared/tabs'
-import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from '../paseo/shared/tabs'
+import type { BandCounts, Task } from '../paseo/shared/tabs'
+import { fetchInbox, fetchTabs, searchAll } from '../paseo/shared/fetch'
+import type { Gh, Save, Summarizer } from '../paseo/shared/fetch'
 const PANE = 'review-inbox'
 // Reading the shared file is a local disk read, so every session can afford it often.
 const SYNC_MS = 30_000
@@ -454,123 +439,17 @@ async function summarizeSince(
   }
 }
 
-// One search, read a page at a time; `jq` cuts each page below gh's output cap.
-function searchAll<T>($: EngineInterface, query: string, vars: Record<string, string>, env: Record<string, string>, limit: number, jq = '.data', pageSize?: number) {
-  const fields = Object.entries(vars).flatMap(([name, value]) => ['-f', `${name}=${value}`])
-  return readPages<T>(
-    async (first, after) =>
-      JSON.parse(
-        await gh($, ['api', 'graphql', '-f', `query=${query}`, ...fields, '-F', `first=${first}`, ...(after ? ['-f', `after=${after}`] : []), '--jq', jq], env),
-      ) as Page<T>,
-    limit,
-    pageSize,
-  )
-}
-
-// Lists fetched so far, merged into the claimed file as each one arrives.
-type Save = (lists: Partial<InboxFile>) => Promise<void>
-
-const trimBodies = (chars: number) => `.data | .search.nodes |= map(if .body then .body |= .[:${chars}] else . end)`
-
 async function ghEnv($: EngineInterface): Promise<Record<string, string>> {
   if (!config.githubUser) return {}
   return { GH_TOKEN: (await gh($, ['auth', 'token', '-u', config.githubUser], {})).trim() }
 }
 
-async function fetchTabs(
-  $: EngineInterface,
-  env: Record<string, string>,
-  previous: IssueItem[],
-  save: Save,
-): Promise<{ mine: MyPr[]; issues: IssueItem[]; capped: Capped }> {
-  const q = tabQueries(config.scope)
-  const tabSearch = <T,>(key: keyof typeof q): Promise<Pages<T>> => searchAll($, TAB_QUERIES[key], { q: q[key] }, env, SEARCH_LIMIT, trimBodies(BODY_CHARS))
-  const [minePrs, assigned, mentioned] = await Promise.all([tabSearch<GqlMyPr>('mine'), tabSearch<GqlTouched>('assigned'), tabSearch<GqlTouched>('mentioned')])
-  const me = minePrs.login ?? assigned.login ?? ''
-  const real = <T,>(nodes: Partial<T & { number: number }>[]) =>
-    nodes.filter((n): n is T & { number: number } => typeof n.number === 'number')
-  const mine = toMyPrs(real<GqlMyPr>(minePrs.nodes), me)
-  const withReferences = (references: IssueItem[]) => toIssues(real<GqlTouched>(assigned.nodes), real<GqlTouched>(mentioned.nodes), references)
-  const capped = { mine: minePrs.capped, issues: assigned.capped || mentioned.capped }
-  const lastReferences = previous.filter(i => i.kind === 'reference')
-  // References are the slowest search, so the other lists show first, beside the last references.
-  await save({ mine, issues: withReferences(lastReferences), capped })
-
-  const since = new Date(Date.now() - REFERENCE_DAYS * 86_400_000).toISOString()
-  const touchedSince = new Date(Date.now() - AUTHORED_DAYS * 86_400_000).toISOString()
-  let references: IssueItem[]
-  try {
-    // ponytail: at most 500 items touched in the window, newest first; past that the rest are left out
-    const referenced: Pages<GqlReferenced> = await searchAll($, REFERENCES_QUERY, { q: referencesQuery(config.scope, touchedSince), since }, env, 500, '.data', REFERENCE_PAGE)
-    references = toReferences(real<GqlReferenced>(referenced.nodes), me)
-  } catch {
-    // References are the costliest search; when GitHub refuses it, keep the last ones instead of failing every tab.
-    references = lastReferences
-  }
-
-  return { mine, issues: withReferences(references), capped }
-}
-
-async function fetchInbox(
-  $: EngineInterface,
-  env: Record<string, string>,
-  previous: InboxItem[],
-  heartbeat: () => Promise<void>,
-): Promise<{ items: InboxItem[]; capped: boolean }> {
-  const found: Pages<GqlPr> = await searchAll($, INBOX_QUERY, { q: searchQuery(config.scope) }, env, SEARCH_LIMIT, trimBodies(12_000))
-  const me = found.login ?? ''
-  // Search can return non-PR nodes as empty objects.
-  const prs = found.nodes.filter((n): n is GqlPr => typeof n.number === 'number')
-  const before = new Map(previous.map(i => [itemKey(i), i]))
-
-  const next: InboxItem[] = []
-  // ponytail: fixed batches of 3 model calls; a work queue only matters past a few dozen PRs
-  for (let i = 0; i < prs.length; i += 3) {
-    const batch = await Promise.all(
-      prs.slice(i, i + 3).map(async pr => {
-        const repo = pr.repository.nameWithOwner
-        const prev = before.get(`${repo}#${pr.number}`)
-        const detail = toDetail(pr)
-        const head = pr.headRefOid
-        const summary = reusableSummary(prev, head) ?? (await summarize($, pr, detail, prev))
-        const reviewedSha = lastReviewedSha(detail.reviews, me)
-        const team = requestedTeam(detail.reviewRequests, me)
-        const sinceLastReview =
-          !reviewedSha || reviewedSha === head
-            ? undefined
-            : prev?.headSha === head && prev.reviewedSha === reviewedSha
-              ? prev.sinceLastReview
-              : await summarizeSince($, pr.repository.nameWithOwner, reviewedSha, head, env)
-        return {
-          repo,
-          number: pr.number,
-          title: pr.title,
-          url: pr.url,
-          headSha: head,
-          ...(headCommittedAt(pr) ? { headCommittedAt: headCommittedAt(pr) } : {}),
-          isRerequest: reviewedSha !== undefined,
-          ...(reviewedSha ? { reviewedSha } : {}),
-          ...(sinceLastReview ? { sinceLastReview } : {}),
-          ...(pr.body ? { body: pr.body.slice(0, BODY_CHARS) } : {}),
-          author: pr.author?.login ?? 'ghost',
-          ...(pr.author?.__typename === 'Bot' ? { isBot: true as const } : {}),
-          createdAt: pr.createdAt,
-          ...(pr.updatedAt ? { updatedAt: pr.updatedAt } : {}),
-          requestedAt: requestedAt(pr, me),
-          isDraft: pr.isDraft,
-          ...(team ? { team } : {}),
-          files: pr.changedFiles,
-          additions: pr.additions,
-          deletions: pr.deletions,
-          ...summary,
-        } satisfies InboxItem
-      }),
-    )
-    next.push(...batch)
-    await heartbeat()
-  }
-  return { items: sortItems(next), capped: found.capped }
-}
+// The shared fetch runs gh and asks models through this session's engine.
+const ghOf = ($: EngineInterface): Gh => (args, env) => gh($, args, env)
+const summarizerOf = ($: EngineInterface, env: Record<string, string>): Summarizer => ({
+  summary: (hit, detail, prev) => summarize($, hit, detail, prev),
+  since: (repo, from, to) => summarizeSince($, repo, from, to, env),
+})
 
 // Each group is its own paged search, three at a time; one that fails keeps its error and leaves the others.
 async function fetchGroups($: EngineInterface, env: Record<string, string>): Promise<Record<string, GroupResult>> {
@@ -583,7 +462,7 @@ async function fetchGroups($: EngineInterface, env: Record<string, string>): Pro
       groups.slice(i, i + 3).map(async group => {
         const q = groupQuery(group)
         try {
-          const found: Pages<GqlHit> = await searchAll($, GROUP_QUERY, { q }, env, GROUP_HITS)
+          const found: Pages<GqlHit> = await searchAll(ghOf($), GROUP_QUERY, { q }, env, GROUP_HITS)
           results[group.id] = { query: q, count: found.count ?? found.nodes.length, hits: toHits(found.nodes) }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -801,7 +680,7 @@ async function refreshStyle($: EngineInterface, env: Record<string, string>) {
   const file = await readJson($, styleFile(), {} as StyleFile)
   if (file === undefined || !shouldBuildStyle(file, Date.now())) return
   try {
-    const reviewed: Pages<GqlReviewed> = await searchAll($, STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
+    const reviewed: Pages<GqlReviewed> = await searchAll(ghOf($), STYLE_QUERY, { q: styleQuery(config.scope) }, env, STYLE_PRS, STYLE_JQ)
     const samples = styleSamples(reviewed.nodes, reviewed.login ?? '')
     const prompt = stylePrompt(samples)
     if (prompt === undefined) {
@@ -1250,10 +1129,10 @@ async function sync($: EngineInterface, force = false) {
     try {
       env = await ghEnv($)
       const [tabs, groups, notifications, fetched] = await Promise.all([
-        fetchTabs($, env, file.issues ?? [], save),
+        fetchTabs(ghOf($), config.scope, env, file.issues ?? [], save),
         fetchGroups($, env).then(async found => (await save({ groups: found }), found)),
         fetchActivity($, env, file.activity).then(async found => (await save({ activity: found }), found)),
-        fetchInbox($, env, file.items, () => save({})).then(async found => (await save({ items: found.items }), found)),
+        fetchInbox(ghOf($), config.scope, env, file.items, summarizerOf($, env), () => save({})).then(async found => (await save({ items: found.items }), found)),
       ])
       result = { items: fetched.items, ...tabs, groups, activity: notifications, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: Date.now() }
     } catch (error) {
