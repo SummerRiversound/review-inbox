@@ -12,6 +12,8 @@ import type { Capped, InboxFile, InboxItem, IssueItem, MyPr } from './types'
 
 // Runs `gh` with these arguments and extra environment, `stdin` on its input, and gives its output; throws when gh fails.
 export type Gh = (args: string[], env: Record<string, string>, stdin?: string) => Promise<string>
+// The error a fetch keeps when the daemon machine has no `gh` at all; the panel words it as setup help.
+export const GH_MISSING = 'gh-missing'
 
 // Lists fetched so far, merged into the claimed file as each one arrives.
 export type Save = (lists: Partial<InboxFile>) => Promise<void>

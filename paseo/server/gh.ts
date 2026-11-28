@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { spawnProcess, terminateProcess } from '@getpaseo/plugin/server'
-import type { Gh } from '../shared/fetch'
+import { GH_MISSING, type Gh } from '../shared/fetch'
 
 // The mod's limits: two minutes a call, and a search page cut by jq stays far under this.
 const TIMEOUT_MS = 120_000
@@ -23,7 +23,7 @@ export const gh: Gh = (args, env, stdin) =>
       if (out.length > MAX_OUTPUT) fail(`gh ${args[0]} output too large`)
     })
     child.stderr.on('data', (chunk: Buffer) => (err += chunk.toString()))
-    child.on('error', error => fail(error.message))
+    child.on('error', error => fail(spawnFailure(error)))
     child.on('close', code => {
       clearTimeout(timer)
       if (code === 0) resolve(out)
@@ -31,6 +31,9 @@ export const gh: Gh = (args, env, stdin) =>
     })
     child.stdin.end(stdin ?? '')
   })
+
+// A gh that could not start: missing from PATH is setup, anything else is its own message.
+export const spawnFailure = (error: Error & { code?: string }): string => (error.code === 'ENOENT' ? GH_MISSING : error.message)
 
 // The account named in the settings, read through gh's own login; none named means gh's active one.
 export const ghEnv = async (run: Gh, githubUser: string): Promise<Record<string, string>> =>

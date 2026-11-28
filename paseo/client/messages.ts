@@ -7,6 +7,7 @@ const en = {
   autoRunning: 'auto review running',
   noAgent: 'Open an agent first: the request goes into its prompt.',
   pending: 'Pending review',
+  ghMissing: 'GitHub CLI (gh) is not installed on the machine running Paseo. Install it from cli.github.com, then sign in with gh auth login.',
   github: 'Open on GitHub',
   settings: {
     title: 'Review inbox',
@@ -35,6 +36,7 @@ const ko: typeof en = {
   autoRunning: '자동 리뷰 진행 중',
   noAgent: '먼저 에이전트를 열어 주세요. 요청은 그 입력창에 들어갑니다.',
   pending: '임시 리뷰 보기',
+  ghMissing: 'Paseo가 도는 기기에 GitHub CLI(gh)가 없습니다. cli.github.com에서 설치한 뒤 gh auth login으로 로그인하세요.',
   github: 'GitHub에서 열기',
   settings: {
     title: '리뷰 인박스',

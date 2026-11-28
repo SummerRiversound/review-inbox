@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { z } from 'zod'
 import type { Messages } from '../shared/i18n'
 import { severityCounts } from '../shared/autoreview'
+import { GH_MISSING } from '../shared/fetch'
 import { ageColor, itemKey, reviewPrompt, waitingDays } from '../shared/inbox'
 import { atLeast, issueHide, prHide, REFERENCE_DAYS, reviewers, stateColor, taskOf, taskPrompts, workWhere } from '../shared/tabs'
 import type { AutoState, InboxItem, IssueItem, MyPr } from '../shared/types'
@@ -239,7 +240,7 @@ function Inbox({ theme, layout, state, setState }: { theme: PluginTheme; layout:
             <Icon name="RefreshCw" size={14} color={view.status === 'loading' ? c.foregroundMuted : c.foreground} />
           </Pressable>
         </View>
-        {view.status === 'error' && view.error !== null ? <Text style={s.error}>{m.status.error(view.error)}</Text> : null}
+        {view.status === 'error' && view.error !== null ? <Text style={s.error}>{view.error === GH_MISSING ? t('ghMissing') : m.status.error(view.error)}</Text> : null}
       </View>
       <View style={s.seg} accessibilityRole="tablist">
         {TABS.map(tab => {
