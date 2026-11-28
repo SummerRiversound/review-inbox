@@ -1,10 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { InboxItem } from '../types'
-import { MESSAGES } from '../hooks/i18n'
+import { MESSAGES } from '../paseo/shared/i18n'
 import {
   INBOX_QUERY, REFRESH_MS, detailsOf, headCommittedAt, detailsText, RETRY_MS, TORN_MS, ageColor, cacheKey, searchQuery, failedSummary, minutesSince, requestedAt, shownReady, isHidden, isTorn, reusableSummary, shouldFetch, lastReviewedSha, newArrivals, parseSummary, requestedTeam, reviewPrompt, reviewPrompts, parseReviewSkill, hasRequest, sinceRules, sortItems, summaryRules,
-} from '../hooks/inbox'
+} from '../paseo/shared/inbox'
 
 const { en, ko } = MESSAGES
 

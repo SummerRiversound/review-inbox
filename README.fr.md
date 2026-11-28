@@ -254,7 +254,7 @@ Le bandeau, la boîte de réception, les notifications, la demande de revue ins�
 
 Les résumés et la description de votre style de revue sont mis en cache par langue : changer de langue fait donc rédiger chaque résumé, et cette description, une fois de plus dans la nouvelle langue. Pour toute autre langue, l'anglais est utilisé.
 
-Les langues autres que l'anglais et le coréen ont été traduites avec Claude et n'ont pas encore été relues par des locuteurs natifs. Ce README a été traduit de la même manière. Les corrections sont les bienvenues sous forme d'issue ou de pull request : chaque langue tient dans un fichier de [`hooks/locales/`](hooks/locales/), et la table anglaise, sur laquelle toutes les autres s'alignent, se trouve dans [`hooks/i18n.ts`](hooks/i18n.ts).
+Les langues autres que l'anglais et le coréen ont été traduites avec Claude et n'ont pas encore été relues par des locuteurs natifs. Ce README a été traduit de la même manière. Les corrections sont les bienvenues sous forme d'issue ou de pull request : chaque langue tient dans un fichier de [`paseo/shared/locales/`](paseo/shared/locales/), et la table anglaise, sur laquelle toutes les autres s'alignent, se trouve dans [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts).
 
 ## Ce que le mod lit et exécute
 

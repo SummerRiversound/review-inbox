@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Note } from '../types'
-import { NOTE_KEEP_MS, isSnoozed, keptNotes, matches, snoozeUntil } from '../hooks/notes'
+import { NOTE_KEEP_MS, isSnoozed, keptNotes, matches, snoozeUntil } from '../paseo/shared/notes'
 
 test('a snooze ends at nine in the morning, tomorrow or on the next Monday', async () => {
   // Tuesday 2026-10-20, late evening.

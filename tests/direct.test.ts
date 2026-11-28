@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { InboxItem, MyPr } from '../types'
-import { autoPost, canMerge, issueActions, prActions, reviewActions, writeArgs } from '../hooks/direct'
+import { autoPost, canMerge, issueActions, prActions, reviewActions, writeArgs } from '../paseo/shared/direct'
 
 const pr = (more: Partial<MyPr>): MyPr =>
   ({ repo: 'o/r', number: 1, title: 't', url: 'u', createdAt: '2026-10-01T00:00:00Z', state: 'waiting', ciPending: false, newReviews: [], headSha: 'abc', ...more })

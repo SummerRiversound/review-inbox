@@ -254,7 +254,7 @@ La franja, la bandeja, los avisos, la solicitud de revisión que se añade a tu 
 
 Los resúmenes y la descripción de tu estilo de revisión se guardan en caché por idioma, así que al cambiar de idioma cada resumen, y esa descripción, se vuelven a escribir una vez en el nuevo. Cualquier otro idioma recurre al inglés.
 
-Los idiomas distintos del inglés y el coreano se tradujeron con Claude y todavía no los han revisado hablantes nativos; este README se tradujo de la misma manera. Las correcciones son bienvenidas como incidencia o pull request: cada idioma es un archivo en [`hooks/locales/`](hooks/locales/), y la tabla en inglés, que siguen todas las demás, está en [`hooks/i18n.ts`](hooks/i18n.ts).
+Los idiomas distintos del inglés y el coreano se tradujeron con Claude y todavía no los han revisado hablantes nativos; este README se tradujo de la misma manera. Las correcciones son bienvenidas como incidencia o pull request: cada idioma es un archivo en [`paseo/shared/locales/`](paseo/shared/locales/), y la tabla en inglés, que siguen todas las demás, está en [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts).
 
 ## Qué lee y qué ejecuta
 

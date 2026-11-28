@@ -254,7 +254,7 @@ GitHub 只向 gh 本身的登入和傳統權杖提供通知。沒有權限時，
 
 摘要和審查風格描述會依語言分別快取，因此切換語言後，每份摘要和該描述都會用新語言再產生一次。其他任何語言都會改用英文。
 
-英文和韓文以外的語言是用 Claude 翻譯的，尚未經過母語人士檢查；這份 README 也是用同樣的方式翻譯。歡迎透過議題或 pull request 提出修正：每種語言都是 [`hooks/locales/`](hooks/locales/) 中的一個檔案，而其他所有語言都依循的英文對照表位於 [`hooks/i18n.ts`](hooks/i18n.ts)。
+英文和韓文以外的語言是用 Claude 翻譯的，尚未經過母語人士檢查；這份 README 也是用同樣的方式翻譯。歡迎透過議題或 pull request 提出修正：每種語言都是 [`paseo/shared/locales/`](paseo/shared/locales/) 中的一個檔案，而其他所有語言都依循的英文對照表位於 [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts)。
 
 ## 讀取與執行的內容
 

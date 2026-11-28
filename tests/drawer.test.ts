@@ -3,9 +3,9 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { TestBody } from 'claude-code/testing'
 
 import type { Activity, GroupResult, InboxItem, IssueItem, MyPr, Presence, Thread } from '../types'
-import { contentKey, switchedOn } from '../hooks/autoreview'
-import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
-import { prSeenKeys } from '../hooks/tabs'
+import { contentKey, switchedOn } from '../paseo/shared/autoreview'
+import { INBOX_FORMAT, cacheKey } from '../paseo/shared/inbox'
+import { prSeenKeys } from '../paseo/shared/tabs'
 
 const PANE = {
   plugin: 'review-inbox',

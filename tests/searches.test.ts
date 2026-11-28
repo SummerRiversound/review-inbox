@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { GroupResult, SearchGroup } from '../types'
-import { MESSAGES } from '../hooks/i18n'
-import { GROUP_QUERY, MAX_GROUPS, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from '../hooks/searches'
+import { MESSAGES } from '../paseo/shared/i18n'
+import { GROUP_QUERY, MAX_GROUPS, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from '../paseo/shared/searches'
 
 const m = MESSAGES.en
 const group = (over: Partial<SearchGroup>): SearchGroup => ({ id: 'g', name: 'G', query: 'org:acme', scope: 'prs', ...over })

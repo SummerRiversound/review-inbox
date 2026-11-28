@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { isGatewayTimeout, MIN_PAGE, PAGE_SIZE, readPages } from '../hooks/pages'
-import type { Page } from '../hooks/pages'
+import { isGatewayTimeout, MIN_PAGE, PAGE_SIZE, readPages } from '../paseo/shared/pages'
+import type { Page } from '../paseo/shared/pages'
 
 type Node = { n: number }
 const TIMEOUT = "invalid character '<' looking for beginning of value"

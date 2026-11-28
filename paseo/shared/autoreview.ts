@@ -1,4 +1,4 @@
-import type { AutoResult, AutoReviewFile, AutoState, Finding, InboxItem, RepoPaths, Severity, Verdict } from '../types'
+import type { AutoResult, AutoReviewFile, AutoState, Finding, InboxItem, RepoPaths, Severity, Verdict } from './types'
 import { itemKey } from './inbox'
 import { AUTO_MARK } from './style'
 

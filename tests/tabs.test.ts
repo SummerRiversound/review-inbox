@@ -1,14 +1,14 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { IssueItem, MyPr } from '../types'
-import type { GqlMyPr, GqlReferenced, GqlTouched } from '../hooks/tabs'
-import { MESSAGES } from '../hooks/i18n'
-import { INBOX_QUERY } from '../hooks/inbox'
-import { STYLE_QUERY } from '../hooks/style'
+import type { GqlMyPr, GqlReferenced, GqlTouched } from '../paseo/shared/tabs'
+import { MESSAGES } from '../paseo/shared/i18n'
+import { INBOX_QUERY } from '../paseo/shared/inbox'
+import { STYLE_QUERY } from '../paseo/shared/style'
 import {
   awayText, bandCounts, bandLabels, droppedCounts, issueAlerts, issueHide, issueKey, isIssueHidden, isPrHidden, prAlertText, prHide, prAlerts, prSeenKeys, referencesQuery, REFERENCES_QUERY, TAB_QUERIES, tabQueries, taskOf, taskPrompts, toIssues, toMyPrs, toReferences,
   sortCards,
-} from '../hooks/tabs'
+} from '../paseo/shared/tabs'
 
 type Review = GqlMyPr['reviews']['nodes'][number]
 // My latest commit in these fixtures is from 2026-10-05.

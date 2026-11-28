@@ -254,7 +254,7 @@ GitHub 只向 gh 自己的登录和经典令牌提供通知。没有权限时，
 
 摘要和审查风格描述按语言分别缓存，因此切换语言后，每条摘要和该描述都会用新语言再生成一次。其他语言一律回退到英语。
 
-英语和韩语以外的语言由 Claude 翻译，尚未经过母语者检查；本 README 也是用同样的方式翻译的。欢迎通过议题或 pull request 提交更正：每种语言对应 [`hooks/locales/`](hooks/locales/) 中的一个文件，其他所有语言表都以英语表为准，英语表位于 [`hooks/i18n.ts`](hooks/i18n.ts)。
+英语和韩语以外的语言由 Claude 翻译，尚未经过母语者检查；本 README 也是用同样的方式翻译的。欢迎通过议题或 pull request 提交更正：每种语言对应 [`paseo/shared/locales/`](paseo/shared/locales/) 中的一个文件，其他所有语言表都以英语表为准，英语表位于 [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts)。
 
 ## 读取和运行的内容
 
