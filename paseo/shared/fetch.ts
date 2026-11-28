@@ -10,8 +10,8 @@ import type { Capped, InboxFile, InboxItem, IssueItem, MyPr } from './types'
 // How the inbox is read from GitHub, the same for the mod and the Paseo plugin: each passes in how it
 // runs `gh` (and, for the review list, how it asks a model), so only the running differs.
 
-// Runs `gh` with these arguments and extra environment, and gives its output; throws when gh fails.
-export type Gh = (args: string[], env: Record<string, string>) => Promise<string>
+// Runs `gh` with these arguments and extra environment, `stdin` on its input, and gives its output; throws when gh fails.
+export type Gh = (args: string[], env: Record<string, string>, stdin?: string) => Promise<string>
 
 // Lists fetched so far, merged into the claimed file as each one arrives.
 export type Save = (lists: Partial<InboxFile>) => Promise<void>

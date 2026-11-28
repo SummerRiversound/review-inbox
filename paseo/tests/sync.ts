@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Gh, Summarizer } from '../shared/fetch'
 import { RETRY_MS } from '../shared/inbox'
-import type { InboxConfig } from '../shared/settings'
+import { DEFAULT_CONFIG, type InboxConfig } from '../shared/settings'
 import type { InboxFile } from '../shared/types'
 import { toView } from '../shared/view'
 import { ghEnv } from '../server/gh'
@@ -39,7 +39,7 @@ function fakeGh(fail = false) {
 // The summaries a fetch writes are the titles, so the lists are checked without a model.
 const titleOnly: Summarizer = { summary: async hit => ({ summary: hit.title, why: '', impact: [] }), since: async () => undefined }
 
-function setup(gh: Gh, config: InboxConfig = { scope: '', githubUser: '' }) {
+function setup(gh: Gh, config: InboxConfig = DEFAULT_CONFIG) {
   let now = 1_000_000
   const files = new Map<string, InboxFile>()
   const key = (c: InboxConfig) => `${c.githubUser}|${c.scope}`
@@ -112,7 +112,7 @@ test('a failed fetch keeps the last lists, says why, and retries in a minute', a
 
 test('a named account reads GitHub with that login’s token', async () => {
   const { gh, calls } = fakeGh()
-  const s = setup(gh, { scope: 'org:o', githubUser: 'me-work' })
+  const s = setup(gh, { ...DEFAULT_CONFIG, scope: 'org:o', githubUser: 'me-work' })
   await s.sync()
   assert.equal(calls[0]!.args, 'auth token -u me-work')
   const searches = calls.filter(c => c.args.startsWith('api graphql'))
