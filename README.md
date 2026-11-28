@@ -254,7 +254,7 @@ The band, the drawer, the toasts, the review request put into your prompt, and t
 
 Summaries and the description of your review style are kept per language, so switching writes each summary, and that description, once more in the new language. Any other language falls back to English.
 
-Languages other than English and Korean were translated with Claude and have not been checked by native speakers yet. Corrections are welcome as an issue or a pull request: each language is one file in [`hooks/locales/`](hooks/locales/), and the English table, which every other table follows, is in [`hooks/i18n.ts`](hooks/i18n.ts).
+Languages other than English and Korean were translated with Claude and have not been checked by native speakers yet. Corrections are welcome as an issue or a pull request: each language is one file in [`paseo/shared/locales/`](paseo/shared/locales/), and the English table, which every other table follows, is in [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts).
 
 ## What it reads and runs
 

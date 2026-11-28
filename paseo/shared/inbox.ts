@@ -1,4 +1,4 @@
-import type { CardDetails, Impact, InboxFile, InboxItem } from '../types'
+import type { CardDetails, Impact, InboxFile, InboxItem } from './types'
 import { MESSAGES } from './i18n'
 import { PAGE, PAGE_ARGS } from './pages'
 import type { Language, Messages } from './i18n'

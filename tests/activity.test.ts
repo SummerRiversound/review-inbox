@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { byReason, hasNextPage, htmlUrl, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, toThread } from '../hooks/activity'
+import { byReason, hasNextPage, htmlUrl, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, toThread } from '../paseo/shared/activity'
 
 const raw = (over: Partial<Parameters<typeof toThread>[0]> = {}) => ({
   id: '7',

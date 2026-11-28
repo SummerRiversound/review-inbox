@@ -1,4 +1,4 @@
-import type { DirectAction, DirectTarget, InboxItem, IssueItem, MyPr, Verdict } from '../types'
+import type { DirectAction, DirectTarget, InboxItem, IssueItem, MyPr, Verdict } from './types'
 
 // A confirm row left alone goes back to the card's buttons.
 export const CONFIRM_MS = 10_000

@@ -35,7 +35,7 @@ import {
   settingRowKey,
   verifierPrompt,
   trackHeads,
-} from '../hooks/autoreview'
+} from '../paseo/shared/autoreview'
 
 const HOUR = 60 * 60_000
 const T0 = Date.parse('2026-10-27T09:00:00Z')

@@ -1,4 +1,4 @@
-import type { Actions, ButtonError, ButtonScope, CardButton, GroupScope, SearchGroup } from '../types'
+import type { Actions, ButtonError, ButtonScope, CardButton, GroupScope, SearchGroup } from './types'
 import type { Messages } from './i18n'
 
 export const ACTIONS_FILE = 'actions.json'

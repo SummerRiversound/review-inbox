@@ -1,4 +1,4 @@
-import type { Thread } from '../types'
+import type { Thread } from './types'
 
 // The newest threads read; GitHub serves at most 50 a page.
 export const ACTIVITY_LIMIT = 100

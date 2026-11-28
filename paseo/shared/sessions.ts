@@ -1,4 +1,4 @@
-import type { Presence, RepoPaths } from '../types'
+import type { Presence, RepoPaths } from './types'
 
 // A session checks in every 30 seconds; one silent this long was closed or killed without a word.
 export const SESSION_STALE_MS = 10 * 60_000

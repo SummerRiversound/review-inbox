@@ -1,4 +1,4 @@
-import type { Note } from '../types'
+import type { Note } from './types'
 
 // shortcut: the first 2,000 characters of a body are searched; raise it if bodies are searched past that, mindful of gh's 4 MiB output cap
 export const BODY_CHARS = 2_000

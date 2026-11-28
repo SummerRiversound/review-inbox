@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Presence } from '../types'
-import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, shouldReload, placeOf, remember, repoOf, thisRepos, workingOn } from '../hooks/sessions'
+import { SESSION_STALE_MS, hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, shouldReload, placeOf, remember, repoOf, thisRepos, workingOn } from '../paseo/shared/sessions'
 
 const at = Date.UTC(2026, 9, 20, 12)
 const presence = (over: Partial<Presence>): Presence => ({ at, folder: 'review-inbox', remotes: [], prs: [], ...over })

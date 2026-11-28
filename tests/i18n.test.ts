@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { LANGUAGES, MESSAGES, pickLanguage } from '../hooks/i18n'
+import { LANGUAGES, MESSAGES, pickLanguage } from '../paseo/shared/i18n'
 
 // Every key path, with a function's arity, so a missing or misshapen entry fails here and not on screen.
 function shape(value: unknown, path = ''): string[] {

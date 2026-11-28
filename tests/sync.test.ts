@@ -1,8 +1,8 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-import { INBOX_FORMAT, cacheKey } from '../hooks/inbox'
-import { styleQuery } from '../hooks/style'
+import { INBOX_FORMAT, cacheKey } from '../paseo/shared/inbox'
+import { styleQuery } from '../paseo/shared/style'
 
 // Where the mod keeps the inbox for HOME=/home/me with no scope, no account and English.
 const INBOX = `/home/me/.claude/plugins/data/review-inbox/inbox-${cacheKey('', '', 'en')}-f${INBOX_FORMAT}.json`

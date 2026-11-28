@@ -1,4 +1,4 @@
-import type { IssueKind, MyPrState, TaskKind } from '../types'
+import type { IssueKind, MyPrState, TaskKind } from './types'
 import type { AutoSettingKey } from './autoreview'
 import { de } from './locales/de'
 import { es } from './locales/es'

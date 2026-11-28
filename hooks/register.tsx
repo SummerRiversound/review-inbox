@@ -91,15 +91,15 @@ import {
   startedToday,
   tokensOf,
   trackHeads,
-} from './autoreview'
-import type { AutoSettingKey, AutoSettings, GhComment, GhReview, PrFile, ReviewerTools, RunFacts } from './autoreview'
-import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from './actions'
-import type { Vars } from './actions'
-import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from './direct'
-import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from './activity'
-import type { RawThread } from './activity'
-import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from './searches'
-import type { GqlHit } from './searches'
+} from '../paseo/shared/autoreview'
+import type { AutoSettingKey, AutoSettings, GhComment, GhReview, PrFile, ReviewerTools, RunFacts } from '../paseo/shared/autoreview'
+import { ACTIONS_FILE, MAX_PER_SCOPE, VARIABLES, builtInButtons, errorText, fillTemplate, mergeById, parseActions } from '../paseo/shared/actions'
+import type { Vars } from '../paseo/shared/actions'
+import { AUTO_ACTIONS, STALE_ACTIONS, CONFIRM_GUARD_MS, CONFIRM_MS, autoPost, canMerge, checksHead, failedRunsArgs, headArgs, isAutoAction, issueActions, needsConfirm, prActions, rerunArgs, reviewActions, writeArgs } from '../paseo/shared/direct'
+import { ACTIVITY_LIMIT, THREAD_JQ, UNDO_MS, byReason, hasNextPage, isThreadHidden, notificationsPath, pollAfter, shownThreads, splitResponse, threadKey, toThread } from '../paseo/shared/activity'
+import type { RawThread } from '../paseo/shared/activity'
+import { GROUP_HITS, GROUP_QUERY, bandSearchCount, groupQuery, resultOf, searchGroups, searchUrl, toHits } from '../paseo/shared/searches'
+import type { GqlHit } from '../paseo/shared/searches'
 import {
   CLAIM_MS,
   cacheKey,
@@ -133,17 +133,17 @@ import {
   summaryRules,
   toDetail,
   waitingDays,
-} from './inbox'
-import type { GqlPr, PendingReview, PrDetail, SearchHit, Summary } from './inbox'
-import { isLanguage, MESSAGES, pickLanguage } from './i18n'
-import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from './notes'
-import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from './sessions'
-import type { Place, ReloadRequest } from './sessions'
-import type { Language, Messages } from './i18n'
-import { isGatewayTimeout, readPages, SEARCH_LIMIT } from './pages'
-import type { Page, Pages } from './pages'
-import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from './style'
-import type { GqlReviewed, StyleFile } from './style'
+} from '../paseo/shared/inbox'
+import type { GqlPr, PendingReview, PrDetail, SearchHit, Summary } from '../paseo/shared/inbox'
+import { isLanguage, MESSAGES, pickLanguage } from '../paseo/shared/i18n'
+import { BODY_CHARS, isSnoozed, keptNotes, matches, snoozeUntil } from '../paseo/shared/notes'
+import { hereFirst, isHere, liveSessions, mainCheckout, mappedPath, olderSessions, parseRepoPaths, placeOf, remember, repoOf, shouldReload, thisRepos, workingOn } from '../paseo/shared/sessions'
+import type { Place, ReloadRequest } from '../paseo/shared/sessions'
+import type { Language, Messages } from '../paseo/shared/i18n'
+import { isGatewayTimeout, readPages, SEARCH_LIMIT } from '../paseo/shared/pages'
+import type { Page, Pages } from '../paseo/shared/pages'
+import { STYLE_JQ, STYLE_PRS, STYLE_QUERY, STYLE_RETRY_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from '../paseo/shared/style'
+import type { GqlReviewed, StyleFile } from '../paseo/shared/style'
 import {
   REFERENCES_QUERY,
   AUTHORED_DAYS,
@@ -180,9 +180,8 @@ import {
   toMyPrs,
   toReferences,
   workWhere,
-} from './tabs'
-import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from './tabs'
-
+} from '../paseo/shared/tabs'
+import type { BandCounts, GqlMyPr, GqlReferenced, GqlTouched, Task } from '../paseo/shared/tabs'
 const PANE = 'review-inbox'
 // Reading the shared file is a local disk read, so every session can afford it often.
 const SYNC_MS = 30_000

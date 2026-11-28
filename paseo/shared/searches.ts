@@ -1,4 +1,4 @@
-import type { GroupHit, GroupResult, SearchGroup } from '../types'
+import type { GroupHit, GroupResult, SearchGroup } from './types'
 import { mergeById } from './actions'
 import type { Messages } from './i18n'
 import { PAGE, PAGE_ARGS } from './pages'

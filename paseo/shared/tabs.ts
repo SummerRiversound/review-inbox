@@ -1,4 +1,4 @@
-import type { Capped, IssueItem, MyPr, MyPrState, Sort, TaskKind } from '../types'
+import type { Capped, IssueItem, MyPr, MyPrState, Sort, TaskKind } from './types'
 import type { Messages } from './i18n'
 import { DETAILS_FIELDS, detailsOf, hasRequest } from './inbox'
 import type { GqlDetails } from './inbox'
@@ -315,8 +315,12 @@ export function bandCounts(reviews: number, prs: MyPr[], issues: IssueItem[], se
 
 // Zeros are left out.
 export function bandLabels(counts: BandCounts, m: Messages, capped: Capped = {}): string[] {
-  const tabOf = { reviews: 'review', prTodo: 'mine', searches: 'searches' } as const
-  return BAND_KEYS.filter(k => counts[k] > 0).map(k => m.band[k](atLeast(counts[k], capped[tabOf[k]])))
+  // The search groups' count has no cap of its own.
+  const tabOf: Record<(typeof BAND_KEYS)[number], keyof Capped | undefined> = { reviews: 'review', prTodo: 'mine', searches: undefined }
+  return BAND_KEYS.filter(k => counts[k] > 0).map(k => {
+    const tab = tabOf[k]
+    return m.band[k](atLeast(counts[k], tab !== undefined && capped[tab] === true))
+  })
 }
 
 // A count that went down but not to zero, which leaves the band: what the band flashes for a moment.

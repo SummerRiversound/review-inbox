@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
-import { builtInButtons, errorText, fillTemplate, mergeById, parseActions, unknownVariables } from '../hooks/actions'
-import { MESSAGES } from '../hooks/i18n'
+import { builtInButtons, errorText, fillTemplate, mergeById, parseActions, unknownVariables } from '../paseo/shared/actions'
+import { MESSAGES } from '../paseo/shared/i18n'
 
 const m = MESSAGES.en
 

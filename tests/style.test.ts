@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { STYLE_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from '../hooks/style'
+import { STYLE_MS, STYLE_RULES, learnedStyle, parseStyle, shouldBuildStyle, stylePrompt, styleQuery, styleRules, styleSamples } from '../paseo/shared/style'
 
 const review = (login: string | null, body: string, comments: string[] = []) => ({
   author: login === null ? null : { login },

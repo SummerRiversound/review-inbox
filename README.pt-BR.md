@@ -254,7 +254,7 @@ A barra, a caixa de revisões, os avisos, o pedido de revisão colocado no seu p
 
 Os resumos e a descrição do seu estilo de revisão ficam em cache por idioma; por isso, ao trocar de idioma, cada resumo e essa descrição são escritos mais uma vez no novo idioma. Qualquer outro idioma cai para o inglês.
 
-Os idiomas além do inglês e do coreano foram traduzidos com o Claude e ainda não foram revisados por falantes nativos; este README foi traduzido da mesma forma. Correções são bem-vindas como issue ou pull request: cada idioma é um arquivo em [`hooks/locales/`](hooks/locales/), e a tabela em inglês, que todas as outras seguem, está em [`hooks/i18n.ts`](hooks/i18n.ts).
+Os idiomas além do inglês e do coreano foram traduzidos com o Claude e ainda não foram revisados por falantes nativos; este README foi traduzido da mesma forma. Correções são bem-vindas como issue ou pull request: cada idioma é um arquivo em [`paseo/shared/locales/`](paseo/shared/locales/), e a tabela em inglês, que todas as outras seguem, está em [`paseo/shared/i18n.ts`](paseo/shared/i18n.ts).
 
 ## O que ele lê e executa
 
