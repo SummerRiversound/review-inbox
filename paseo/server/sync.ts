@@ -6,17 +6,13 @@ import type { InboxFile } from '../shared/types'
 export type SyncDeps = {
   gh: Gh
   env: (githubUser: string) => Promise<Record<string, string>>
+  // How a fetch summarizes the PRs it reads, under the account's environment.
+  summarizer: (env: Record<string, string>) => Summarizer
   config: () => Promise<InboxConfig>
   load: (config: InboxConfig) => Promise<InboxFile | undefined>
   save: (config: InboxConfig, file: InboxFile) => Promise<void>
   now: () => number
   refreshMs: number
-}
-
-// shortcut: no model yet, so a card's summary is its title; `summaryFailed: 0` keeps it from being reused once a model summarizes.
-export const titleOnly: Summarizer = {
-  summary: async hit => ({ summary: hit.title, why: '', impact: [], summaryFailed: 0 }),
-  since: async () => undefined,
 }
 
 // The mod's fetch without its claim between sessions: one daemon fetches, one fetch at a time.
@@ -45,7 +41,7 @@ export function createSync(deps: SyncDeps) {
       const env = await deps.env(config.githubUser)
       const [tabs, fetched] = await Promise.all([
         fetchTabs(deps.gh, config.scope, env, file.issues ?? [], save),
-        fetchInbox(deps.gh, config.scope, env, file.items, titleOnly, () => save({})).then(async found => (await save({ items: found.items }), found)),
+        fetchInbox(deps.gh, config.scope, env, file.items, deps.summarizer(env), () => save({})).then(async found => (await save({ items: found.items }), found)),
       ])
       result = { ...file, items: fetched.items, ...tabs, capped: { ...tabs.capped, review: fetched.capped }, fetchedAt: deps.now() }
       delete result.retryAt

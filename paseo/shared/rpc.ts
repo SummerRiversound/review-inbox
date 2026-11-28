@@ -10,6 +10,8 @@ const row = z.object({
   author: z.string().nullable(),
   // review: draft or nothing; mine: what I have to do next; issues: why it is on the list.
   tag: z.string().nullable(),
+  // review: what the change does, once a model summarized it.
+  summary: z.string().nullable(),
 })
 
 export const inboxView = z.object({

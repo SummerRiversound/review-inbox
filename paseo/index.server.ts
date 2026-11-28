@@ -1,6 +1,8 @@
 import type { PluginServerContext } from '@getpaseo/plugin/server'
 import { gh, ghEnv } from './server/gh'
-import { loadInbox, saveInbox } from './server/store'
+import { claudeAsk } from './server/ask'
+import { LANGUAGE, loadInbox, saveInbox } from './server/store'
+import { summarizer } from './server/summarize'
 import { createSync } from './server/sync'
 import { PASEO_ENV } from './shared/host'
 import { REFRESH_MS } from './shared/inbox'
@@ -17,7 +19,7 @@ export default function contribute(server: PluginServerContext) {
     const read = await settings.read()
     return read.status === 'ready' ? read.values : { scope: '', githubUser: '' }
   }
-  const { sync, isFetching } = createSync({ gh, env: user => ghEnv(gh, user), config, load: loadInbox, save: saveInbox, now: Date.now, refreshMs: REFRESH_MS })
+  const { sync, isFetching } = createSync({ gh, env: user => ghEnv(gh, user), summarizer: env => summarizer(claudeAsk, gh, env, LANGUAGE), config, load: loadInbox, save: saveInbox, now: Date.now, refreshMs: REFRESH_MS })
   const fetch = (force: boolean) => void sync(force).catch(error => console.error('[review-inbox] fetch failed:', error))
 
   // Claude sessions Paseo opens carry the mark, so the review-inbox mod in them stops fetching.

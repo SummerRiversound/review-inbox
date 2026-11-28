@@ -28,6 +28,7 @@ export function InboxPanel({ theme, layout, tab }: PluginWorkspacePanelProps) {
       row: { paddingHorizontal: layout.compact ? 12 : 16, paddingVertical: 8, borderTopWidth: 1, borderTopColor: c.border },
       title: { color: c.foreground, fontSize: 14 },
       sub: { color: c.foregroundMuted, fontSize: 12, marginTop: 2 },
+      summary: { color: c.foreground, fontSize: 13, marginTop: 2 },
       empty: { color: c.foregroundMuted, fontSize: 13, padding: layout.compact ? 12 : 16 },
       error: { color: c.statusDanger, fontSize: 12, paddingHorizontal: layout.compact ? 12 : 16, paddingBottom: 8 },
     }),
@@ -80,6 +81,7 @@ export function InboxPanel({ theme, layout, tab }: PluginWorkspacePanelProps) {
           return (
             <Pressable key={row.key} accessibilityRole="link" accessibilityLabel={`${row.title}, ${sub}`} onPress={() => void openExternalUrl(row.url)} style={s.row}>
               <Text style={s.title} numberOfLines={2}>{row.title}</Text>
+              {row.summary !== null && <Text style={s.summary} numberOfLines={3}>{row.summary}</Text>}
               <Text style={s.sub} numberOfLines={1}>{sub}</Text>
             </Pressable>
           )

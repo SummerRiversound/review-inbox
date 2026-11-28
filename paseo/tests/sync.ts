@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { Gh } from '../shared/fetch'
+import type { Gh, Summarizer } from '../shared/fetch'
 import { RETRY_MS } from '../shared/inbox'
 import type { InboxConfig } from '../shared/settings'
 import type { InboxFile } from '../shared/types'
@@ -36,6 +36,9 @@ function fakeGh(fail = false) {
   return { gh, calls }
 }
 
+// The summaries a fetch writes are the titles, so the lists are checked without a model.
+const titleOnly: Summarizer = { summary: async hit => ({ summary: hit.title, why: '', impact: [] }), since: async () => undefined }
+
 function setup(gh: Gh, config: InboxConfig = { scope: '', githubUser: '' }) {
   let now = 1_000_000
   const files = new Map<string, InboxFile>()
@@ -43,6 +46,7 @@ function setup(gh: Gh, config: InboxConfig = { scope: '', githubUser: '' }) {
   const sync = createSync({
     gh,
     env: user => ghEnv(gh, user),
+    summarizer: () => titleOnly,
     config: async () => config,
     load: async c => files.get(key(c)),
     save: async (c, f) => void files.set(key(c), f),
